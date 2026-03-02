@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="{% block description %}Site educativo sobre o ICDAS — Sistema Internacional de Detecção e Avaliação de Cárie. Material teórico, galeria de imagens clínicas e quiz interativo.{% endblock %}">
+    <title>{% block title %}ICDAS — Sistema Internacional de Detecção e Avaliação de Cárie{% endblock %}</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
+</head>
+<body>
+    <header role="banner">
+        <nav class="container">
+            <ul>
+                <li>
+                    <img src="{{ url_for('static', filename='imagens/logo-ufjf-gv.png') }}"
+                         alt="Logo UFJF-GV" class="logo-ufjf">
+                    <strong>ICDAS Educacional</strong>
+                </li>
+            </ul>
+            <ul>
+                <li><a href="{{ url_for('home') }}"{% if request.endpoint == 'home' %} aria-current="page"{% endif %}>Início</a></li>
+                <li><a href="{{ url_for('galeria') }}"{% if request.endpoint == 'galeria' %} aria-current="page"{% endif %}>Galeria</a></li>
+                <li><a href="{{ url_for('quiz') }}"{% if request.endpoint in ('quiz', 'quiz_finalizar', 'quiz_resetar', 'quiz_modo') %} aria-current="page"{% endif %}>Quiz</a></li>
+                <li><a href="{{ url_for('sobre') }}"{% if request.endpoint == 'sobre' %} aria-current="page"{% endif %}>Sobre</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="container">
+        <small>
+            &copy; {{ now.year }} ICDAS Educacional &mdash;
+            Alan Anjos Miranda &mdash;
+            Orientação: Prof. Dr. Rodrigo Varella de Carvalho &mdash;
+            UFJF-GV
+        </small>
+    </footer>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

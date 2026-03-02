@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}Histórico de Desempenho — ICDAS{% endblock %}
+
+{% block content %}
+<hgroup>
+    <h2>Histórico de Desempenho</h2>
+    <p>Sessões registradas ao clicar em "Finalizar sessão" no quiz. Últimas 20 sessões exibidas.</p>
+</hgroup>
+
+{% if historico %}
+<figure>
+    <table>
+        <thead>
+            <tr>
+                <th scope="col">Data</th>
+                <th scope="col">Total de questões</th>
+                <th scope="col">Acertos</th>
+                <th scope="col">Aproveitamento</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for s in historico %}
+            <tr>
+                <td>{{ s["data"] }}</td>
+                <td>{{ s["total"] }}</td>
+                <td>{{ s["acertos"] }}</td>
+                <td>
+                    {% set pct = (s["acertos"] / s["total"] * 100) | round | int %}
+                    {% if pct >= 70 %}
+                        <strong class="text-success">{{ pct }}%</strong>
+                    {% else %}
+                        <span class="text-danger">{{ pct }}%</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</figure>
+{% else %}
+<article>
+    <p>Nenhuma sessão registrada ainda.</p>
+    <p>Complete algumas questões no quiz e clique em <strong>"Finalizar sessão"</strong> para registrar sua pontuação aqui.</p>
+    <a href="{{ url_for('quiz') }}" role="button">Ir para o Quiz</a>
+</article>
+{% endif %}
+{% endblock %}

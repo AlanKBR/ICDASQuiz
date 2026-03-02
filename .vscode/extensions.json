@@ -1,0 +1,7 @@
+{
+    "recommendations": [
+        // Jinja2 / Flask template syntax highlighting — required so the
+        // HTML linter does not flag valid Jinja2 syntax as errors.
+        "samuelcolvin.jinjahtml"
+    ]
+}

@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block title %}ICDAS - Página Inicial{% endblock %}
+
+{% block content %}
+    <section>
+        <h2>O que é ICDAS?</h2>
+        <p>
+            O <strong>ICDAS (International Caries Detection and Assessment System)</strong>, ou Sistema Internacional de Detecção e Avaliação de Cárie, é um sistema padronizado para a detecção e classificação de lesões cariosas, desenvolvido por um grupo internacional de pesquisadores e profissionais da área odontológica.
+        </p>
+        <p>
+            Este sistema foi projetado para:
+        </p>
+        <ul>
+            <li>Padronizar a detecção e diagnóstico de cáries em estágios iniciais e avançados</li>
+            <li>Classificar e avaliar a atividade da cárie</li>
+            <li>Auxiliar no diagnóstico precoce de lesões não cavitadas</li>
+            <li>Facilitar a comunicação entre profissionais de saúde bucal</li>
+            <li>Melhorar a acurácia em pesquisas epidemiológicas e clínicas</li>
+        </ul>
+        <p>
+            O ICDAS propõe uma abordagem mais preventiva, permitindo a identificação de lesões em estágios iniciais, quando intervenções menos invasivas podem ser mais efetivas.
+        </p>
+    </section>
+
+    <section>
+        <h2>Classificação ICDAS</h2>
+        <p>
+            O sistema ICDAS classifica as lesões de cárie em códigos de 0 a 6, baseando-se nas características visuais da superfície dentária:
+        </p>
+
+        <table class="icdas-table">
+            <thead>
+                <tr>
+                    <th>Código</th>
+                    <th>Descrição</th>
+                    <th>Definição Clínica</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>0</td>
+                    <td>Superfície dental saudável</td>
+                    <td>Nenhuma evidência de cárie após secagem prolongada com ar (5 segundos)</td>
+                </tr>
+                <tr>
+                    <td>1</td>
+                    <td>Primeira alteração visual no esmalte</td>
+                    <td>Alteração visível apenas após secagem ou restrita a fóssulas e fissuras</td>
+                </tr>
+                <tr>
+                    <td>2</td>
+                    <td>Alteração visual distinta no esmalte</td>
+                    <td>Opacidade branca ou descoloração visível sem secagem, mais extensa que fissuras e fóssulas</td>
+                </tr>
+                <tr>
+                    <td>3</td>
+                    <td>Descontinuidade localizada do esmalte</td>
+                    <td>Perda de estrutura do esmalte sem dentina visível</td>
+                </tr>
+                <tr>
+                    <td>4</td>
+                    <td>Sombreamento de dentina subjacente</td>
+                    <td>Sombreamento de dentina através do esmalte aparentemente intacto</td>
+                </tr>
+                <tr>
+                    <td>5</td>
+                    <td>Cavidade distinta com dentina visível</td>
+                    <td>Cavitação em esmalte expondo a dentina</td>
+                </tr>
+                <tr>
+                    <td>6</td>
+                    <td>Cavidade extensa com dentina visível</td>
+                    <td>Cavidade extensa com perda de estrutura dentária, com dentina claramente visível</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <p>
+            Para uma avaliação adequada, os dentes devem estar limpos e secos, e o exame deve ser realizado com boa iluminação.
+        </p>
+    </section>
+
+    <section>
+        <h2>Importância do ICDAS</h2>
+        <p>
+            O sistema ICDAS é fundamental para:
+        </p>
+        <ul>
+            <li>Detecção precoce de lesões iniciais não-cavitadas</li>
+            <li>Tomada de decisão baseada em evidências</li>
+            <li>Monitoramento de progressão de lesões ao longo do tempo</li>
+            <li>Implementação de tratamentos minimamente invasivos</li>
+            <li>Padronização de critérios em pesquisas clínicas</li>
+        </ul>
+
+        <p>
+            Visite nossa <a href="{{ url_for('galeria') }}">Galeria de Imagens</a> para visualizar exemplos dos diferentes estágios do ICDAS, ou teste seus conhecimentos no <a href="{{ url_for('quiz') }}">Quiz Interativo</a>.
+        </p>
+    </section>
+{% endblock %}

@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block title %}Galeria de Imagens — ICDAS{% endblock %}
+
+{% block description %}Galeria de imagens clínicas dos estágios ICDAS 0 a 6 com descrições detalhadas.{% endblock %}
+
+{% block content %}
+<hgroup>
+    <h2>Galeria de Imagens ICDAS</h2>
+    <p>Exemplos visuais dos diferentes estágios do ICDAS. Clique em um código para filtrar.</p>
+</hgroup>
+
+<div class="filtros">
+    <button data-icdas="todos" aria-current="true">Todos</button>
+    {% for i in range(7) %}
+    <button data-icdas="{{ i }}" class="outline secondary">ICDAS {{ i }}</button>
+    {% endfor %}
+</div>
+
+{% if imagens %}
+<div class="galeria" id="galeria">
+    {% for imagem in imagens %}
+    {% set desc = descricoes.get(imagem.icdas_code | string) %}
+    <article class="imagem-item" data-icdas="{{ imagem.icdas_code }}">
+        <img src="{{ url_for('static', filename=imagem.caminho) }}" alt="{{ imagem.nome }}" loading="lazy">
+        <div class="imagem-info">
+            <strong>ICDAS {{ imagem.icdas_code }}</strong>
+            {% if desc %}
+            <p><small>{{ desc.titulo }}</small></p>
+            {% endif %}
+            <p><small class="text-muted">{{ imagem.nome }}</small></p>
+        </div>
+    </article>
+    {% endfor %}
+</div>
+{% else %}
+<article>
+    <p>Nenhuma imagem encontrada em <code>static/imagens/</code>.</p>
+</article>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/galeria.js') }}"></script>
+{% endblock %}

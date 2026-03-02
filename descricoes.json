@@ -1,0 +1,37 @@
+{
+  "0": {
+    "titulo": "Superfície dental saudável",
+    "descricao_curta": "Nenhuma evidência de cárie após secagem prolongada de 5 segundos.",
+    "descricao_clinica": "A superfície encontra-se íntegra, sem manchas, opacidades ou descontinuidades. Após secagem com jato de ar por 5 segundos, nenhuma alteração é observada. O esmalte mantém sua translucidez e brilho normais."
+  },
+  "1": {
+    "titulo": "Primeira alteração visual no esmalte",
+    "descricao_curta": "Alteração visível apenas após secagem ou restrita a fóssulas e fissuras.",
+    "descricao_clinica": "Após secagem com ar por 5 segundos, observa-se opacidade branca ou marrom que não é visível em superfície úmida. Indica início de desmineralização do esmalte, geralmente restrita a fóssulas e fissuras."
+  },
+  "2": {
+    "titulo": "Alteração visual distinta no esmalte",
+    "descricao_curta": "Opacidade visível sem secagem, mais extensa que fissuras e fóssulas.",
+    "descricao_clinica": "Opacidade branca ou descoloração marrom visível a olho nu em superfície úmida, estendendo-se além das fissuras e fóssulas. Indica desmineralização mais avançada do esmalte sem cavitação macroscópica."
+  },
+  "3": {
+    "titulo": "Descontinuidade localizada do esmalte",
+    "descricao_curta": "Perda de estrutura do esmalte sem dentina visível.",
+    "descricao_clinica": "Há quebra ou descontinuidade na superfície do esmalte, evidenciada visualmente ou com explorador. A dentina não está exposta. Pode haver opacidade ou descoloração associada na região da lesão."
+  },
+  "4": {
+    "titulo": "Sombreamento de dentina subjacente",
+    "descricao_curta": "Sombra escura de dentina vista através do esmalte aparentemente intacto.",
+    "descricao_clinica": "Sombra acinzentada, azulada ou marrom vista através do esmalte aparentemente intacto. Indica desmineralização avançada da dentina subjacente sem cavitação macroscópica visível do esmalte."
+  },
+  "5": {
+    "titulo": "Cavidade distinta com dentina visível",
+    "descricao_curta": "Cavitação em esmalte com dentina exposta.",
+    "descricao_clinica": "Cavidade de tamanho moderado, com esmalte removido e dentina claramente visível. A cavidade envolve menos da metade da superfície dental. Intervenção restauradora geralmente necessária para interromper a progressão."
+  },
+  "6": {
+    "titulo": "Cavidade extensa com dentina visível",
+    "descricao_curta": "Cavidade extensa com perda de estrutura, dentina amplamente visível.",
+    "descricao_clinica": "Grande cavidade com perda significativa de estrutura dental. A dentina está amplamente exposta, envolvendo metade ou mais da superfície dental. Exige intervenção restauradora urgente ou, dependendo do caso, extração dentária."
+  }
+}

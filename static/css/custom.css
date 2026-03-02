@@ -1,0 +1,499 @@
+/* =============================================
+   ICDAS Educacional — CSS customizado
+   Aplicado sobre o Pico CSS v2
+   ============================================= */
+
+/* --- Tema: sobrepõe variáveis do Pico CSS --- */
+:root {
+    --pico-primary: #50b3a2;
+    --pico-primary-hover: #3d9a8b;
+    --pico-primary-focus: rgba(80, 179, 162, 0.3);
+    --pico-primary-inverse: #fff;
+    --pico-font-family-sans-serif: Arial, sans-serif;
+}
+
+/* --- Header / nav --- */
+header[role="banner"] {
+    background: var(--pico-primary);
+    color: #fff;
+    padding: 0.75rem 0;
+    margin-bottom: 0;
+}
+
+header[role="banner"] nav {
+    margin: 0 auto;
+    max-width: 1200px;
+    padding: 0 1rem;
+}
+
+header[role="banner"] a,
+header[role="banner"] strong {
+    color: #fff;
+    text-decoration: none;
+}
+
+header[role="banner"] nav ul:last-child a:hover {
+    color: #d4f0eb;
+}
+
+.logo-ufjf {
+    height: 44px;
+    vertical-align: middle;
+    margin-right: 0.5rem;
+}
+
+/* --- Main container --- */
+main.container {
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+}
+
+/* --- Galeria --- */
+.galeria {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.5rem;
+    margin-top: 1rem;
+}
+
+.imagem-item {
+    margin-bottom: 0;
+    padding: 0;
+    overflow: hidden;
+}
+
+.imagem-item img {
+    width: 100%;
+    height: 220px;
+    object-fit: cover;
+    display: block;
+    border-radius: var(--pico-border-radius) var(--pico-border-radius) 0 0;
+    /* placeholder enquanto a imagem carrega */
+    background: var(--pico-muted-border-color);
+}
+
+.imagem-info {
+    padding: 0.75rem 1rem 1rem;
+}
+
+/* --- Filtros da galeria --- */
+.filtros {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.filtros button {
+    padding: 0.3rem 0.8rem;
+    font-size: 0.85rem;
+    margin: 0;
+}
+
+.filtros button[aria-current="true"] {
+    background: var(--pico-primary);
+    color: #fff;
+    border-color: var(--pico-primary);
+}
+
+/* --- Quiz ─ layout shell --- */
+.quiz-shell {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+/* ── Topbar ── */
+.quiz-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    background: var(--pico-card-background-color);
+    border: 1px solid var(--pico-muted-border-color);
+    border-radius: var(--pico-border-radius);
+    padding: 0.5rem 1rem;
+}
+
+.quiz-topbar-left,
+.quiz-topbar-right {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.quiz-title {
+    font-weight: 700;
+    font-size: 1rem;
+}
+
+.quiz-mode-pill {
+    font-size: 0.75rem;
+    background: var(--pico-primary-focus);
+    color: var(--pico-primary);
+    border-radius: 999px;
+    padding: 0.15rem 0.6rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.quiz-topbar-btn {
+    font-size: 0.78rem;
+    padding: 0.2rem 0.65rem;
+    margin: 0;
+    white-space: nowrap;
+}
+
+.quiz-score-label {
+    font-size: 0.9rem;
+    white-space: nowrap;
+}
+
+.quiz-score-pct {
+    color: var(--pico-muted-color);
+    font-size: 0.82rem;
+}
+
+/* ── Body: side-by-side on wide, stacked on narrow ── */
+.quiz-body {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    align-items: start;
+}
+
+.quiz-image-panel {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--pico-card-background-color);
+    border: 1px solid var(--pico-muted-border-color);
+    border-radius: var(--pico-border-radius);
+    overflow: hidden;
+    /* altura fixa reserva o espaço antes da imagem carregar — evita layout shift */
+    height: clamp(200px, 50vh, 520px);
+}
+
+.quiz-img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+}
+
+/* ── Interaction panel ── */
+.quiz-interaction-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.quiz-alert {
+    background: #fde8e8;
+    color: #7b2d2d;
+    border-left: 4px solid #e57373;
+    border-radius: var(--pico-border-radius);
+    padding: 0.6rem 1rem;
+    font-size: 0.9rem;
+}
+
+.quiz-question {
+    font-weight: 600;
+    font-size: 1rem;
+    margin: 0 0 0.5rem;
+}
+
+/* ── Options as toggle-button labels ── */
+.quiz-form {
+    margin: 0;
+}
+
+.quiz-opts {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.quiz-opt {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.55rem 0.4rem;
+    border: 2px solid var(--pico-muted-border-color);
+    border-radius: var(--pico-border-radius);
+    cursor: pointer;
+    user-select: none;
+    font-weight: 600;
+    font-size: 0.9rem;
+    text-align: center;
+    transition: border-color 0.15s, background 0.15s;
+}
+
+.quiz-opt input[type="radio"] {
+    display: none;
+}
+
+.quiz-opt:has(input:checked) {
+    border-color: var(--pico-primary);
+    background: var(--pico-primary-focus);
+}
+
+.quiz-opt:hover {
+    border-color: var(--pico-primary);
+    background: var(--pico-primary-focus);
+}
+
+.quiz-verify-btn {
+    width: 100%;
+    margin: 0;
+}
+
+/* ── Feedback state ── */
+.quiz-feedback {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    border-radius: var(--pico-border-radius);
+    padding: 0.75rem 1rem;
+    font-weight: 500;
+}
+
+.quiz-feedback--ok {
+    background: #d8f3dc;
+    color: #1b4332;
+    border-left: 4px solid #52b788;
+}
+
+.quiz-feedback--err {
+    background: #fde8e8;
+    color: #7b2d2d;
+    border-left: 4px solid #e57373;
+}
+
+.quiz-feedback-icon {
+    font-size: 1.3rem;
+    flex-shrink: 0;
+}
+
+.quiz-desc-card {
+    background: var(--pico-card-background-color);
+    border: 1px solid var(--pico-muted-border-color);
+    border-radius: var(--pico-border-radius);
+    padding: 0.75rem 1rem;
+}
+
+.quiz-desc-title {
+    font-weight: 700;
+    margin: 0 0 0.35rem;
+    font-size: 0.9rem;
+}
+
+.quiz-desc-text {
+    font-size: 0.88rem;
+    color: var(--pico-muted-color);
+    margin: 0;
+    line-height: 1.5;
+}
+
+.quiz-actions-row {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.quiz-actions-row a[role="button"] {
+    flex: 1;
+    text-align: center;
+}
+
+.quiz-actions-row--top {
+    margin-top: 0.25rem;
+}
+
+/* ── End-of-quiz modal dialog ── */
+#quiz-end-modal {
+    border: none;
+    border-radius: var(--pico-border-radius);
+    padding: 0;
+    max-width: 480px;
+    width: 90%;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+}
+
+#quiz-end-modal::backdrop {
+    background: rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(2px);
+}
+
+.quiz-modal-article {
+    padding: 2rem 2rem 1.5rem;
+    text-align: center;
+    margin: 0;
+}
+
+.quiz-modal-emoji {
+    font-size: 3rem;
+    margin: 0 0 0.5rem;
+    line-height: 1;
+}
+
+.quiz-modal-score {
+    font-size: 1.4rem;
+    font-weight: 700;
+    margin: 0.75rem 0 1.25rem;
+    color: var(--pico-primary);
+}
+
+.quiz-modal-footer {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: center;
+    flex-wrap: wrap;
+    padding: 0;
+    border: none;
+    background: none;
+}
+
+.quiz-modal-footer form {
+    margin: 0;
+}
+
+/* Fallback shown if JS is disabled */
+.quiz-completion-fallback {
+    text-align: center;
+    padding: 1.5rem;
+    color: var(--pico-muted-color);
+    font-size: 0.9rem;
+}
+
+/* ── Empty state ── */
+.quiz-empty {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: var(--pico-muted-color);
+}
+
+/* ── Responsive: narrow screens ── */
+@media (max-width: 768px) {
+    .quiz-body {
+        grid-template-columns: 1fr;
+    }
+
+    .quiz-image-panel {
+        height: clamp(150px, 45vw, 380px);
+    }
+
+    .quiz-img {
+        width: 100%;
+        height: 100%;
+    }
+
+    .quiz-opts {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+@media (max-width: 480px) {
+    .quiz-topbar {
+        padding: 0.4rem 0.75rem;
+    }
+
+    .quiz-topbar-btn {
+        font-size: 0.72rem;
+        padding: 0.15rem 0.5rem;
+    }
+
+    .quiz-opts {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 0.35rem;
+    }
+
+    .quiz-opt {
+        font-size: 0.8rem;
+        padding: 0.45rem 0.25rem;
+    }
+}
+
+/* --- Texto atenuado (sem inline style para cumprir CSP) --- */
+.text-muted {
+    color: var(--pico-muted-color);
+}
+
+.text-success {
+    color: #1b4332;
+}
+
+.text-danger {
+    color: #7b2d2d;
+}
+
+.error-center {
+    text-align: center;
+    padding: 4rem 0;
+}
+
+/* --- Tabela ICDAS --- */
+.icdas-table {
+    width: 100%;
+}
+
+/* --- Footer --- */
+footer {
+    border-top: 1px solid var(--pico-muted-border-color);
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    padding-bottom: 1.5rem;
+    text-align: center;
+}
+
+/* --- Link-button: botão estilizado como link (para forms inline) --- */
+.hidden {
+    display: none !important;
+}
+
+.link-button {
+    background: none;
+    border: none;
+    padding: 0;
+    margin: 0;
+    color: var(--pico-primary);
+    cursor: pointer;
+    text-decoration: underline;
+    font-size: inherit;
+    font-family: inherit;
+    line-height: inherit;
+}
+
+.link-button.secondary {
+    color: var(--pico-secondary);
+}
+
+.link-button:hover {
+    color: var(--pico-primary-hover);
+    text-decoration: none;
+}
+
+/* --- Nav: destaque da página atual --- */
+header[role="banner"] nav a[aria-current="page"] {
+    color: #fff;
+    text-decoration: underline;
+    font-weight: bold;
+}
+
+/* --- Responsividade mobile --- */
+@media (max-width: 576px) {
+    .galeria {
+        grid-template-columns: 1fr;
+    }
+
+    .logo-ufjf {
+        height: 36px;
+    }
+
+    header[role="banner"] nav ul:first-child li strong {
+        font-size: 0.9rem;
+    }
+}

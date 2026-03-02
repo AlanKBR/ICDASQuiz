@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+
+{% block title %}Quiz ICDAS{% endblock %}
+{% block description %}Quiz interativo para praticar a classificação ICDAS de lesões cariosas. Identifique o código correto para cada imagem clínica.{% endblock %}
+
+{% block content %}
+{% set pct = (score_acertos / score_total * 100) | round | int if score_total > 0 else 0 %}
+
+<div class="quiz-shell">
+
+    {# ── Barra superior ── #}
+    <div class="quiz-topbar">
+        <div class="quiz-topbar-left">
+            <span class="quiz-title">Quiz ICDAS</span>
+            <span class="quiz-mode-pill">{{ "Sequencial" if modo_sequencial else "Aleatório" }}</span>
+            <form action="{{ url_for('quiz_modo') }}" method="post" class="form-zero-margin">
+                <input type="hidden" name="modo"
+                       value="{{ 'aleatorio' if modo_sequencial else 'sequencial' }}">
+                <button type="submit" class="quiz-topbar-btn outline secondary">
+                    ⇄ {{ "Aleatório" if modo_sequencial else "Sequencial" }}
+                </button>
+            </form>
+        </div>
+        <div class="quiz-topbar-right">
+            <span class="quiz-score-label">
+                <strong>{{ score_acertos }} / {{ score_total }}</strong>
+                {% if score_total > 0 %}
+                <span class="quiz-score-pct">&nbsp;{{ pct }}%</span>
+                {% endif %}
+            </span>
+            <form action="{{ url_for('quiz_finalizar') }}" method="post" class="form-zero-margin">
+                <button type="submit" class="quiz-topbar-btn outline">Salvar</button>
+            </form>
+            <form action="{{ url_for('quiz_resetar') }}" method="post" class="form-zero-margin">
+                <button type="submit" class="quiz-topbar-btn outline secondary">Resetar</button>
+            </form>
+        </div>
+    </div>
+
+    {# ── Modal de conclusão ── #}
+    {% if quiz_completo is defined and quiz_completo %}
+    <dialog id="quiz-end-modal">
+        <article class="quiz-modal-article">
+            {% if pct == 100 %}
+                <p class="quiz-modal-emoji" aria-hidden="true">🏆</p>
+                <h2>Parabéns! Perfeito!</h2>
+                <p>Você acertou <strong>todas</strong> as imagens e completou o quiz sem erros. Domínio total do sistema ICDAS!</p>
+            {% elif pct >= 90 %}
+                <p class="quiz-modal-emoji" aria-hidden="true">🌟</p>
+                <h2>Parabéns! Muito bem!</h2>
+                <p>Quase perfeito! Você demonstra excelente domínio do sistema ICDAS. Mais um pouquinho e chega lá!</p>
+            {% elif pct >= 60 %}
+                <p class="quiz-modal-emoji" aria-hidden="true">👍</p>
+                <h2>Bom resultado!</h2>
+                <p>Você completou o quiz com um resultado satisfatório. Continue praticando para dominar os casos mais difíceis.</p>
+            {% elif pct >= 30 %}
+                <p class="quiz-modal-emoji" aria-hidden="true">😐</p>
+                <h2>Pode melhorar.</h2>
+                <p>Você completou o quiz, mas o resultado não está bom o suficiente. Revise a galeria de imagens e tente novamente.</p>
+            {% else %}
+                <p class="quiz-modal-emoji" aria-hidden="true">😬</p>
+                <h2>Hmm... você pelo menos tentou?</h2>
+                <p>Resultado bem abaixo do esperado. Que tal estudar o material antes da próxima tentativa? A galeria pode ajudar!</p>
+            {% endif %}
+            <p class="quiz-modal-score">
+                {{ score_acertos }} / {{ score_total }}
+                {% if score_total > 0 %}&nbsp;&mdash;&nbsp;{{ pct }}%{% endif %}
+            </p>
+            <footer class="quiz-modal-footer">
+                <form action="{{ url_for('quiz_finalizar') }}" method="post">
+                    <button type="submit">Salvar e ver histórico</button>
+                </form>
+                <form action="{{ url_for('quiz_resetar') }}" method="post">
+                    <button type="submit" class="secondary outline">Recomeçar</button>
+                </form>
+            </footer>
+        </article>
+    </dialog>
+    {# Fallback visível sem JS / enquanto modal abre #}
+    <div class="quiz-completion-fallback">
+        <p>Você completou todas as imagens!</p>
+    </div>
+    {% endif %}
+
+    {# ── Quiz ativo ── #}
+    {% if imagem %}
+    <div class="quiz-body">
+
+        {# Painel da imagem #}
+        <div class="quiz-image-panel">
+            <img src="{{ url_for('static', filename=imagem.caminho) }}"
+                 alt="Imagem clínica ICDAS — {{ imagem.nome }}"
+                 class="quiz-img">
+        </div>
+
+        {# Painel de interação #}
+        <div class="quiz-interaction-panel">
+            {% if not respondido %}
+            {# ── Aguardando resposta ── #}
+            {% if mensagem %}
+            <div class="quiz-alert" role="alert">{{ mensagem }}</div>
+            {% endif %}
+            <form action="{{ url_for('quiz') }}" method="post" class="quiz-form">
+                <input type="hidden" name="imagem_id" value="{{ imagem.id }}">
+                <p class="quiz-question">Qual é o código ICDAS?</p>
+                <div class="quiz-opts">
+                    {% for i in range(7) %}
+                    <label class="quiz-opt" for="icdas{{ i }}">
+                        <input type="radio" id="icdas{{ i }}" name="resposta" value="{{ i }}"
+                               {% if loop.first %}required{% endif %}>
+                        <span>ICDAS {{ i }}</span>
+                    </label>
+                    {% endfor %}
+                </div>
+                <button type="submit" class="quiz-verify-btn">Verificar Resposta</button>
+            </form>
+
+            {% else %}
+            {# ── Feedback pós-resposta ── #}
+            <div class="quiz-feedback {{ 'quiz-feedback--ok' if correto else 'quiz-feedback--err' }}" role="alert">
+                <span class="quiz-feedback-icon">{{ '✓' if correto else '✗' }}</span>
+                <span>{{ mensagem }}</span>
+            </div>
+
+            {% if descricao_codigo %}
+            <div class="quiz-desc-card">
+                <p class="quiz-desc-title">ICDAS {{ imagem.icdas_code }} — {{ descricao_codigo.titulo }}</p>
+                <p class="quiz-desc-text">{{ descricao_codigo.descricao_clinica }}</p>
+            </div>
+            {% endif %}
+
+            {% if not (quiz_completo is defined and quiz_completo) %}
+            <div class="quiz-actions-row quiz-actions-row--top">
+                <a href="{{ url_for('quiz') }}" role="button">Próxima →</a>
+                <a href="{{ url_for('scores') }}" role="button" class="secondary outline">Histórico</a>
+            </div>
+            {% endif %}
+            {% endif %}
+        </div>
+
+    </div>
+
+    {% elif not (quiz_completo is defined and quiz_completo) %}
+    {# ── Sem imagens ── #}
+    <div class="quiz-empty">
+        <p>{{ mensagem or "Nenhuma imagem disponível para o quiz." }}</p>
+        <p>Adicione imagens à pasta <code>static/imagens/</code> com o padrão
+           <code>ICDAS N - descrição.png</code>.</p>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+{% if quiz_completo is defined and quiz_completo %}
+<script src="{{ url_for('static', filename='js/quiz.js') }}"></script>
+{% endif %}
+{% endblock %}

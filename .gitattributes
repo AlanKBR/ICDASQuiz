@@ -1,0 +1,5 @@
+# Força LF para arquivos usados no deploy Linux
+Procfile text eol=lf
+.python-version text eol=lf
+runtime.txt text eol=lf
+*.sh text eol=lf

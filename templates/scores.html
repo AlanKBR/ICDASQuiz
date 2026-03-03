@@ -9,7 +9,9 @@
 </hgroup>
 
 {% if historico %}
-<figure>
+
+{# ── Tabela: desktop ── #}
+<figure class="scores-figure">
     <table>
         <thead>
             <tr>
@@ -22,15 +24,15 @@
         </thead>
         <tbody>
             {% for s in historico %}
+            {% set pct = (s["acertos"] / s["total"] * 100) | round | int if s["total"] > 0 else none %}
             <tr>
                 <td>{{ s["nome"] or "—" }}</td>
                 <td>{{ s["data"] }}</td>
                 <td>{{ s["total"] }}</td>
                 <td>{{ s["acertos"] }}</td>
                 <td>
-                    {% if s["total"] > 0 %}
-                        {% set pct = (s["acertos"] / s["total"] * 100) | round | int %}
-                        {% if pct >= 70 %}
+                    {% if pct is not none %}
+                        {% if pct >= 60 %}
                             <strong class="text-success">{{ pct }}%</strong>
                         {% else %}
                             <span class="text-danger">{{ pct }}%</span>
@@ -44,6 +46,30 @@
         </tbody>
     </table>
 </figure>
+
+{# ── Cards: mobile ── #}
+<div class="scores-cards" aria-label="Histórico de sessões">
+    {% for s in historico %}
+    {% set pct = (s["acertos"] / s["total"] * 100) | round | int if s["total"] > 0 else none %}
+    <div class="scores-card">
+        <div class="scores-card-main">
+            <span class="scores-card-nome">{{ s["nome"] or "Anônimo" }}</span>
+            {% if pct is not none %}
+                <span class="scores-card-pct {{ 'scores-pct--ok' if pct >= 60 else 'scores-pct--bad' }}">{{ pct }}%</span>
+            {% else %}
+                <span class="scores-card-pct scores-pct--bad">—</span>
+            {% endif %}
+        </div>
+        <div class="scores-card-meta">
+            {{ s["data"] }}
+            &nbsp;·&nbsp;
+            {{ s["total"] }} {{ "questão" if s["total"] == 1 else "questões" }},
+            {{ s["acertos"] }} {{ "acerto" if s["acertos"] == 1 else "acertos" }}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
 {% else %}
 <article>
     <p>Nenhuma sessão registrada ainda.</p>

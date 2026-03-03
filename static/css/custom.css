@@ -384,7 +384,7 @@ main.container {
     }
 
     .quiz-image-panel {
-        height: clamp(150px, 45vw, 380px);
+        height: clamp(200px, 55vw, 440px);
     }
 
     .quiz-img {
@@ -394,6 +394,12 @@ main.container {
 
     .quiz-opts {
         grid-template-columns: repeat(4, 1fr);
+    }
+
+    /* Tabela de scores: scroll horizontal entre 641px e 768px */
+    .scores-figure {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
     }
 }
 
@@ -415,6 +421,12 @@ main.container {
     .quiz-opt {
         font-size: 0.8rem;
         padding: 0.45rem 0.25rem;
+    }
+
+    /* Topbar do quiz: empilha em telas muito pequenas */
+    .quiz-topbar-left,
+    .quiz-topbar-right {
+        gap: 0.35rem;
     }
 }
 
@@ -484,7 +496,74 @@ header[role="banner"] nav a[aria-current="page"] {
     font-weight: bold;
 }
 
+/* --- Scores: cards mobile --- */
+.scores-cards {
+    display: none;
+}
+
+.scores-card {
+    background: var(--pico-card-background-color);
+    border: 1px solid var(--pico-muted-border-color);
+    border-radius: var(--pico-border-radius);
+    padding: 0.65rem 0.9rem;
+}
+
+.scores-card-main {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.2rem;
+}
+
+.scores-card-nome {
+    font-weight: 600;
+    font-size: 0.95rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    min-width: 0; /* necessário para text-overflow funcionar em flex */
+}
+
+.scores-card-pct {
+    font-size: 1.1rem;
+    font-weight: 700;
+    flex-shrink: 0;
+    padding: 0.1rem 0.5rem;
+    border-radius: 999px;
+}
+
+.scores-pct--ok {
+    background: #d8f3dc;
+    color: #1b4332;
+}
+
+.scores-pct--bad {
+    background: #fde8e8;
+    color: #7b2d2d;
+}
+
+.scores-card-meta {
+    font-size: 0.78rem;
+    color: var(--pico-muted-color);
+    line-height: 1.4;
+}
+
 /* --- Responsividade mobile --- */
+@media (max-width: 640px) {
+    .scores-figure {
+        display: none;
+    }
+
+    .scores-cards {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        margin-top: 0.5rem;
+    }
+}
+
 @media (max-width: 576px) {
     .galeria {
         grid-template-columns: 1fr;

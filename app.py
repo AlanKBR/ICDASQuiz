@@ -10,8 +10,12 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 from flask import (
-    Flask, render_template, request, redirect, url_for, session,
+    Flask, render_template, request, redirect, url_for, session, send_from_directory,
 )
+from flask_compress import Compress
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from flask_wtf.csrf import CSRFProtect
 
 load_dotenv()
 
@@ -20,6 +24,7 @@ load_dotenv()
 # ---------------------------------------------------------------------------
 
 app = Flask(__name__)
+Compress(app)
 
 _secret = os.environ.get("SECRET_KEY", "")
 _is_production = os.environ.get("FLASK_DEBUG", "0") == "0"
@@ -41,6 +46,17 @@ app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 # Habilita Secure flag apenas fora do modo debug (HTTPS em produção)
 app.config["SESSION_COOKIE_SECURE"] = _is_production
 app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(hours=4)
+app.config["WTF_CSRF_TIME_LIMIT"] = 3600  # token válido por 1h
+app.config["MAX_CONTENT_LENGTH"] = 32 * 1024  # 32 KB — formulários do quiz
+
+csrf = CSRFProtect(app)
+
+limiter = Limiter(
+    app=app,
+    key_func=get_remote_address,
+    storage_uri="memory://",
+    default_limits=["200 per minute"],
+)
 
 DB_PATH = os.environ.get("DB_PATH", "icdas.db")
 
@@ -64,13 +80,19 @@ except (FileNotFoundError, json.JSONDecodeError) as exc:
 
 def get_db():
     """Retorna conexão SQLite. Caller deve fechar via try/finally."""
-    db = sqlite3.connect(DB_PATH)
+    db = sqlite3.connect(DB_PATH, timeout=10)
     db.row_factory = sqlite3.Row
     return db
 
 
 def init_db():
-    db = get_db()
+    # Usa conexão direta (não get_db) para aplicar os PRAGMAs de configuração.
+    # WAL mode é persistente no arquivo .db; executar aqui uma única vez
+    # elimina o overhead desses PRAGMAs em cada get_db() de runtime.
+    db = sqlite3.connect(DB_PATH, timeout=10)
+    db.execute("PRAGMA journal_mode=WAL")
+    db.execute("PRAGMA synchronous=NORMAL")
+    db.row_factory = sqlite3.Row
     try:
         db.execute("""
             CREATE TABLE IF NOT EXISTS scores (
@@ -111,7 +133,7 @@ def get_imagens():
         count = sum(1 for _ in pasta.iterdir())
         cached_mtime, cached_count, cached = _imagens_cache
         if mtime == cached_mtime and count == cached_count:
-            return cached
+            return list(cached)
         imagens = []
         arquivos = sorted(pasta.iterdir(), key=lambda p: p.name)
         for arquivo in arquivos:
@@ -129,7 +151,7 @@ def get_imagens():
                         "icdas_code": icdas_code,
                     })
         _imagens_cache = (mtime, count, imagens)
-        return imagens
+        return list(imagens)
     except OSError as exc:
         logger.error("Erro ao ler pasta de imagens: %s", exc)
         return []
@@ -147,9 +169,22 @@ def _safe_int(value, default=-1):
 # Context processor — injeta `now` em todos os templates automaticamente
 # ---------------------------------------------------------------------------
 
+# O footer usa apenas `now.year`. Precomputar evita datetime.now() em
+# cada request — o ano não muda durante a vida do servidor.
+_STARTUP_YEAR = datetime.now().year
+
+
+class _FakeNow:
+    """Objeto mínimo que expõe .year sem instanciar datetime por request."""
+    year = _STARTUP_YEAR
+
+
+_NOW = _FakeNow()
+
+
 @app.context_processor
 def inject_globals():
-    return {"now": datetime.now()}
+    return {"now": _NOW}
 
 
 # ---------------------------------------------------------------------------
@@ -162,7 +197,7 @@ _CSP = (
     "style-src 'self' https://cdn.jsdelivr.net; "
     "font-src 'self' https://cdn.jsdelivr.net; "
     "script-src 'self'; "
-    "img-src 'self' data:; "
+    "img-src 'self'; "
     "connect-src 'self'; "
     "frame-ancestors 'none'; "
     "base-uri 'self'; "
@@ -174,15 +209,23 @@ _CSP = (
 def set_security_headers(response):
     response.headers["Content-Security-Policy"] = _CSP
     response.headers["X-Content-Type-Options"] = "nosniff"
-    response.headers["X-Frame-Options"] = "SAMEORIGIN"
+    response.headers["X-Frame-Options"] = "DENY"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     response.headers["Permissions-Policy"] = (
         "camera=(), microphone=(), geolocation=(), payment=()"
     )
+    response.headers["X-Permitted-Cross-Domain-Policies"] = "none"
+    response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
+    response.headers["Cross-Origin-Resource-Policy"] = "same-origin"
     if _is_production:
         response.headers["Strict-Transport-Security"] = (
             "max-age=31536000; includeSubDomains"
         )
+    # Cache de assets estáticos (Bloco 7)
+    if request.path.startswith("/static/"):
+        response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+    else:
+        response.headers["Cache-Control"] = "no-store"
     return response
 
 
@@ -207,6 +250,7 @@ def galeria():
 
 
 @app.route("/quiz", methods=["GET", "POST"])
+@limiter.limit("60 per minute", methods=["POST"])
 def quiz():
     imagens = get_imagens()
 
@@ -384,6 +428,7 @@ def _quiz_pop(imagens):
 
 
 @app.route("/quiz/modo", methods=["POST"])
+@limiter.limit("20 per minute")
 def quiz_modo():
     """Alterna entre modo aleatório e sequencial e reinicia a fila."""
     modo = request.form.get("modo", "aleatorio")
@@ -398,6 +443,7 @@ def quiz_modo():
 
 
 @app.route("/quiz/finalizar", methods=["POST"])
+@limiter.limit("10 per minute")
 def quiz_finalizar():
     """Salva a sessão no banco e reseta o placar."""
     acertos = max(0, session.get("score_acertos", 0))
@@ -423,6 +469,7 @@ def quiz_finalizar():
 
 
 @app.route("/quiz/resetar", methods=["POST"])
+@limiter.limit("20 per minute")
 def quiz_resetar():
     """Reseta a fila e o placar sem salvar."""
     session["score_acertos"] = 0
@@ -435,6 +482,7 @@ def quiz_resetar():
 
 
 @app.route("/scores")
+@limiter.limit("30 per minute")
 def scores():
     db = get_db()
     try:
@@ -460,9 +508,19 @@ def nao_encontrado(e):
     return render_template("404.html"), 404
 
 
+@app.errorhandler(429)
+def ratelimit_handler(e):
+    return render_template("429.html"), 429
+
+
 @app.errorhandler(500)
 def erro_interno(e):
     return render_template("500.html"), 500
+
+
+@app.route("/robots.txt")
+def robots_txt():
+    return send_from_directory(app.static_folder, "robots.txt")
 
 
 # ---------------------------------------------------------------------------

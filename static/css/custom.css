@@ -60,6 +60,7 @@ main.container {
     margin-bottom: 0;
     padding: 0;
     overflow: hidden;
+    position: relative; /* necessário para fallback ::after de imagem quebrada */
 }
 
 .imagem-item img {
@@ -172,7 +173,7 @@ main.container {
     border: 1px solid var(--pico-muted-border-color);
     border-radius: var(--pico-border-radius);
     overflow: hidden;
-    /* altura fixa reserva o espaço antes da imagem carregar — evita layout shift */
+    position: relative; /* necessário para shimmer ::before e fallback ::after */
     height: clamp(200px, 50vh, 520px);
 }
 
@@ -496,4 +497,63 @@ header[role="banner"] nav a[aria-current="page"] {
     header[role="banner"] nav ul:first-child li strong {
         font-size: 0.9rem;
     }
+}
+
+/* ── Barra de aviso de conexão offline ── */
+#offline-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: #c0392b;
+    color: #fff;
+    text-align: center;
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    z-index: 9999;
+    letter-spacing: 0.01em;
+}
+
+/* ── Shimmer enquanto a imagem principal do quiz carrega ── */
+.quiz-image-panel::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+        90deg,
+        transparent 0%,
+        rgba(255, 255, 255, 0.35) 50%,
+        transparent 100%
+    );
+    animation: icdas-shimmer 1.4s ease-in-out infinite;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.quiz-image-panel.img-loaded::before {
+    display: none;
+}
+
+@keyframes icdas-shimmer {
+    0%   { transform: translateX(-110%); }
+    100% { transform: translateX(110%); }
+}
+
+/* ── Imagem quebrada / erro de carregamento ── */
+img.img-broken {
+    opacity: 0;
+}
+
+.has-broken-img::after {
+    content: "Imagem não disponível";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: var(--pico-muted-color);
+    font-size: 0.85rem;
+    text-align: center;
+    pointer-events: none;
+    white-space: nowrap;
 }

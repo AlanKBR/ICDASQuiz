@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_macros.html" import csrf %}
 
 {% block title %}Quiz ICDAS{% endblock %}
 {% block description %}Quiz interativo para praticar a classificação ICDAS de lesões cariosas. Identifique o código correto para cada imagem clínica.{% endblock %}
@@ -14,6 +15,7 @@
             <span class="quiz-title">Quiz ICDAS</span>
             <span class="quiz-mode-pill">{{ "Sequencial" if modo_sequencial else "Aleatório" }}</span>
             <form action="{{ url_for('quiz_modo') }}" method="post" class="form-zero-margin">
+                {{ csrf() }}
                 <input type="hidden" name="modo"
                        value="{{ 'aleatorio' if modo_sequencial else 'sequencial' }}">
                 <button type="submit" class="quiz-topbar-btn outline secondary">
@@ -29,9 +31,11 @@
                 {% endif %}
             </span>
             <form action="{{ url_for('quiz_finalizar') }}" method="post" class="form-zero-margin">
+                {{ csrf() }}
                 <button type="submit" class="quiz-topbar-btn outline">Salvar</button>
             </form>
             <form action="{{ url_for('quiz_resetar') }}" method="post" class="form-zero-margin">
+                {{ csrf() }}
                 <button type="submit" class="quiz-topbar-btn outline secondary">Resetar</button>
             </form>
         </div>
@@ -68,9 +72,11 @@
             </p>
             <footer class="quiz-modal-footer">
                 <form action="{{ url_for('quiz_finalizar') }}" method="post">
+                    {{ csrf() }}
                     <button type="submit">Salvar e ver histórico</button>
                 </form>
                 <form action="{{ url_for('quiz_resetar') }}" method="post">
+                    {{ csrf() }}
                     <button type="submit" class="secondary outline">Recomeçar</button>
                 </form>
             </footer>
@@ -90,7 +96,8 @@
         <div class="quiz-image-panel">
             <img src="{{ url_for('static', filename=imagem.caminho) }}"
                  alt="Imagem clínica ICDAS — {{ imagem.nome }}"
-                 class="quiz-img">
+                 class="quiz-img"
+                 fetchpriority="high" decoding="async">
         </div>
 
         {# Painel de interação #}
@@ -101,6 +108,7 @@
             <div class="quiz-alert" role="alert">{{ mensagem }}</div>
             {% endif %}
             <form action="{{ url_for('quiz') }}" method="post" class="quiz-form">
+                {{ csrf() }}
                 <input type="hidden" name="imagem_id" value="{{ imagem.id }}">
                 <p class="quiz-question">Qual é o código ICDAS?</p>
                 <div class="quiz-opts">

@@ -18,12 +18,20 @@ env_*/
 # Variáveis de ambiente (nunca commitar)
 .env
 
-# Banco de dados SQLite
-*.db
+# Banco de dados SQLite (icdas.db é versionado — dados iniciais do deploy)
+# Apenas os arquivos temporários do WAL mode:
+icdas.db-wal
+icdas.db-shm
 *.sqlite3
 
-# Pasta de imagens na raiz (as imagens servidas ficam em static/imagens/)
-imagens/
+# Imagens: apenas WebP enviadas ao repositório.
+# Os PNGs originais ficam somente na máquina do desenvolvedor.
+static/imagens/*.png
+static/imagens/*.jpg
+static/imagens/*.jpeg
+
+# Pasta de imagens na raiz (duplicata de static/imagens/ — não é servida pelo Flask)
+/imagens/
 
 # Sistema operacional
 .DS_Store

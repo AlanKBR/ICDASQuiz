@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+
+{% block title %}Muitas requisições — ICDAS{% endblock %}
+
+{% block content %}
+<div class="error-center">
+    <hgroup>
+        <h2>429</h2>
+        <p>Muitas requisições.</p>
+    </hgroup>
+    <p>Você enviou requisições demais em pouco tempo. Aguarde alguns instantes e tente novamente.</p>
+    <a href="{{ url_for('home') }}" role="button">Voltar ao início</a>
+</div>
+{% endblock %}

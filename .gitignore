@@ -44,6 +44,7 @@ Thumbs.db
 
 # Configuração de linter local
 .flake8
+.htmlhintrc
 
 # Arquivos de planejamento interno (não fazem parte do repositório público)
 PLANO.md

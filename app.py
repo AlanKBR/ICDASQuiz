@@ -214,6 +214,11 @@ def inject_globals():
     return {"now": _NOW, "versioned_url": versioned_url}
 
 
+# Pré-aquece o cache de hashes na inicialização do processo (--preload safe).
+for _f in ("css/custom.css", "js/base.js", "js/galeria.js", "js/quiz.js"):
+    _get_asset_hash(_f)
+
+
 # ---------------------------------------------------------------------------
 # Segurança — headers para produção
 # ---------------------------------------------------------------------------
@@ -281,6 +286,7 @@ def galeria():
 def quiz():
     imagens = get_imagens()
 
+    session.permanent = True
     session.setdefault("score_acertos", 0)
     session.setdefault("score_total", 0)
 
@@ -490,8 +496,8 @@ def quiz_finalizar():
                 finally:
                     db.close()
                 break
-            except sqlite3.OperationalError:
-                if tentativa == 2:
+            except sqlite3.OperationalError as e:
+                if "locked" not in str(e).lower() or tentativa == 2:
                     raise
                 time.sleep(0.1)
     session["score_acertos"] = 0

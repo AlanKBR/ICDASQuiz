@@ -18,7 +18,7 @@ def _setup_db(tmp_path, monkeypatch):
     """Cada teste usa um banco temporário isolado."""
     db_path = str(tmp_path / "test_icdas.db")
     monkeypatch.setenv("DB_PATH", db_path)
-    # Re-importar para usar o novo DB_PATH não funciona  
+    # Re-importar para usar o novo DB_PATH não funciona
     # em vez disso, configuramos diretamente no módulo
     import app as app_module
     app_module.DB_PATH = db_path

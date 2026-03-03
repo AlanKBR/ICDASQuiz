@@ -9,7 +9,7 @@ Requisito:
 
 Comportamento:
     - Processa todos os PNG/JPEG em static/imagens/
-    - Converte para WebP com qualidade 82
+    - Converte para WebP com qualidade 90 (method=6)
     - Exibe tamanho original, tamanho novo e % de redução
     - Não apaga os originais (validar em produção antes de remover)
 """
@@ -17,17 +17,14 @@ Comportamento:
 import sys
 from pathlib import Path
 
-QUALIDADE = 82
+QUALIDADE = 90
+METHOD = 6
 EXTENSOES_ORIGEM = {".png", ".jpg", ".jpeg"}
 PASTA = Path(__file__).parent.parent / "static" / "imagens"
 
 
 def converter(arquivo: Path) -> None:
     destino = arquivo.with_suffix(".webp")
-
-    if destino.exists():
-        print(f"  [ignorado]  {arquivo.name} → já existe {destino.name}")
-        return
 
     try:
         from PIL import Image  # type: ignore[import]
@@ -43,10 +40,10 @@ def converter(arquivo: Path) -> None:
     with Image.open(arquivo) as img:
         # Preserva transparência (RGBA) se existir
         if img.mode in ("RGBA", "LA"):
-            img.save(destino, "WEBP", quality=QUALIDADE, lossless=False)
+            img.save(destino, "WEBP", quality=QUALIDADE, method=METHOD, lossless=False)
         else:
             img = img.convert("RGB")
-            img.save(destino, "WEBP", quality=QUALIDADE)
+            img.save(destino, "WEBP", quality=QUALIDADE, method=METHOD)
 
     tamanho_novo = destino.stat().st_size
     reducao = (1 - tamanho_novo / tamanho_original) * 100
@@ -81,9 +78,8 @@ def main() -> None:
 
     for arquivo in arquivos:
         destino = arquivo.with_suffix(".webp")
-        ja_existia = destino.exists()
         converter(arquivo)
-        if not ja_existia and destino.exists():
+        if destino.exists():
             total_antes += arquivo.stat().st_size
             total_depois += destino.stat().st_size
 

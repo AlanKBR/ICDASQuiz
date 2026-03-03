@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+
+{% block title %}Requisição inválida — ICDAS{% endblock %}
+
+{% block content %}
+<div class="error-center">
+    <hgroup>
+        <h2>400</h2>
+        <p>Requisição inválida.</p>
+    </hgroup>
+    <p>Por favor, volte e tente novamente.</p>
+    <a href="{{ url_for('home') }}" role="button">Voltar ao início</a>
+</div>
+{% endblock %}

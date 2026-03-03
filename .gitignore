@@ -17,11 +17,12 @@ env_*/
 
 # Variáveis de ambiente (nunca commitar)
 .env
+.env.local
 
 # Banco de dados SQLite (icdas.db é versionado — dados iniciais do deploy)
 # Apenas os arquivos temporários do WAL mode:
-icdas.db-wal
-icdas.db-shm
+*.db-wal
+*.db-shm
 *.sqlite3
 
 # Imagens: apenas WebP enviadas ao repositório.

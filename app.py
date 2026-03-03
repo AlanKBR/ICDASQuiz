@@ -1,3 +1,4 @@
+import hashlib
 import json
 import logging
 import os
@@ -5,12 +6,14 @@ import random
 import re
 import sqlite3
 import sys
+import time
 from datetime import datetime, timedelta
 from pathlib import Path
 
 from dotenv import load_dotenv
 from flask import (
-    Flask, render_template, request, redirect, url_for, session, send_from_directory,
+    Flask, jsonify, make_response, render_template, request,
+    redirect, url_for, session, send_from_directory,
 )
 from flask_compress import Compress
 from flask_limiter import Limiter
@@ -27,17 +30,19 @@ app = Flask(__name__)
 Compress(app)
 
 _secret = os.environ.get("SECRET_KEY", "")
+# True quando FLASK_DEBUG não está definido (padrão) ou é "0".
+# Ausência da variável é intencionalmente tratada como produção.
 _is_production = os.environ.get("FLASK_DEBUG", "0") == "0"
 
 if not _secret or _secret == "troque-por-uma-chave-segura-em-producao":
     if _is_production:
         print(
-            "AVISO DE SEGURANÇA: SECRET_KEY não definido ou inválido.\n"
-            "  Defina SECRET_KEY no .env antes de usar em produção.\n"
-            "  Gere com: python -c "
-            "'import secrets; print(secrets.token_hex(32))'",
+            "ERRO: SECRET_KEY não definido ou usa valor padrão inválido.\n"
+            "  Defina SECRET_KEY como variável de ambiente antes de iniciar em produção.\n"
+            "  Gere com: python -c 'import secrets; print(secrets.token_hex(32))'",
             file=sys.stderr,
         )
+        sys.exit(1)  # ← impede o app de subir
     _secret = "dev-secret-key-mude-em-producao"
 
 app.secret_key = _secret
@@ -58,10 +63,13 @@ limiter = Limiter(
     default_limits=["200 per minute"],
 )
 
-DB_PATH = os.environ.get("DB_PATH", "icdas.db")
+DB_PATH = os.environ.get("DB_PATH", str(Path(__file__).parent / "icdas.db"))
 
 # Logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
 logger = logging.getLogger(__name__)
 
 # Carrega descrições clínicas do JSON
@@ -115,7 +123,7 @@ init_db()
 # Helpers
 # ---------------------------------------------------------------------------
 
-IMAGEM_EXTENSOES = (".png", ".jpg", ".jpeg", ".webp")
+IMAGEM_EXTENSOES = {".webp"}
 
 # Cache simples para get_imagens(): (pasta_mtime, contagem, resultado)
 _imagens_cache: tuple = (None, None, [])
@@ -124,18 +132,18 @@ _imagens_cache: tuple = (None, None, [])
 def get_imagens():
     """Retorna lista de imagens ICDAS. Resultado é cacheado por mtime."""
     global _imagens_cache
-    pasta = Path("static/imagens")
+    pasta = Path(__file__).parent / "static" / "imagens"
     try:
         if not pasta.exists():
             return []
         stat = pasta.stat()
         mtime = stat.st_mtime
-        count = sum(1 for _ in pasta.iterdir())
+        arquivos = sorted(pasta.iterdir(), key=lambda p: p.name)
+        count = len(arquivos)
         cached_mtime, cached_count, cached = _imagens_cache
         if mtime == cached_mtime and count == cached_count:
             return list(cached)
         imagens = []
-        arquivos = sorted(pasta.iterdir(), key=lambda p: p.name)
         for arquivo in arquivos:
             if (arquivo.suffix.lower() in IMAGEM_EXTENSOES
                     and "logo-ufjf-gv" not in arquivo.name):
@@ -182,9 +190,28 @@ class _FakeNow:
 _NOW = _FakeNow()
 
 
+_asset_hashes: dict[str, str] = {}
+
+
+def _get_asset_hash(filename: str) -> str:
+    """Calcula e cacheia o hash MD5 (8 chars) de um asset estático."""
+    if filename not in _asset_hashes:
+        filepath = Path(__file__).parent / "static" / filename
+        try:
+            digest = hashlib.md5(filepath.read_bytes()).hexdigest()[:8]
+        except FileNotFoundError:
+            digest = "0"
+        _asset_hashes[filename] = digest
+    return _asset_hashes[filename]
+
+
 @app.context_processor
 def inject_globals():
-    return {"now": _NOW}
+    def versioned_url(filename):
+        """Retorna URL do asset com query string de cache-busting."""
+        return url_for("static", filename=filename) + "?v=" + _get_asset_hash(filename)
+
+    return {"now": _NOW, "versioned_url": versioned_url}
 
 
 # ---------------------------------------------------------------------------
@@ -219,7 +246,7 @@ def set_security_headers(response):
     response.headers["Cross-Origin-Resource-Policy"] = "same-origin"
     if _is_production:
         response.headers["Strict-Transport-Security"] = (
-            "max-age=31536000; includeSubDomains"
+            "max-age=31536000; includeSubDomains; preload"
         )
     # Cache de assets estáticos (Bloco 7)
     if request.path.startswith("/static/"):
@@ -431,6 +458,7 @@ def _quiz_pop(imagens):
 @limiter.limit("20 per minute")
 def quiz_modo():
     """Alterna entre modo aleatório e sequencial e reinicia a fila."""
+    session.permanent = True
     modo = request.form.get("modo", "aleatorio")
     session["quiz_modo"] = modo if modo == "sequencial" else "aleatorio"
     session["quiz_fila"] = None
@@ -450,15 +478,22 @@ def quiz_finalizar():
     total = max(0, session.get("score_total", 0))
     acertos = min(acertos, total)
     if total > 0:
-        db = get_db()
-        try:
-            db.execute(
-                "INSERT INTO scores (data, total, acertos) VALUES (?, ?, ?)",
-                (datetime.now().strftime("%Y-%m-%d %H:%M"), total, acertos),
-            )
-            db.commit()
-        finally:
-            db.close()
+        for tentativa in range(3):
+            try:
+                db = get_db()
+                try:
+                    db.execute(
+                        "INSERT INTO scores (data, total, acertos) VALUES (?, ?, ?)",
+                        (datetime.now().strftime("%Y-%m-%d %H:%M"), total, acertos),
+                    )
+                    db.commit()
+                finally:
+                    db.close()
+                break
+            except sqlite3.OperationalError:
+                if tentativa == 2:
+                    raise
+                time.sleep(0.1)
     session["score_acertos"] = 0
     session["score_total"] = 0
     session["quiz_fila"] = None
@@ -510,12 +545,36 @@ def nao_encontrado(e):
 
 @app.errorhandler(429)
 def ratelimit_handler(e):
-    return render_template("429.html"), 429
+    response = make_response(render_template("429.html"), 429)
+    response.headers["Retry-After"] = "60"
+    return response
+
+
+@app.errorhandler(400)
+def bad_request(e):
+    return render_template("400.html"), 400
 
 
 @app.errorhandler(500)
 def erro_interno(e):
     return render_template("500.html"), 500
+
+
+@app.get("/health")
+@limiter.exempt
+def health():
+    db_ok = False
+    try:
+        db = get_db()
+        try:
+            db.execute("SELECT 1")
+        finally:
+            db.close()
+        db_ok = True
+    except Exception:
+        pass
+    status = "ok" if db_ok else "degraded"
+    return jsonify({"status": status, "db": db_ok}), 200 if db_ok else 503
 
 
 @app.route("/robots.txt")

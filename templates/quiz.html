@@ -162,6 +162,6 @@
 
 {% block scripts %}
 {% if quiz_completo is defined and quiz_completo %}
-<script src="{{ url_for('static', filename='js/quiz.js') }}"></script>
+<script src="{{ versioned_url('js/quiz.js') }}"></script>
 {% endif %}
 {% endblock %}

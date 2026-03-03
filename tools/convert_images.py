@@ -9,7 +9,7 @@ Requisito:
 
 Comportamento:
     - Processa todos os PNG/JPEG em static/imagens/
-    - Converte para WebP com qualidade 90 (method=6)
+    - Converte para WebP com qualidade 82 (method=6)
     - Exibe tamanho original, tamanho novo e % de redução
     - Não apaga os originais (validar em produção antes de remover)
 """
@@ -17,7 +17,7 @@ Comportamento:
 import sys
 from pathlib import Path
 
-QUALIDADE = 90
+QUALIDADE = 82
 METHOD = 6
 EXTENSOES_ORIGEM = {".png", ".jpg", ".jpeg"}
 PASTA = Path(__file__).parent.parent / "static" / "imagens"

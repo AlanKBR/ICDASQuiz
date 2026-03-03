@@ -13,6 +13,7 @@
     <table>
         <thead>
             <tr>
+                <th scope="col">Nome</th>
                 <th scope="col">Data</th>
                 <th scope="col">Total de questões</th>
                 <th scope="col">Acertos</th>
@@ -22,6 +23,7 @@
         <tbody>
             {% for s in historico %}
             <tr>
+                <td>{{ s["nome"] or "—" }}</td>
                 <td>{{ s["data"] }}</td>
                 <td>{{ s["total"] }}</td>
                 <td>{{ s["acertos"] }}</td>

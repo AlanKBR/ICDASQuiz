@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+
+{% block title %}Método não permitido — ICDAS{% endblock %}
+
+{% block content %}
+<div class="error-center">
+    <hgroup>
+        <h2>405</h2>
+        <p>Método não permitido.</p>
+    </hgroup>
+    <p>Esta ação não pode ser realizada da forma solicitada. Volte e tente novamente.</p>
+    <a href="{{ url_for('home') }}" role="button">Voltar ao início</a>
+</div>
+{% endblock %}

@@ -19,6 +19,7 @@ from flask_compress import Compress
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_wtf.csrf import CSRFProtect
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 load_dotenv()
 
@@ -28,6 +29,12 @@ load_dotenv()
 
 app = Flask(__name__)
 Compress(app)
+
+# Em produção o app fica atrás de 1 proxy reverso (DigitalOcean LB).
+# ProxyFix lê X-Forwarded-For confiando em 1 hop, tornando remote_addr
+# o IP real do cliente de forma segura (não-spoofável).
+# Corrige também o rate limiter (get_remote_address usa remote_addr).
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
 _secret = os.environ.get("SECRET_KEY", "")
 # True quando FLASK_DEBUG não está definido (padrão) ou é "0".
@@ -107,9 +114,20 @@ def init_db():
                 id      INTEGER PRIMARY KEY AUTOINCREMENT,
                 data    TEXT    NOT NULL,
                 total   INTEGER NOT NULL,
-                acertos INTEGER NOT NULL
+                acertos INTEGER NOT NULL,
+                nome    TEXT    NOT NULL DEFAULT '',
+                ip      TEXT    NOT NULL DEFAULT ''
             )
         """)
+        # Migração para bancos existentes: adiciona colunas se não existirem
+        for col, definition in [
+            ("nome", "TEXT NOT NULL DEFAULT ''"),
+            ("ip",   "TEXT NOT NULL DEFAULT ''"),
+        ]:
+            try:
+                db.execute(f"ALTER TABLE scores ADD COLUMN {col} {definition}")
+            except sqlite3.OperationalError:
+                pass  # coluna já existe
         db.commit()
     finally:
         db.close()
@@ -483,14 +501,26 @@ def quiz_finalizar():
     acertos = max(0, session.get("score_acertos", 0))
     total = max(0, session.get("score_total", 0))
     acertos = min(acertos, total)
+
+    # Nome informado pelo usuário no modal; fallback para "Anônimo"
+    nome = request.form.get("nome", "").strip()[:100] or "Anônimo"
+
+    # IP real do cliente — corrigido pelo ProxyFix de forma segura
+    ip = (request.remote_addr or "")[:45]
+
     if total > 0:
         for tentativa in range(3):
             try:
                 db = get_db()
                 try:
                     db.execute(
-                        "INSERT INTO scores (data, total, acertos) VALUES (?, ?, ?)",
-                        (datetime.now().strftime("%Y-%m-%d %H:%M"), total, acertos),
+                        "INSERT INTO scores"
+                        " (data, total, acertos, nome, ip)"
+                        " VALUES (?, ?, ?, ?, ?)",
+                        (
+                            datetime.now().strftime("%Y-%m-%d %H:%M"),
+                            total, acertos, nome, ip,
+                        ),
                     )
                     db.commit()
                 finally:
@@ -559,6 +589,11 @@ def ratelimit_handler(e):
 @app.errorhandler(400)
 def bad_request(e):
     return render_template("400.html"), 400
+
+
+@app.errorhandler(405)
+def metodo_nao_permitido(e):
+    return render_template("405.html"), 405
 
 
 @app.errorhandler(500)

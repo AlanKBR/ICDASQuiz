@@ -30,10 +30,7 @@
                 <span class="quiz-score-pct">&nbsp;{{ pct }}%</span>
                 {% endif %}
             </span>
-            <form action="{{ url_for('quiz_finalizar') }}" method="post" class="form-zero-margin">
-                {{ csrf() }}
-                <button type="submit" class="quiz-topbar-btn outline">Salvar</button>
-            </form>
+            <button type="button" id="btn-salvar" class="quiz-topbar-btn outline">Salvar</button>
             <form action="{{ url_for('quiz_resetar') }}" method="post" class="form-zero-margin">
                 {{ csrf() }}
                 <button type="submit" class="quiz-topbar-btn outline secondary">Resetar</button>
@@ -71,10 +68,7 @@
                 {% if score_total > 0 %}&nbsp;&mdash;&nbsp;{{ pct }}%{% endif %}
             </p>
             <footer class="quiz-modal-footer">
-                <form action="{{ url_for('quiz_finalizar') }}" method="post">
-                    {{ csrf() }}
-                    <button type="submit">Salvar e ver histórico</button>
-                </form>
+                <button type="button" id="btn-salvar-completar">Salvar e ver histórico</button>
                 <form action="{{ url_for('quiz_resetar') }}" method="post">
                     {{ csrf() }}
                     <button type="submit" class="secondary outline">Recomeçar</button>
@@ -158,10 +152,33 @@
     {% endif %}
 
 </div>
+
+{# ── Modal de nome (compartilhado entre Salvar e Finalizar) ── #}
+<dialog id="nome-modal" aria-labelledby="nome-modal-titulo">
+    <article class="quiz-modal-article">
+        <h3 id="nome-modal-titulo">Salvar resultado</h3>
+        <p>Informe seu nome para identificar o registro:</p>
+        <form id="form-finalizar"
+              action="{{ url_for('quiz_finalizar') }}"
+              method="post">
+            {{ csrf() }}
+            <input type="text"
+                   name="nome"
+                   id="nome-input"
+                   placeholder="Seu nome (opcional)"
+                   autocomplete="name"
+                   maxlength="100">
+            <footer class="quiz-modal-footer">
+                <button type="submit">Confirmar e salvar</button>
+                <button type="button"
+                        id="nome-cancelar"
+                        class="secondary outline">Cancelar</button>
+            </footer>
+        </form>
+    </article>
+</dialog>
 {% endblock %}
 
 {% block scripts %}
-{% if quiz_completo is defined and quiz_completo %}
 <script src="{{ versioned_url('js/quiz.js') }}"></script>
-{% endif %}
 {% endblock %}

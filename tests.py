@@ -543,7 +543,8 @@ class TestHelpers:
 
     def test_descricoes_json_valido(self):
         """Arquivo descricoes.json deve ser JSON válido."""
-        with open("descricoes.json", encoding="utf-8") as f:
+        from pathlib import Path
+        with open(Path(__file__).parent / "descricoes.json", encoding="utf-8") as f:
             data = json.load(f)
         assert isinstance(data, dict)
         assert len(data) >= 7

@@ -1,0 +1,92 @@
+@import "tailwindcss";
+
+@source "../templates/**/*.html";
+@source "../static/js/**/*.js";
+
+/*
+  ICDAS Educacional — componentes base.
+  Use @apply com parcimônia para padronizar botões/cards sem repetir utilitários.
+*/
+
+@layer base {
+  :root {
+    /* Marca (verde menta puxado ao azul) */
+    --icdas-brand: #14b8a6;
+    --icdas-brand-hover: #0d9488;
+  }
+}
+
+@layer components {
+  .icdas-container {
+    @apply mx-auto w-full max-w-6xl px-4;
+  }
+
+  .nav-link {
+    @apply inline-flex items-center justify-center rounded-full px-3 py-1.5 text-sm font-semibold text-slate-900 no-underline transition;
+  }
+
+  .nav-link:hover {
+    @apply bg-teal-500/10;
+  }
+
+  .nav-link[aria-current="page"] {
+    @apply bg-teal-500/15;
+  }
+
+  .form-zero-margin {
+    @apply m-0;
+  }
+
+  .input {
+    @apply w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-slate-900 shadow-sm outline-none;
+  }
+
+  .input:focus {
+    border-color: var(--icdas-brand);
+    box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.18);
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-4 py-2 font-semibold text-white transition;
+    background: var(--icdas-brand);
+  }
+
+  .btn-primary:hover,
+  .btn-primary:focus-visible {
+    background: var(--icdas-brand-hover);
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-4 py-2 font-semibold transition;
+    @apply bg-white text-slate-900 ring-1 ring-slate-200 hover:ring-slate-300;
+  }
+
+  .btn-outline {
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-4 py-2 font-semibold transition;
+    @apply bg-transparent text-slate-900 ring-1 ring-slate-200 hover:ring-[color:var(--icdas-brand)];
+  }
+
+  .card {
+    @apply rounded-2xl border border-slate-200 bg-white shadow-sm;
+  }
+
+  .text-muted {
+    @apply text-slate-600;
+  }
+
+  .text-success {
+    @apply text-emerald-800;
+  }
+
+  .text-danger {
+    @apply text-red-800;
+  }
+
+  .hidden {
+    @apply hidden;
+  }
+
+  .error-center {
+    @apply mx-auto max-w-2xl py-16 text-center;
+  }
+}

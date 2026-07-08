@@ -1,80 +1,135 @@
 {% extends "base.html" %}
 
-{% block title %}Histórico de Desempenho — ICDAS{% endblock %}
+{% block title %}Leaderboard e Histórico — ICDAS{% endblock %}
 
 {% block content %}
-<hgroup>
-    <h2>Histórico de Desempenho</h2>
-    <p>Sessões registradas ao clicar em "Finalizar sessão" no quiz. Últimas 20 sessões exibidas.</p>
-</hgroup>
+<section class="scores-hero">
+    <div>
+        <p class="scores-kicker">Desempenho</p>
+        <h1>Leaderboard e histórico</h1>
+        <p>Resultados registrados no quiz. O placar exibe apenas nome e desempenho.</p>
+    </div>
+    <a href="{{ url_for('quiz') }}" role="button" class="btn-primary no-underline">Nova tentativa</a>
+</section>
 
 {% if historico %}
+<section class="scores-summary" aria-label="Resumo do desempenho">
+    <article>
+        <span>{{ stats.sessoes }}</span>
+        <small>{{ "sessão" if stats.sessoes == 1 else "sessões" }}</small>
+    </article>
+    <article>
+        <span>{{ stats.questoes }}</span>
+        <small>{{ "questão" if stats.questoes == 1 else "questões" }}</small>
+    </article>
+    <article>
+        <span>{{ stats.media if stats.media is not none else "—" }}{% if stats.media is not none %}%{% endif %}</span>
+        <small>média</small>
+    </article>
+    <article>
+        <span>{{ stats.melhor if stats.melhor is not none else "—" }}{% if stats.melhor is not none %}%{% endif %}</span>
+        <small>melhor</small>
+    </article>
+</section>
 
-{# ── Tabela: desktop ── #}
-<figure class="scores-figure">
-    <table>
-        <thead>
-            <tr>
-                <th scope="col">Nome</th>
-                <th scope="col">Data</th>
-                <th scope="col">Total de questões</th>
-                <th scope="col">Acertos</th>
-                <th scope="col">Aproveitamento</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for s in historico %}
-            {% set pct = (s["acertos"] / s["total"] * 100) | round | int if s["total"] > 0 else none %}
-            <tr>
-                <td>{{ s["nome"] or "—" }}</td>
-                <td>{{ s["data"] }}</td>
-                <td>{{ s["total"] }}</td>
-                <td>{{ s["acertos"] }}</td>
-                <td>
-                    {% if pct is not none %}
-                        {% if pct >= 60 %}
-                            <strong class="text-success">{{ pct }}%</strong>
-                        {% else %}
-                            <span class="text-danger">{{ pct }}%</span>
-                        {% endif %}
-                    {% else %}
-                        <span>—</span>
-                    {% endif %}
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</figure>
-
-{# ── Cards: mobile ── #}
-<div class="scores-cards" aria-label="Histórico de sessões">
-    {% for s in historico %}
-    {% set pct = (s["acertos"] / s["total"] * 100) | round | int if s["total"] > 0 else none %}
-    <div class="scores-card">
-        <div class="scores-card-main">
-            <span class="scores-card-nome">{{ s["nome"] or "Anônimo" }}</span>
-            {% if pct is not none %}
-                <span class="scores-card-pct {{ 'scores-pct--ok' if pct >= 60 else 'scores-pct--bad' }}">{{ pct }}%</span>
-            {% else %}
-                <span class="scores-card-pct scores-pct--bad">—</span>
-            {% endif %}
-        </div>
-        <div class="scores-card-meta">
-            {{ s["data"] }}
-            &nbsp;·&nbsp;
-            {{ s["total"] }} {{ "questão" if s["total"] == 1 else "questões" }},
-            {{ s["acertos"] }} {{ "acerto" if s["acertos"] == 1 else "acertos" }}
-        </div>
+{% if ranking %}
+<section class="leaderboard-section" aria-labelledby="ranking-title">
+    <div class="section-head-lite">
+        <h2 id="ranking-title">Ranking por aluno</h2>
+        <span>Melhor e pior tentativa</span>
     </div>
-    {% endfor %}
-</div>
+    <div class="leaderboard-grid">
+        {% for aluno in ranking %}
+        <article class="leader-card leader-card-{{ loop.index }}">
+            <span class="leader-rank">{{ loop.index }}</span>
+            <div class="leader-info">
+                <strong>{{ aluno.nome }}</strong>
+                <span class="leader-attempts" aria-label="Tentativas registradas">
+                    {{ aluno.tentativas }} {{ "tentativa" if aluno.tentativas == 1 else "tentativas" }}
+                </span>
+            </div>
+            <div class="leader-results">
+                <span class="leader-result-best">
+                    Melhor <strong>{{ aluno.melhor.pct }}%</strong>
+                    <small>{{ aluno.melhor.acertos }}/{{ aluno.melhor.total }}</small>
+                </span>
+                <span class="leader-result-worst">
+                    Pior <strong>{{ aluno.pior.pct }}%</strong>
+                    <small>{{ aluno.pior.acertos }}/{{ aluno.pior.total }}</small>
+                </span>
+            </div>
+        </article>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
+
+<section class="history-section" aria-labelledby="historico-title">
+    <div class="section-head-lite">
+        <h2 id="historico-title">Sessões recentes</h2>
+        <span>Últimas 20</span>
+    </div>
+
+    <div class="scores-table-wrap">
+        <table class="scores-table">
+            <thead>
+                <tr>
+                    <th scope="col">Aluno</th>
+                    <th scope="col">Data</th>
+                    <th scope="col">Questões</th>
+                    <th scope="col">Acertos</th>
+                    <th scope="col">Aproveitamento</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in historico %}
+                {% set pct = (s["acertos"] / s["total"] * 100) | round | int if s["total"] > 0 else none %}
+                <tr>
+                    <td><strong>{{ s["nome"] or "Anônimo" }}</strong></td>
+                    <td>{{ s["data"] }}</td>
+                    <td>{{ s["total"] }}</td>
+                    <td>{{ s["acertos"] }}</td>
+                    <td>
+                        {% if pct is not none %}
+                        <span class="score-pill {{ 'score-pill-ok' if pct >= 60 else 'score-pill-low' }}">{{ pct }}%</span>
+                        {% else %}
+                        <span class="score-pill score-pill-low">—</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="scores-cards" aria-label="Histórico de sessões">
+        {% for s in historico %}
+        {% set pct = (s["acertos"] / s["total"] * 100) | round | int if s["total"] > 0 else none %}
+        <article class="scores-card">
+            <div class="scores-card-main">
+                <span class="scores-card-nome">{{ s["nome"] or "Anônimo" }}</span>
+                {% if pct is not none %}
+                <span class="scores-card-pct {{ 'scores-pct--ok' if pct >= 60 else 'scores-pct--bad' }}">{{ pct }}%</span>
+                {% else %}
+                <span class="scores-card-pct scores-pct--bad">—</span>
+                {% endif %}
+            </div>
+            <div class="scores-card-meta">
+                {{ s["data"] }}
+                &nbsp;·&nbsp;
+                {{ s["total"] }} {{ "questão" if s["total"] == 1 else "questões" }},
+                {{ s["acertos"] }} {{ "acerto" if s["acertos"] == 1 else "acertos" }}
+            </div>
+        </article>
+        {% endfor %}
+    </div>
+</section>
 
 {% else %}
-<article>
-    <p>Nenhuma sessão registrada ainda.</p>
-    <p>Complete algumas questões no quiz e clique em <strong>"Finalizar sessão"</strong> para registrar sua pontuação aqui.</p>
-    <a href="{{ url_for('quiz') }}" role="button">Ir para o Quiz</a>
-</article>
+<section class="empty-history">
+    <h1>Nenhuma sessão registrada ainda</h1>
+    <p>Faça uma tentativa no quiz para preencher o leaderboard.</p>
+    <a href="{{ url_for('quiz') }}" role="button" class="btn-primary no-underline">Ir para o Quiz</a>
+</section>
 {% endif %}
 {% endblock %}

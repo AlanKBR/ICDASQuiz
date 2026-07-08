@@ -9,16 +9,44 @@
 
 <div class="quiz-shell">
 
+    {% if pedir_nome is defined and pedir_nome %}
+    <section class="quiz-start-card">
+        <form action="{{ url_for('quiz_iniciar') }}" method="post" class="quiz-start-form">
+            {{ csrf() }}
+            {% if mensagem %}
+            <div class="quiz-alert" role="alert">{{ mensagem }}</div>
+            {% endif %}
+            <label for="nome-inicio">Nome do aluno</label>
+            <input type="text"
+                   name="nome"
+                   id="nome-inicio"
+                   value="{{ nome_sugerido or '' }}"
+                   placeholder="Ex.: Maria Silva"
+                   autocomplete="name"
+                   maxlength="100"
+                   required
+                   class="input">
+            {% if nome_sugerido %}
+            <small class="quiz-start-hint">Nome sugerido pelo histórico deste acesso.</small>
+            {% endif %}
+            <button type="submit" class="btn-primary">Começar quiz</button>
+        </form>
+    </section>
+    {% else %}
+
     {# ── Barra superior ── #}
     <div class="quiz-topbar">
         <div class="quiz-topbar-left">
             <span class="quiz-title">Quiz ICDAS</span>
+            {% if quiz_nome %}
+            <span class="quiz-student-pill">{{ quiz_nome }}</span>
+            {% endif %}
             <span class="quiz-mode-pill">{{ "Sequencial" if modo_sequencial else "Aleatório" }}</span>
             <form action="{{ url_for('quiz_modo') }}" method="post" class="form-zero-margin">
                 {{ csrf() }}
                 <input type="hidden" name="modo"
                        value="{{ 'aleatorio' if modo_sequencial else 'sequencial' }}">
-                <button type="submit" class="quiz-topbar-btn outline secondary">
+                <button type="submit" class="quiz-topbar-btn btn-outline">
                     ⇄ {{ "Aleatório" if modo_sequencial else "Sequencial" }}
                 </button>
             </form>
@@ -30,10 +58,13 @@
                 <span class="quiz-score-pct">&nbsp;{{ pct }}%</span>
                 {% endif %}
             </span>
-            <button type="button" id="btn-salvar" class="quiz-topbar-btn outline">Salvar</button>
+            <form action="{{ url_for('quiz_finalizar') }}" method="post" class="form-zero-margin">
+                {{ csrf() }}
+                <button type="submit" class="quiz-topbar-btn btn-outline">Salvar</button>
+            </form>
             <form action="{{ url_for('quiz_resetar') }}" method="post" class="form-zero-margin">
                 {{ csrf() }}
-                <button type="submit" class="quiz-topbar-btn outline secondary">Resetar</button>
+                <button type="submit" class="quiz-topbar-btn btn-outline">Resetar</button>
             </form>
         </div>
     </div>
@@ -68,10 +99,13 @@
                 {% if score_total > 0 %}&nbsp;&mdash;&nbsp;{{ pct }}%{% endif %}
             </p>
             <footer class="quiz-modal-footer">
-                <button type="button" id="btn-salvar-completar">Salvar e ver histórico</button>
+                <form action="{{ url_for('quiz_finalizar') }}" method="post">
+                    {{ csrf() }}
+                    <button type="submit" class="btn-primary">Salvar e ver histórico</button>
+                </form>
                 <form action="{{ url_for('quiz_resetar') }}" method="post">
                     {{ csrf() }}
-                    <button type="submit" class="secondary outline">Recomeçar</button>
+                    <button type="submit" class="btn-outline">Recomeçar</button>
                 </form>
             </footer>
         </article>
@@ -114,7 +148,7 @@
                     </label>
                     {% endfor %}
                 </div>
-                <button type="submit" class="quiz-verify-btn">Verificar Resposta</button>
+                <button type="submit" class="quiz-verify-btn btn-primary">Verificar Resposta</button>
             </form>
 
             {% else %}
@@ -133,8 +167,8 @@
 
             {% if not (quiz_completo is defined and quiz_completo) %}
             <div class="quiz-actions-row quiz-actions-row--top">
-                <a href="{{ url_for('quiz') }}" role="button">Próxima →</a>
-                <a href="{{ url_for('scores') }}" role="button" class="secondary outline">Histórico</a>
+                <a href="{{ url_for('quiz') }}" role="button" class="btn-primary no-underline">Próxima →</a>
+                <a href="{{ url_for('scores') }}" role="button" class="btn-outline no-underline">Histórico</a>
             </div>
             {% endif %}
             {% endif %}
@@ -152,31 +186,7 @@
     {% endif %}
 
 </div>
-
-{# ── Modal de nome (compartilhado entre Salvar e Finalizar) ── #}
-<dialog id="nome-modal" aria-labelledby="nome-modal-titulo">
-    <article class="quiz-modal-article">
-        <h3 id="nome-modal-titulo">Salvar resultado</h3>
-        <p>Informe seu nome para identificar o registro:</p>
-        <form id="form-finalizar"
-              action="{{ url_for('quiz_finalizar') }}"
-              method="post">
-            {{ csrf() }}
-            <input type="text"
-                   name="nome"
-                   id="nome-input"
-                   placeholder="Seu nome (opcional)"
-                   autocomplete="name"
-                   maxlength="100">
-            <footer class="quiz-modal-footer">
-                <button type="submit">Confirmar e salvar</button>
-                <button type="button"
-                        id="nome-cancelar"
-                        class="secondary outline">Cancelar</button>
-            </footer>
-        </form>
-    </article>
-</dialog>
+{% endif %}
 {% endblock %}
 
 {% block scripts %}

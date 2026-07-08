@@ -1,0 +1,12 @@
+{
+  "name": "icdas-educacional",
+  "private": true,
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.0.0",
+    "tailwindcss": "^4.0.0"
+  },
+  "scripts": {
+    "dev:css": "tailwindcss -i ./src/input.css -o ./static/css/tailwind.css --watch",
+    "build:css": "tailwindcss -i ./src/input.css -o ./static/css/tailwind.css --minify"
+  }
+}

@@ -35,6 +35,8 @@ def client():
     app_module.app.config["RATELIMIT_ENABLED"] = False
     app_module.limiter.reset()
     with app_module.app.test_client() as c:
+        with c.session_transaction() as sess:
+            sess["quiz_nome"] = "Aluno Teste"
         yield c
 
 
@@ -49,6 +51,8 @@ def csrf_client():
     app_module.app.config["RATELIMIT_ENABLED"] = False
     app_module.limiter.reset()
     with app_module.app.test_client() as c:
+        with c.session_transaction() as sess:
+            sess["quiz_nome"] = "Aluno Teste"
         yield c
 
 
@@ -62,6 +66,8 @@ def rate_client():
     app_module.app.config["RATELIMIT_ENABLED"] = True
     app_module.limiter.reset()
     with app_module.app.test_client() as c:
+        with c.session_transaction() as sess:
+            sess["quiz_nome"] = "Aluno Teste"
         yield c
 
 
@@ -234,6 +240,54 @@ class TestQuizFluxo:
         html = resp.data.decode("utf-8")
         assert "Verificar Resposta" in html  # Deve mostrar form de novo
         assert "respondido" not in html or "Correto" not in html
+
+
+class TestQuizIdentificacao:
+    """Testa a identificação do aluno antes do quiz."""
+
+    def test_quiz_pede_nome_antes_de_mostrar_imagem(self, client):
+        with client.session_transaction() as sess:
+            sess.pop("quiz_nome", None)
+        resp = client.get("/quiz")
+        html = resp.data.decode("utf-8")
+        assert resp.status_code == 200
+        assert "Nome do aluno" in html
+        assert "nome-inicio" in html
+        assert "identificador técnico" not in html
+        assert "imagem_id" not in html
+
+    def test_iniciar_quiz_grava_nome_na_sessao(self, client):
+        with client.session_transaction() as sess:
+            sess.pop("quiz_nome", None)
+        resp = client.post(
+            "/quiz/iniciar",
+            data={"nome": "Maria Silva"},
+            follow_redirects=True,
+        )
+        html = resp.data.decode("utf-8")
+        assert resp.status_code == 200
+        assert "Maria Silva" in html
+        assert "Verificar Resposta" in html or "Nenhuma imagem" in html
+
+    def test_quiz_sugere_ultimo_nome_por_ip_hash(self, client, app_module):
+        ip_hash = app_module._hash_ip("127.0.0.1")
+        db = sqlite3.connect(app_module.DB_PATH)
+        try:
+            db.execute(
+                """
+                INSERT INTO scores (data, total, acertos, nome, ip, ip_hash)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                ("2026-06-27 10:00", 3, 2, "João Souza", "127.0.0.0", ip_hash),
+            )
+            db.commit()
+        finally:
+            db.close()
+        with client.session_transaction() as sess:
+            sess.pop("quiz_nome", None)
+        resp = client.get("/quiz")
+        html = resp.data.decode("utf-8")
+        assert 'value="João Souza"' in html
 
 
 # ============================================================
@@ -461,7 +515,8 @@ class TestSeguranca:
         assert "strict-origin" in resp.headers.get("Referrer-Policy", "")
         csp = resp.headers.get("Content-Security-Policy", "")
         assert "default-src 'self'" in csp
-        assert "https://cdn.jsdelivr.net" in csp
+        assert "style-src 'self'" in csp
+        assert "https://cdn.jsdelivr.net" not in csp
         assert "script-src 'self'" in csp
         assert "frame-ancestors 'none'" in csp
         pp = resp.headers.get("Permissions-Policy", "")
@@ -1189,12 +1244,13 @@ class TestHeadersSeguranca:
         assert "unsafe-inline" not in csp
         assert "unsafe-eval" not in csp
 
-    def test_sri_no_pico_css(self, client):
-        """HTML deve incluir SRI (integrity) no link do CDN."""
+    def test_css_local_versionado(self, client):
+        """HTML deve usar CSS local com cache-busting."""
         html = client.get("/").data.decode("utf-8")
-        assert "integrity=" in html
-        assert "sha384-" in html
-        assert 'crossorigin="anonymous"' in html
+        assert "/static/css/tailwind.css?v=" in html
+        assert "/static/css/custom.css?v=" in html
+        assert "/static/css/ui.css?v=" in html
+        assert "https://cdn.jsdelivr.net" not in html
 
 
 class TestPayloadsExtremos:

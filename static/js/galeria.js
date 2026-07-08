@@ -9,10 +9,12 @@
         });
         document.querySelectorAll(".filtros button").forEach(function (b) {
             b.removeAttribute("aria-current");
-            b.classList.add("outline", "secondary");
+            b.classList.remove("btn-primary");
+            b.classList.add("btn-outline");
         });
         btn.setAttribute("aria-current", "true");
-        btn.classList.remove("outline", "secondary");
+        btn.classList.remove("btn-outline");
+        btn.classList.add("btn-primary");
     }
 
     document.addEventListener("DOMContentLoaded", function () {

@@ -15,6 +15,9 @@ venv/
 env/
 env_*/
 
+# Dependências Node / build local
+node_modules/
+
 # Variáveis de ambiente (nunca commitar)
 .env
 .env.local
@@ -50,6 +53,8 @@ Thumbs.db
 PLANO.md
 PLANO_DEPLOY.md
 PLANO_HARDENING.md
+design_moderno.md
+repomix-output.xml
 
 # Workspace do VS Code
 tcc.code-workspace

@@ -1,4 +1,6 @@
 import hashlib
+import hmac
+import ipaddress
 import json
 import logging
 import os
@@ -116,13 +118,15 @@ def init_db():
                 total   INTEGER NOT NULL,
                 acertos INTEGER NOT NULL,
                 nome    TEXT    NOT NULL DEFAULT '',
-                ip      TEXT    NOT NULL DEFAULT ''
+                ip      TEXT    NOT NULL DEFAULT '',
+                ip_hash TEXT    NOT NULL DEFAULT ''
             )
         """)
         # Migração para bancos existentes: adiciona colunas se não existirem
         for col, definition in [
             ("nome", "TEXT NOT NULL DEFAULT ''"),
             ("ip",   "TEXT NOT NULL DEFAULT ''"),
+            ("ip_hash", "TEXT NOT NULL DEFAULT ''"),
         ]:
             try:
                 db.execute(f"ALTER TABLE scores ADD COLUMN {col} {definition}")
@@ -191,6 +195,87 @@ def _safe_int(value, default=-1):
         return default
 
 
+def _client_ip():
+    """Retorna o IP do cliente já normalizado pelo ProxyFix."""
+    return (request.remote_addr or "").strip()
+
+
+def _hash_ip(ip):
+    """Gera identificador estável de IP sem gravar o IP bruto."""
+    if not ip:
+        return ""
+    secret = str(app.secret_key or "").encode("utf-8")
+    return hmac.new(secret, ip.encode("utf-8"), hashlib.sha256).hexdigest()
+
+
+def _mask_ip(ip):
+    """Reduz precisão do IP para auditoria mínima, sem guardar endereço completo."""
+    if not ip:
+        return ""
+    try:
+        addr = ipaddress.ip_address(ip)
+    except ValueError:
+        return ""
+    if addr.version == 4:
+        parts = ip.split(".")
+        return ".".join(parts[:3] + ["0"])
+    network = ipaddress.ip_network(f"{ip}/64", strict=False)
+    return str(network.network_address) + "/64"
+
+
+def _ultimo_nome_por_ip_hash(ip_hash):
+    """Busca o último nome usado pelo mesmo identificador técnico."""
+    if not ip_hash:
+        return ""
+    db = get_db()
+    try:
+        row = db.execute(
+            """
+            SELECT nome
+              FROM scores
+             WHERE ip_hash = ? AND nome <> ''
+             ORDER BY id DESC
+             LIMIT 1
+            """,
+            (ip_hash,),
+        ).fetchone()
+    finally:
+        db.close()
+    return row["nome"] if row else ""
+
+
+def _imagens_destaque_home(imagens, limite=6):
+    """Seleciona exemplos variados para a landing page."""
+    selecionadas = []
+    vistos = set()
+    for codigo in (0, 1, 2, 3, 4, 5, 6):
+        imagem = next(
+            (
+                img for img in imagens
+                if img["icdas_code"] == codigo and img["id"] not in vistos
+            ),
+            None,
+        )
+        if imagem is not None:
+            item = dict(imagem)
+            item["legenda_condicao"] = _legenda_condicao_imagem(item["nome"])
+            selecionadas.append(item)
+            vistos.add(item["id"])
+        if len(selecionadas) >= limite:
+            break
+    return selecionadas
+
+
+def _legenda_condicao_imagem(nome):
+    """Deriva legenda simples de condição clínica pelo nome do arquivo."""
+    nome_normalizado = nome.lower()
+    if "molhad" in nome_normalizado or "umid" in nome_normalizado:
+        return "Foto em campo molhado/úmido"
+    if "seco" in nome_normalizado:
+        return "Foto em campo seco"
+    return ""
+
+
 # ---------------------------------------------------------------------------
 # Context processor — injeta `now` em todos os templates automaticamente
 # ---------------------------------------------------------------------------
@@ -233,7 +318,16 @@ def inject_globals():
 
 
 # Pré-aquece o cache de hashes na inicialização do processo (--preload safe).
-for _f in ("css/custom.css", "js/base.js", "js/galeria.js", "js/quiz.js"):
+for _f in (
+    "css/custom.css",
+    "css/ui.css",
+    "css/landing.css",
+    "css/tailwind.css",
+    "js/base.js",
+    "js/landing.js",
+    "js/galeria.js",
+    "js/quiz.js",
+):
     _get_asset_hash(_f)
 
 
@@ -241,11 +335,11 @@ for _f in ("css/custom.css", "js/base.js", "js/galeria.js", "js/quiz.js"):
 # Segurança — headers para produção
 # ---------------------------------------------------------------------------
 
-# CSP: permite apenas recursos do próprio servidor e jsdelivr (Pico CSS)
+# CSP: permite apenas recursos do próprio servidor
 _CSP = (
     "default-src 'self'; "
-    "style-src 'self' https://cdn.jsdelivr.net; "
-    "font-src 'self' https://cdn.jsdelivr.net; "
+    "style-src 'self'; "
+    "font-src 'self'; "
     "script-src 'self'; "
     "img-src 'self'; "
     "connect-src 'self'; "
@@ -285,7 +379,13 @@ def set_security_headers(response):
 
 @app.route("/")
 def home():
-    return render_template("index.html", descricoes=DESCRICOES)
+    imagens = get_imagens()
+    return render_template(
+        "index.html",
+        descricoes=DESCRICOES,
+        imagens_destaque=_imagens_destaque_home(imagens),
+        total_imagens=len(imagens),
+    )
 
 
 @app.route("/galeria")
@@ -294,8 +394,15 @@ def galeria():
     imagens.sort(
         key=lambda x: (x["icdas_code"] if x["icdas_code"] is not None else 99)
     )
+    contagem_codigos = {
+        codigo: sum(1 for imagem in imagens if imagem["icdas_code"] == codigo)
+        for codigo in range(7)
+    }
     return render_template(
-        "galeria.html", imagens=imagens, descricoes=DESCRICOES
+        "galeria.html",
+        imagens=imagens,
+        descricoes=DESCRICOES,
+        contagem_codigos=contagem_codigos,
     )
 
 
@@ -321,6 +428,25 @@ def quiz():
             modo_sequencial=False,
         )
 
+    if not session.get("quiz_nome"):
+        if request.method == "POST":
+            return redirect(url_for("quiz"))
+        ip_hash = _hash_ip(_client_ip())
+        return render_template(
+            "quiz.html",
+            imagem=None,
+            mensagem=None,
+            correto=None,
+            descricao_codigo=None,
+            respondido=False,
+            score_acertos=session.get("score_acertos", 0),
+            score_total=session.get("score_total", 0),
+            modo_sequencial=session.get("quiz_modo") == "sequencial",
+            pedir_nome=True,
+            nome_sugerido=_ultimo_nome_por_ip_hash(ip_hash),
+            quiz_nome=None,
+        )
+
     modo_seq = session.get("quiz_modo") == "sequencial"
 
     if request.method == "POST":
@@ -344,6 +470,7 @@ def quiz():
                 score_acertos=session["score_acertos"],
                 score_total=session["score_total"],
                 modo_sequencial=modo_seq,
+                quiz_nome=session.get("quiz_nome"),
             )
 
         session["score_total"] += 1
@@ -397,6 +524,7 @@ def quiz():
                 score_total=session.get("score_total", 0),
                 modo_sequencial=modo_seq,
                 quiz_completo=feedback["quiz_completo"],
+                quiz_nome=session.get("quiz_nome"),
             )
 
     # GET — 2) imagem atual (recarregar página sem reenviar)
@@ -418,6 +546,7 @@ def quiz():
                 score_total=session.get("score_total", 0),
                 modo_sequencial=modo_seq,
                 quiz_completo=True,
+                quiz_nome=session.get("quiz_nome"),
             )
         session["quiz_atual"] = imagem["id"]
         session.modified = True
@@ -433,7 +562,41 @@ def quiz():
         score_total=session.get("score_total", 0),
         modo_sequencial=modo_seq,
         quiz_completo=False,
+        quiz_nome=session.get("quiz_nome"),
     )
+
+
+@app.route("/quiz/iniciar", methods=["POST"])
+@limiter.limit("20 per minute")
+def quiz_iniciar():
+    """Identifica o aluno antes de iniciar o quiz."""
+    session.permanent = True
+    nome = request.form.get("nome", "").strip()[:100]
+    if not nome:
+        ip_hash = _hash_ip(_client_ip())
+        return render_template(
+            "quiz.html",
+            imagem=None,
+            mensagem="Informe seu nome para começar.",
+            correto=None,
+            descricao_codigo=None,
+            respondido=False,
+            score_acertos=session.get("score_acertos", 0),
+            score_total=session.get("score_total", 0),
+            modo_sequencial=session.get("quiz_modo") == "sequencial",
+            pedir_nome=True,
+            nome_sugerido=_ultimo_nome_por_ip_hash(ip_hash),
+            quiz_nome=None,
+        ), 400
+
+    session["quiz_nome"] = nome
+    session["score_acertos"] = 0
+    session["score_total"] = 0
+    session["quiz_fila"] = None
+    session.pop("quiz_atual", None)
+    session.pop("quiz_feedback", None)
+    session.modified = True
+    return redirect(url_for("quiz"))
 
 
 def _quiz_pop(imagens):
@@ -502,11 +665,15 @@ def quiz_finalizar():
     total = max(0, session.get("score_total", 0))
     acertos = min(acertos, total)
 
-    # Nome informado pelo usuário no modal; fallback para "Anônimo"
-    nome = request.form.get("nome", "").strip()[:100] or "Anônimo"
+    nome = (
+        session.get("quiz_nome")
+        or request.form.get("nome", "").strip()[:100]
+        or "Anônimo"
+    )
 
-    # IP real do cliente — corrigido pelo ProxyFix de forma segura
-    ip = (request.remote_addr or "")[:45]
+    ip_real = _client_ip()
+    ip = _mask_ip(ip_real)[:45]
+    ip_hash = _hash_ip(ip_real)
 
     if total > 0:
         for tentativa in range(3):
@@ -515,11 +682,11 @@ def quiz_finalizar():
                 try:
                     db.execute(
                         "INSERT INTO scores"
-                        " (data, total, acertos, nome, ip)"
-                        " VALUES (?, ?, ?, ?, ?)",
+                        " (data, total, acertos, nome, ip, ip_hash)"
+                        " VALUES (?, ?, ?, ?, ?, ?)",
                         (
                             datetime.now().strftime("%Y-%m-%d %H:%M"),
-                            total, acertos, nome, ip,
+                            total, acertos, nome, ip, ip_hash,
                         ),
                     )
                     db.commit()
@@ -560,9 +727,77 @@ def scores():
         historico = db.execute(
             "SELECT * FROM scores ORDER BY id DESC LIMIT 20"
         ).fetchall()
+        tentativas_validas = db.execute(
+            "SELECT * FROM scores WHERE total > 0 ORDER BY id DESC"
+        ).fetchall()
     finally:
         db.close()
-    return render_template("scores.html", historico=historico)
+
+    ranking_por_aluno = {}
+    for tentativa in tentativas_validas:
+        nome = (tentativa["nome"] or "Anônimo").strip() or "Anônimo"
+        chave = nome.casefold()
+        pct = round(tentativa["acertos"] / tentativa["total"] * 100)
+        item = ranking_por_aluno.setdefault(
+            chave,
+            {
+                "nome": nome,
+                "tentativas": 0,
+                "melhor": None,
+                "pior": None,
+                "ultima_data": tentativa["data"],
+            },
+        )
+        item["tentativas"] += 1
+        candidato = {
+            "pct": pct,
+            "acertos": tentativa["acertos"],
+            "total": tentativa["total"],
+            "data": tentativa["data"],
+            "id": tentativa["id"],
+        }
+        if (
+            item["melhor"] is None
+            or (pct, tentativa["acertos"], tentativa["id"])
+            > (item["melhor"]["pct"], item["melhor"]["acertos"], item["melhor"]["id"])
+        ):
+            item["melhor"] = candidato
+        if (
+            item["pior"] is None
+            or (pct, tentativa["acertos"], -tentativa["id"])
+            < (item["pior"]["pct"], item["pior"]["acertos"], -item["pior"]["id"])
+        ):
+            item["pior"] = candidato
+
+    ranking = sorted(
+        ranking_por_aluno.values(),
+        key=lambda item: (
+            item["melhor"]["pct"],
+            item["melhor"]["acertos"],
+            item["tentativas"],
+        ),
+        reverse=True,
+    )[:10]
+
+    aproveitamentos = [
+        round(s["acertos"] / s["total"] * 100)
+        for s in historico
+        if s["total"] > 0
+    ]
+    total_questoes = sum(s["total"] for s in historico)
+    stats = {
+        "sessoes": len(historico),
+        "questoes": total_questoes,
+        "media": round(sum(aproveitamentos) / len(aproveitamentos))
+        if aproveitamentos else None,
+        "melhor": max(aproveitamentos) if aproveitamentos else None,
+    }
+    return render_template(
+        "scores.html",
+        historico=historico,
+        ranking=ranking,
+        stats=stats,
+    )
 
 
 @app.route("/sobre")

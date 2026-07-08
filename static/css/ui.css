@@ -1,0 +1,36 @@
+/* =============================================
+   ICDAS Educacional — UI base (utilitários leves)
+   Objetivo: polimento visual + consistência com Tailwind.
+   ============================================= */
+
+:root {
+  /* Marca (verde menta puxado ao azul) */
+  --icdas-brand: #14b8a6;
+  --icdas-brand-hover: #0d9488;
+  --icdas-brand-focus: rgba(20, 184, 166, 0.28);
+}
+
+/* Utilitário: texto só para leitores de tela */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Utilitário: foco consistente (use em componentes custom) */
+.focus-ring:focus-visible {
+  outline: 3px solid var(--icdas-brand-focus);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    scroll-behavior: auto !important;
+  }
+}

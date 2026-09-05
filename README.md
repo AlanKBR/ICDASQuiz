@@ -127,6 +127,18 @@ A aplicação de produção é hospedada no servidor Zezin com PostgreSQL. Este 
 
 Banco, segredos e arquivos SQLite locais **nunca devem ser commitados**. Não replique Cloudflare, Traefik, firewall ou configuração de backup dentro deste repositório. Para um redeploy no Zezin, altere o código aqui e use o runbook do owner operacional.
 
+### Sincronização entre máquinas
+
+`origin/main` é a referência compartilhada para cópias de desenvolvimento. Antes de começar trabalho em outra máquina, execute:
+
+```bash
+python tools/sync_repo.py
+```
+
+No Windows, `sync.cmd` faz a mesma operação com duplo clique. O sincronizador só aceita `main`, exige working tree limpa e usa **fast-forward only**: se houver mudanças locais, commits ainda não publicados ou histórico divergente, ele para sem sobrescrever nada.
+
+Produção não faz auto-deploy de `main`: o Zezin implanta um commit explícito e registra esse SHA no owner operacional.
+
 ---
 
 ## Variáveis de Ambiente

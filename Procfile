@@ -1,1 +1,1 @@
-web: gunicorn --workers 2 --timeout 30 --preload --bind 0.0.0.0:$PORT app:app
+web: gunicorn --worker-tmp-dir /dev/shm --worker-class gthread --workers 1 --threads 4 --timeout 30 --graceful-timeout 30 --no-control-socket --access-logfile - --access-logformat '%(m)s %(U)s %(s)s %(L)s' --bind 0.0.0.0:$PORT app:app

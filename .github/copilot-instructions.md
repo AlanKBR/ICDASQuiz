@@ -6,20 +6,20 @@ Educational Flask web app for learning the ICDAS dental caries classification sy
 
 ## Architecture
 
-Single-file Flask monolith: `app.py` contains all routes, DB logic, helpers, and security config. No blueprints, no ORM.
+Flask monolith: `app.py` contains routes, quiz/session logic, helpers, and security config. Database models/repository live in `database.py`; schema migrations live in `migrations/`.
 
 | Layer | Detail |
 |---|---|
 | Templates | Jinja2 in `templates/`, inheriting `base.html`. Use `_macros.html` for shared components. |
-| Static assets | `static/css/custom.css` (overrides Pico CSS), `static/js/` (vanilla JS only), `static/imagens/` (`.webp` only) |
-| Database | SQLite via raw `sqlite3` — call `get_db()` and close manually in `try/finally` |
+| Static assets | `static/css/tailwind.css` (Tailwind compilado) + CSS local, `static/js/` (vanilla JS only), `static/imagens/` (`.webp` only) |
+| Database | SQLAlchemy 2 + Alembic; SQLite embedded for standalone/local and PostgreSQL for server deployments |
 | Config | `descricoes.json` — ICDAS clinical descriptions keyed by **string** (`"0"`–`"6"`), loaded at startup into `DESCRICOES` |
 
 ## Critical Patterns
 
 **Production detection:** `FLASK_DEBUG=0` (or absent) = production. Missing/default `SECRET_KEY` crashes the app on startup intentionally — this is by design.
 
-**DB access:** Always use manual `get_db()` + `try/finally db.close()`. WAL mode is set once in `init_db()`; do not add PRAGMAs to `get_db()`.
+**DB access:** Use the functions/models in `database.py`; do not open application databases with raw `sqlite3` in production code. Schema changes require an Alembic revision. SQLite-specific PRAGMAs stay isolated in the SQLAlchemy engine setup.
 
 **Quiz state** is fully session-based (no DB during play): `quiz_fila` (queue), `quiz_atual` (current image ID), `quiz_feedback` (PRG payload), `score_acertos`, `score_total`. The quiz uses Post/Redirect/Get to make F5 safe.
 
@@ -27,9 +27,11 @@ Single-file Flask monolith: `app.py` contains all routes, DB logic, helpers, and
 
 **Asset versioning:** Use `versioned_url('css/custom.css')` (a Jinja2 context processor) — never hardcode `url_for('static', ...)` for CSS/JS in templates. Hashes are MD5-precomputed at startup.
 
-**Rate limiting:** POST `/quiz` = 60/min, POST `/quiz/modo` = 20/min, `/scores` = 30/min, `/health` is exempt. Tests use `RATELIMIT_ENABLED = False` on the default `client` fixture.
+**Rate limiting:** POST `/quiz` = 60/min, POST `/quiz/modo` = 20/min, `/scores` = 30/min, `/health` is exempt. Produção usa `CF-Connecting-IP` validado como chave; não reintroduza confiança direta em `X-Forwarded-For`/`ProxyFix`. Tests use `RATELIMIT_ENABLED = False` on the default `client` fixture.
 
-**Security headers** are applied in `set_security_headers()` (`@app.after_request`). The CSP allows only `'self'` and `cdn.jsdelivr.net` (Pico CSS). Do not add inline scripts or external CDN resources without updating the CSP string.
+**Security headers** are applied in `set_security_headers()` (`@app.after_request`). The CSP allows only `'self'`. Do not add inline scripts or external CDN resources without updating the CSP string.
+
+**Production data:** production uses PostgreSQL; local `icdas.db` files are runtime/state data and must never be committed. The legacy `ip` column remains only for schema compatibility and is scrubbed to an empty string; `ip_hash` is the only technical client identifier retained.
 
 ## Developer Workflows
 
@@ -43,15 +45,18 @@ python -m pytest tests.py -v
 # Run tests with short tracebacks
 python -m pytest tests.py -v --tb=short
 
-# Production server (DigitalOcean App Platform)
-gunicorn --worker-tmp-dir /dev/shm --workers 2 --timeout 30 --preload --bind 0.0.0.0:$PORT app:app
+# Production process (the Zezin Dockerfile is authoritative)
+gunicorn --worker-tmp-dir /dev/shm --worker-class gthread --workers 1 --threads 4 --timeout 30 --graceful-timeout 30 --no-control-socket --bind 0.0.0.0:$PORT app:app
 ```
 
-**Environment variables** (`.env` locally, DigitalOcean App Platform secrets in production):
+**Environment variables** (`.env` locally; secrets/state are supplied by the Zezin deployment in production):
 - `SECRET_KEY` — required in production; app crashes on startup if missing or default
 - `FLASK_DEBUG` — `1` for dev, `0` (or absent) for production
-- `DB_PATH` — path to SQLite file (default: `icdas.db` next to `app.py`)
-- `ngrok_key` — local tunnel key for dev exposure (not used by the app itself)
+- `DATABASE_URL` — optional SQLAlchemy URL; highest-priority backend selector
+- `DB_PATH` — SQLite path when no server backend is configured (default: `icdas.db`)
+- `POSTGRES_HOST`/`POSTGRES_PORT`/`POSTGRES_DB`/`POSTGRES_USER`/`POSTGRES_PASSWORD` — optional PostgreSQL components when `DATABASE_URL` is empty
+
+**Production ownership:** this repository owns application code only. On the Zezin server, deployment/network/state/backup/rollback are owned by `/srv/zezin/services/icdasquiz`. Do not add a second Traefik/Cloudflare/backup control plane here.
 
 ## Test Fixtures
 

@@ -18,10 +18,12 @@ def _setup_db(tmp_path, monkeypatch):
     """Cada teste usa um banco temporário isolado."""
     db_path = str(tmp_path / "test_icdas.db")
     monkeypatch.setenv("DB_PATH", db_path)
-    # Re-importar para usar o novo DB_PATH não funciona
-    # em vez disso, configuramos diretamente no módulo
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    # Re-importar para usar o novo DB_PATH não funciona; o módulo expõe a
+    # seleção de backend justamente para testes/standalone poderem alternar DB.
     import app as app_module
     app_module.DB_PATH = db_path
+    app_module.DATABASE_URL = ""
     app_module.init_db()
     yield db_path
 
@@ -540,6 +542,46 @@ class TestSeguranca:
         assert app_module.app.secret_key is not None
         assert len(app_module.app.secret_key) > 0
 
+    def test_host_nao_confiavel_rejeitado_em_producao(self, client):
+        resp = client.get("/", headers={"Host": "evil.example"})
+        assert resp.status_code == 400
+
+    def test_client_ip_prefere_header_cloudflare_valido(self, app_module):
+        with app_module.app.test_request_context(
+            "/",
+            headers={"CF-Connecting-IP": "203.0.113.9"},
+            environ_base={"REMOTE_ADDR": "172.31.252.1"},
+        ):
+            assert app_module._client_ip() == "203.0.113.9"
+
+    def test_client_ip_ignora_header_cloudflare_invalido(self, app_module):
+        with app_module.app.test_request_context(
+            "/",
+            headers={"CF-Connecting-IP": "nao-e-ip"},
+            environ_base={"REMOTE_ADDR": "172.31.252.1"},
+        ):
+            assert app_module._client_ip() == "172.31.252.1"
+
+    def test_init_db_remove_ip_legado(self, app_module):
+        db = sqlite3.connect(app_module.DB_PATH)
+        try:
+            db.execute(
+                """
+                INSERT INTO scores (data, total, acertos, nome, ip, ip_hash)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                ("2026-09-05 12:00", 1, 1, "Teste", "203.0.113.0", "hash"),
+            )
+            db.commit()
+        finally:
+            db.close()
+        app_module.init_db()
+        db = sqlite3.connect(app_module.DB_PATH)
+        try:
+            assert db.execute("SELECT ip FROM scores ORDER BY id DESC LIMIT 1").fetchone()[0] == ""
+        finally:
+            db.close()
+
 
 # ============================================================
 # TESTES DE HELPERS E DADOS
@@ -661,19 +703,20 @@ class TestBancoDados:
         app_module.init_db()
 
     def test_inserir_score(self, app_module):
-        db = app_module.get_db()
-        try:
-            db.execute(
-                "INSERT INTO scores (data, total, acertos) VALUES (?, ?, ?)",
-                ("2026-03-02 10:00", 10, 7),
-            )
-            db.commit()
-            rows = db.execute("SELECT * FROM scores").fetchall()
-            assert len(rows) == 1
-            assert rows[0]["total"] == 10
-            assert rows[0]["acertos"] == 7
-        finally:
-            db.close()
+        from database import recent_scores, save_score
+
+        save_score(
+            data="2026-03-02 10:00",
+            total=10,
+            acertos=7,
+            nome="Teste",
+            ip_hash="hash",
+            **app_module._db_options(),
+        )
+        rows = recent_scores(**app_module._db_options())
+        assert len(rows) == 1
+        assert rows[0].total == 10
+        assert rows[0].acertos == 7
 
 
 # ============================================================

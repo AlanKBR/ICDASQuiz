@@ -22,8 +22,8 @@ node_modules/
 .env
 .env.local
 
-# Banco de dados SQLite (icdas.db é versionado — dados iniciais do deploy)
-# Apenas os arquivos temporários do WAL mode:
+# Banco de dados SQLite é state, nunca código/versionamento.
+*.db
 *.db-wal
 *.db-shm
 *.sqlite3

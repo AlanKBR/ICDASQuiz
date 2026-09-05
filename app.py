@@ -6,7 +6,6 @@ import logging
 import os
 import random
 import re
-import sqlite3
 import sys
 import time
 from datetime import datetime, timedelta
@@ -19,9 +18,20 @@ from flask import (
 )
 from flask_compress import Compress
 from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
 from flask_wtf.csrf import CSRFProtect
-from werkzeug.middleware.proxy_fix import ProxyFix
+from sqlalchemy.exc import OperationalError
+from werkzeug.exceptions import SecurityError
+
+from database import (
+    clear_legacy_ips,
+    database_healthy,
+    latest_name_for_ip_hash,
+    recent_scores,
+    reset_engine,
+    save_score,
+    upgrade_schema,
+    valid_scores,
+)
 
 load_dotenv()
 
@@ -31,12 +41,6 @@ load_dotenv()
 
 app = Flask(__name__)
 Compress(app)
-
-# Em produção o app fica atrás de 1 proxy reverso (DigitalOcean LB).
-# ProxyFix lê X-Forwarded-For confiando em 1 hop, tornando remote_addr
-# o IP real do cliente de forma segura (não-spoofável).
-# Corrige também o rate limiter (get_remote_address usa remote_addr).
-app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
 _secret = os.environ.get("SECRET_KEY", "")
 # True quando FLASK_DEBUG não está definido (padrão) ou é "0".
@@ -62,17 +66,42 @@ app.config["SESSION_COOKIE_SECURE"] = _is_production
 app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(hours=4)
 app.config["WTF_CSRF_TIME_LIMIT"] = 3600  # token válido por 1h
 app.config["MAX_CONTENT_LENGTH"] = 32 * 1024  # 32 KB — formulários do quiz
+if _is_production:
+    app.config["TRUSTED_HOSTS"] = [
+        "icdasquiz.tech",
+        "www.icdasquiz.tech",
+        "localhost",
+        "127.0.0.1",
+    ]
 
 csrf = CSRFProtect(app)
 
+
+def _client_ip():
+    """Retorna o IP original informado pela borda Cloudflare.
+
+    Produção só recebe tráfego público pelo Cloudflare Tunnel -> Traefik.
+    O header específico da Cloudflare evita depender da contagem variável de
+    hops de X-Forwarded-For. Em desenvolvimento/testes, usa remote_addr.
+    """
+    forwarded = (request.headers.get("CF-Connecting-IP") or "").strip()
+    if forwarded:
+        try:
+            return str(ipaddress.ip_address(forwarded))
+        except ValueError:
+            pass
+    return (request.remote_addr or "").strip()
+
+
 limiter = Limiter(
     app=app,
-    key_func=get_remote_address,
+    key_func=_client_ip,
     storage_uri="memory://",
     default_limits=["200 per minute"],
 )
 
 DB_PATH = os.environ.get("DB_PATH", str(Path(__file__).parent / "icdas.db"))
+DATABASE_URL = os.environ.get("DATABASE_URL", "")
 
 # Logging
 logging.basicConfig(
@@ -92,52 +121,26 @@ except (FileNotFoundError, json.JSONDecodeError) as exc:
 
 
 # ---------------------------------------------------------------------------
-# Banco de dados SQLite
+# Banco de dados — SQLAlchemy + Alembic
 # ---------------------------------------------------------------------------
 
-def get_db():
-    """Retorna conexão SQLite. Caller deve fechar via try/finally."""
-    db = sqlite3.connect(DB_PATH, timeout=10)
-    db.row_factory = sqlite3.Row
-    return db
+def _db_options():
+    """Retorna a configuração atual do backend.
+
+    DATABASE_URL seleciona PostgreSQL (ou outro dialeto SQLAlchemy). Sem ela,
+    DB_PATH mantém o modo SQLite embedded e portátil.
+    """
+    return {"database_url": DATABASE_URL or None, "db_path": DB_PATH}
 
 
 def init_db():
-    # Usa conexão direta (não get_db) para aplicar os PRAGMAs de configuração.
-    # WAL mode é persistente no arquivo .db; executar aqui uma única vez
-    # elimina o overhead desses PRAGMAs em cada get_db() de runtime.
-    db = sqlite3.connect(DB_PATH, timeout=10)
-    db.execute("PRAGMA journal_mode=WAL")
-    db.execute("PRAGMA synchronous=NORMAL")
-    db.row_factory = sqlite3.Row
-    try:
-        db.execute("""
-            CREATE TABLE IF NOT EXISTS scores (
-                id      INTEGER PRIMARY KEY AUTOINCREMENT,
-                data    TEXT    NOT NULL,
-                total   INTEGER NOT NULL,
-                acertos INTEGER NOT NULL,
-                nome    TEXT    NOT NULL DEFAULT '',
-                ip      TEXT    NOT NULL DEFAULT '',
-                ip_hash TEXT    NOT NULL DEFAULT ''
-            )
-        """)
-        # Migração para bancos existentes: adiciona colunas se não existirem
-        for col, definition in [
-            ("nome", "TEXT NOT NULL DEFAULT ''"),
-            ("ip",   "TEXT NOT NULL DEFAULT ''"),
-            ("ip_hash", "TEXT NOT NULL DEFAULT ''"),
-        ]:
-            try:
-                db.execute(f"ALTER TABLE scores ADD COLUMN {col} {definition}")
-            except sqlite3.OperationalError:
-                pass  # coluna já existe
-        db.commit()
-    finally:
-        db.close()
+    """Aplica migrations Alembic e invariantes de privacidade."""
+    reset_engine()
+    upgrade_schema(**_db_options())
+    clear_legacy_ips(**_db_options())
 
 
-# Inicializa o banco ao carregar o módulo (funciona com gunicorn também)
+# Inicializa/migra o banco ao carregar o módulo (funciona com Gunicorn preload).
 init_db()
 
 
@@ -195,11 +198,6 @@ def _safe_int(value, default=-1):
         return default
 
 
-def _client_ip():
-    """Retorna o IP do cliente já normalizado pelo ProxyFix."""
-    return (request.remote_addr or "").strip()
-
-
 def _hash_ip(ip):
     """Gera identificador estável de IP sem gravar o IP bruto."""
     if not ip:
@@ -208,40 +206,9 @@ def _hash_ip(ip):
     return hmac.new(secret, ip.encode("utf-8"), hashlib.sha256).hexdigest()
 
 
-def _mask_ip(ip):
-    """Reduz precisão do IP para auditoria mínima, sem guardar endereço completo."""
-    if not ip:
-        return ""
-    try:
-        addr = ipaddress.ip_address(ip)
-    except ValueError:
-        return ""
-    if addr.version == 4:
-        parts = ip.split(".")
-        return ".".join(parts[:3] + ["0"])
-    network = ipaddress.ip_network(f"{ip}/64", strict=False)
-    return str(network.network_address) + "/64"
-
-
 def _ultimo_nome_por_ip_hash(ip_hash):
     """Busca o último nome usado pelo mesmo identificador técnico."""
-    if not ip_hash:
-        return ""
-    db = get_db()
-    try:
-        row = db.execute(
-            """
-            SELECT nome
-              FROM scores
-             WHERE ip_hash = ? AND nome <> ''
-             ORDER BY id DESC
-             LIMIT 1
-            """,
-            (ip_hash,),
-        ).fetchone()
-    finally:
-        db.close()
-    return row["nome"] if row else ""
+    return latest_name_for_ip_hash(ip_hash, **_db_options())
 
 
 def _imagens_destaque_home(imagens, limite=6):
@@ -672,29 +639,28 @@ def quiz_finalizar():
     )
 
     ip_real = _client_ip()
-    ip = _mask_ip(ip_real)[:45]
     ip_hash = _hash_ip(ip_real)
 
     if total > 0:
         for tentativa in range(3):
             try:
-                db = get_db()
-                try:
-                    db.execute(
-                        "INSERT INTO scores"
-                        " (data, total, acertos, nome, ip, ip_hash)"
-                        " VALUES (?, ?, ?, ?, ?, ?)",
-                        (
-                            datetime.now().strftime("%Y-%m-%d %H:%M"),
-                            total, acertos, nome, ip, ip_hash,
-                        ),
-                    )
-                    db.commit()
-                finally:
-                    db.close()
+                save_score(
+                    data=datetime.now().strftime("%Y-%m-%d %H:%M"),
+                    total=total,
+                    acertos=acertos,
+                    nome=nome,
+                    ip_hash=ip_hash,
+                    **_db_options(),
+                )
                 break
-            except sqlite3.OperationalError as e:
-                if "locked" not in str(e).lower() or tentativa == 2:
+            except OperationalError as exc:
+                # SQLite pode serializar writes muito próximos. PostgreSQL e
+                # outros backends devem propagar seus próprios erros.
+                if (
+                    "locked" not in str(exc).lower()
+                    or DATABASE_URL
+                    or tentativa == 2
+                ):
                     raise
                 time.sleep(0.1)
     session["score_acertos"] = 0
@@ -722,22 +688,14 @@ def quiz_resetar():
 @app.route("/scores")
 @limiter.limit("30 per minute")
 def scores():
-    db = get_db()
-    try:
-        historico = db.execute(
-            "SELECT * FROM scores ORDER BY id DESC LIMIT 20"
-        ).fetchall()
-        tentativas_validas = db.execute(
-            "SELECT * FROM scores WHERE total > 0 ORDER BY id DESC"
-        ).fetchall()
-    finally:
-        db.close()
+    historico = recent_scores(limit=20, **_db_options())
+    tentativas_validas = valid_scores(**_db_options())
 
     ranking_por_aluno = {}
     for tentativa in tentativas_validas:
-        nome = (tentativa["nome"] or "Anônimo").strip() or "Anônimo"
+        nome = (tentativa.nome or "Anônimo").strip() or "Anônimo"
         chave = nome.casefold()
-        pct = round(tentativa["acertos"] / tentativa["total"] * 100)
+        pct = round(tentativa.acertos / tentativa.total * 100)
         item = ranking_por_aluno.setdefault(
             chave,
             {
@@ -745,26 +703,26 @@ def scores():
                 "tentativas": 0,
                 "melhor": None,
                 "pior": None,
-                "ultima_data": tentativa["data"],
+                "ultima_data": tentativa.data,
             },
         )
         item["tentativas"] += 1
         candidato = {
             "pct": pct,
-            "acertos": tentativa["acertos"],
-            "total": tentativa["total"],
-            "data": tentativa["data"],
-            "id": tentativa["id"],
+            "acertos": tentativa.acertos,
+            "total": tentativa.total,
+            "data": tentativa.data,
+            "id": tentativa.id,
         }
         if (
             item["melhor"] is None
-            or (pct, tentativa["acertos"], tentativa["id"])
+            or (pct, tentativa.acertos, tentativa.id)
             > (item["melhor"]["pct"], item["melhor"]["acertos"], item["melhor"]["id"])
         ):
             item["melhor"] = candidato
         if (
             item["pior"] is None
-            or (pct, tentativa["acertos"], -tentativa["id"])
+            or (pct, tentativa.acertos, -tentativa.id)
             < (item["pior"]["pct"], item["pior"]["acertos"], -item["pior"]["id"])
         ):
             item["pior"] = candidato
@@ -780,11 +738,11 @@ def scores():
     )[:10]
 
     aproveitamentos = [
-        round(s["acertos"] / s["total"] * 100)
+        round(s.acertos / s.total * 100)
         for s in historico
-        if s["total"] > 0
+        if s.total > 0
     ]
-    total_questoes = sum(s["total"] for s in historico)
+    total_questoes = sum(s.total for s in historico)
     stats = {
         "sessoes": len(historico),
         "questoes": total_questoes,
@@ -821,6 +779,12 @@ def ratelimit_handler(e):
     return response
 
 
+@app.errorhandler(SecurityError)
+def host_nao_confiavel(e):
+    # Não renderizar template: url_for depende do host já rejeitado.
+    return "Bad Request", 400
+
+
 @app.errorhandler(400)
 def bad_request(e):
     return render_template("400.html"), 400
@@ -839,16 +803,7 @@ def erro_interno(e):
 @app.get("/health")
 @limiter.exempt
 def health():
-    db_ok = False
-    try:
-        db = get_db()
-        try:
-            db.execute("SELECT 1")
-        finally:
-            db.close()
-        db_ok = True
-    except Exception:
-        pass
+    db_ok = database_healthy(**_db_options())
     status = "ok" if db_ok else "degraded"
     return jsonify({"status": status, "db": db_ok}), 200 if db_ok else 503
 

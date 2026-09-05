@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% from "_macros.html" import csrf %}
+
+{% block title %}Dashboard do professor — ICDAS{% endblock %}
+
+{% block content %}
+<section class="scores-hero dashboard-hero">
+    <div>
+        <p class="scores-kicker">Análise acadêmica</p>
+        <h1>Dashboard do professor</h1>
+        <p>Participantes declarados, tentativas, respostas individuais e desempenho por código ICDAS.</p>
+    </div>
+    <div class="dashboard-actions">
+        <a href="{{ url_for('dashboard_export') }}" class="btn-primary no-underline">Exportar CSV</a>
+        <form action="{{ url_for('dashboard_logout') }}" method="post" class="form-zero-margin">
+            {{ csrf() }}
+            <button type="submit" class="btn-outline">Sair</button>
+        </form>
+    </div>
+</section>
+
+<section class="dashboard-summary" aria-label="Resumo geral">
+    <article><strong>{{ analytics.summary.participants }}</strong><span>participantes declarados</span></article>
+    <article><strong>{{ analytics.summary.attempts }}</strong><span>tentativas</span></article>
+    <article><strong>{{ analytics.summary.answers }}</strong><span>respostas registradas</span></article>
+    <article><strong>{{ analytics.summary.mean_score if analytics.summary.mean_score is not none else '—' }}{% if analytics.summary.mean_score is not none %}%{% endif %}</strong><span>média concluída</span></article>
+    <article><strong>{{ analytics.summary.completion_rate if analytics.summary.completion_rate is not none else '—' }}{% if analytics.summary.completion_rate is not none %}%{% endif %}</strong><span>conclusão</span></article>
+    <article><strong>{% if analytics.summary.median_response_ms is not none %}{{ (analytics.summary.median_response_ms / 1000) | round(1) }} s{% else %}—{% endif %}</strong><span>tempo mediano</span></article>
+</section>
+
+<section class="dashboard-section">
+    <div class="section-head-lite"><h2>Desempenho por código ICDAS</h2><span>respostas individuais</span></div>
+    <div class="scores-table-wrap">
+        <table class="scores-table">
+            <thead><tr><th>Código</th><th>Respostas</th><th>Acertos</th><th>Acurácia</th><th>Tempo médio</th></tr></thead>
+            <tbody>
+            {% for item in analytics.by_code %}
+                <tr>
+                    <td><strong>ICDAS {{ item.code }}</strong></td>
+                    <td>{{ item.total }}</td>
+                    <td>{{ item.correct }}</td>
+                    <td>{{ item.accuracy if item.accuracy is not none else '—' }}{% if item.accuracy is not none %}%{% endif %}</td>
+                    <td>{% if item.mean_ms is not none %}{{ (item.mean_ms / 1000) | round(1) }} s{% else %}—{% endif %}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section class="dashboard-section">
+    <div class="section-head-lite"><h2>Matriz de confusão</h2><span>linha = correto · coluna = respondido</span></div>
+    <div class="scores-table-wrap confusion-wrap">
+        <table class="scores-table confusion-table">
+            <thead>
+                <tr><th>Correto ↓ / resposta →</th>{% for code in range(7) %}<th>{{ code }}</th>{% endfor %}</tr>
+            </thead>
+            <tbody>
+            {% for row in analytics.confusion %}
+                {% set correct_code = loop.index0 %}
+                <tr><th>ICDAS {{ correct_code }}</th>{% for value in row %}<td class="{{ 'confusion-diagonal' if loop.index0 == correct_code else '' }}">{{ value }}</td>{% endfor %}</tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<div class="dashboard-two-col">
+    <section class="dashboard-section">
+        <div class="section-head-lite"><h2>Imagens mais difíceis</h2><span>até 20</span></div>
+        {% if analytics.images %}
+        <div class="dashboard-list">
+            {% for item in analytics.images %}
+            <article>
+                <strong>{{ item.image_key.split('/')[-1] }}</strong>
+                <span>{{ item.accuracy }}% · {{ item.correct }}/{{ item.total }} acertos{% if item.mean_ms %} · {{ (item.mean_ms / 1000) | round(1) }} s{% endif %}</span>
+            </article>
+            {% endfor %}
+        </div>
+        {% else %}<p class="dashboard-empty">Ainda não há respostas individuais.</p>{% endif %}
+    </section>
+
+    <section class="dashboard-section">
+        <div class="section-head-lite"><h2>Modo e versão</h2><span>comparabilidade</span></div>
+        <div class="dashboard-list">
+            {% for item in analytics.modes %}
+            <article><strong>{{ item.mode | capitalize }}</strong><span>{{ item.attempts }} tentativas · média {{ item.mean }}%</span></article>
+            {% endfor %}
+            {% for version, count in analytics.versions %}
+            <article><strong>{{ version }}</strong><span>{{ count }} tentativas concluídas</span></article>
+            {% endfor %}
+        </div>
+    </section>
+</div>
+
+<section class="dashboard-section">
+    <div class="section-head-lite"><h2>Evolução por nome declarado</h2><span>primeira → última tentativa concluída</span></div>
+    {% if analytics.evolution %}
+    <div class="scores-table-wrap">
+        <table class="scores-table">
+            <thead><tr><th>Aluno</th><th>Tentativas</th><th>Primeira</th><th>Última</th><th>Δ</th></tr></thead>
+            <tbody>
+            {% for item in analytics.evolution %}
+                <tr><td><strong>{{ item.nome }}</strong></td><td>{{ item.attempts }}</td><td>{{ item.first }}%</td><td>{{ item.last }}%</td><td>{{ '+' if item.delta > 0 else '' }}{{ item.delta }} p.p.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}<p class="dashboard-empty">É preciso ter pelo menos duas tentativas concluídas com o mesmo nome declarado.</p>{% endif %}
+</section>
+
+<section class="dashboard-section">
+    <div class="section-head-lite"><h2>Tentativas recentes</h2><span>inclui resets e trocas</span></div>
+    <div class="scores-table-wrap">
+        <table class="scores-table">
+            <thead><tr><th>ID</th><th>Aluno</th><th>Status</th><th>Modo</th><th>Versão</th><th>Resultado</th><th>IP técnico</th></tr></thead>
+            <tbody>
+            {% for item in analytics.recent %}
+                <tr>
+                    <td>{{ item.id }}</td>
+                    <td><strong>{{ item.nome }}</strong></td>
+                    <td>{{ item.status }}</td>
+                    <td>{{ item.mode }}</td>
+                    <td>{{ item.version }}</td>
+                    <td>{{ item.acertos }}/{{ item.total }}</td>
+                    <td><code>{{ item.ip_hash[:10] }}{% if item.ip_hash %}…{% endif %}</code></td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

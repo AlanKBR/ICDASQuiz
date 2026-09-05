@@ -18,12 +18,14 @@ O serviço é stateful por causa do banco de pontuações e portanto não deve s
 ## Aplicação
 
 - Flask monolítico em `app.py`;
-- SQLAlchemy 2 em `database.py`, com Alembic em `migrations/`;
+- SQLAlchemy 2 em `database.py`, com Alembic em `migrations/`; modelo atual `participants -> attempts -> answers`, mantendo `scores` apenas como legado/importação;
 - `DATABASE_URL`/`POSTGRES_*` selecionam PostgreSQL; sem eles, `DB_PATH` usa SQLite embedded;
 - não escreva SQL dependente de um dialeto sem necessidade; mudanças de schema entram como migration Alembic;
-- produção exige `SECRET_KEY` e `FLASK_DEBUG=0`;
+- produção exige `SECRET_KEY` e `FLASK_DEBUG=0`; `/dashboard` usa `ADMIN_PASSWORD` separado;
 - produção usa `CF-Connecting-IP` validado para rate-limit/pseudônimo técnico; não confie diretamente em `X-Forwarded-For` nem reintroduza `ProxyFix` sem rever a cadeia efetiva;
-- a coluna legada `ip` é mantida vazia; apenas `ip_hash` é retido;
+- a coluna legada `ip` é mantida vazia; apenas `ip_hash` é retido por tentativa; não trate IP como identidade de pessoa;
+- cada resposta registra imagem, códigos correto/respondido, acerto, ordem e tempo; não invente answers para scores históricos;
+- `quiz_version` é derivada do conteúdo das imagens/descrições para preservar comparabilidade acadêmica;
 - assets de quiz são `.webp` em `static/imagens/`;
 - mudanças funcionais devem vir com testes em `tests.py`.
 

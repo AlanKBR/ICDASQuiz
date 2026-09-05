@@ -1048,7 +1048,136 @@ img.img-broken {
   }
 }
 
+.admin-login-shell {
+  display: grid;
+  min-height: 55vh;
+  place-items: center;
+}
+
+.admin-login-card {
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid var(--border, #cbd5e1);
+  border-radius: 1.25rem;
+  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
+  max-width: 34rem;
+  padding: 2rem;
+  width: 100%;
+}
+
+.admin-login-form {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+}
+
+.admin-login-form input {
+  background: #fff;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.75rem;
+  padding: 0.75rem 0.9rem;
+}
+
+.dashboard-hero {
+  gap: 1rem;
+}
+
+.dashboard-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.dashboard-summary {
+  display: grid;
+  gap: 0.8rem;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  margin: 1.4rem 0;
+}
+
+.dashboard-summary article {
+  background: #fff;
+  border: 1px solid #dbe5e7;
+  border-radius: 1rem;
+  display: grid;
+  gap: 0.25rem;
+  padding: 1rem;
+}
+
+.dashboard-summary strong {
+  font-size: 1.45rem;
+}
+
+.dashboard-summary span {
+  color: #64748b;
+  font-size: 0.8rem;
+}
+
+.dashboard-section {
+  margin-top: 1.6rem;
+}
+
+.dashboard-two-col {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.dashboard-list {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.dashboard-list article {
+  align-items: center;
+  background: #fff;
+  border: 1px solid #dbe5e7;
+  border-radius: 0.85rem;
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.8rem 1rem;
+}
+
+.dashboard-list span,
+.dashboard-empty {
+  color: #64748b;
+  font-size: 0.85rem;
+}
+
+.confusion-table th,
+.confusion-table td {
+  min-width: 4rem;
+  text-align: center;
+}
+
+.confusion-diagonal {
+  background: #dff5ef;
+  font-weight: 800;
+}
+
+@media (max-width: 900px) {
+  .dashboard-summary {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .dashboard-two-col {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard-section .scores-table-wrap {
+    display: block;
+    overflow-x: auto;
+  }
+}
+
 @media (max-width: 480px) {
+  .dashboard-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .quiz-topbar {
     padding: 0.4rem 0.75rem;
   }

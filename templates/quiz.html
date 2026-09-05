@@ -60,11 +60,15 @@
             </span>
             <form action="{{ url_for('quiz_finalizar') }}" method="post" class="form-zero-margin">
                 {{ csrf() }}
-                <button type="submit" class="quiz-topbar-btn btn-outline">Salvar</button>
+                <button type="submit" class="quiz-topbar-btn btn-outline">Finalizar</button>
             </form>
             <form action="{{ url_for('quiz_resetar') }}" method="post" class="form-zero-margin">
                 {{ csrf() }}
                 <button type="submit" class="quiz-topbar-btn btn-outline">Resetar</button>
+            </form>
+            <form action="{{ url_for('quiz_trocar_aluno') }}" method="post" class="form-zero-margin">
+                {{ csrf() }}
+                <button type="submit" class="quiz-topbar-btn btn-outline">Trocar aluno</button>
             </form>
         </div>
     </div>

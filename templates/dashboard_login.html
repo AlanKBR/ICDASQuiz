@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% from "_macros.html" import csrf %}
+
+{% block title %}Dashboard do professor — ICDAS{% endblock %}
+
+{% block content %}
+<section class="admin-login-shell">
+    <article class="admin-login-card">
+        <p class="scores-kicker">Área restrita</p>
+        <h1>Dashboard do professor</h1>
+        <p>Entre com a senha administrativa para acessar os dados detalhados do quiz.</p>
+        {% if mensagem %}<div class="quiz-alert" role="alert">{{ mensagem }}</div>{% endif %}
+        <form method="post" class="admin-login-form">
+            {{ csrf() }}
+            <label for="admin-password">Senha</label>
+            <input id="admin-password" name="password" type="password" autocomplete="current-password" required autofocus>
+            <button type="submit" class="btn-primary">Entrar</button>
+        </form>
+    </article>
+</section>
+{% endblock %}

@@ -1,5 +1,7 @@
+import csv
 import hashlib
 import hmac
+import io
 import ipaddress
 import json
 import logging
@@ -19,18 +21,22 @@ from flask import (
 from flask_compress import Compress
 from flask_limiter import Limiter
 from flask_wtf.csrf import CSRFProtect
-from sqlalchemy.exc import OperationalError
 from werkzeug.exceptions import SecurityError
 
 from database import (
+    analytics_snapshot,
+    attempt_is_active,
     clear_legacy_ips,
+    create_participant,
     database_healthy,
+    end_attempt,
+    export_attempt_rows,
     latest_name_for_ip_hash,
-    recent_scores,
+    record_answer,
     reset_engine,
-    save_score,
+    scoreboard_snapshot,
+    start_attempt,
     upgrade_schema,
-    valid_scores,
 )
 
 load_dotenv()
@@ -102,6 +108,7 @@ limiter = Limiter(
 
 DB_PATH = os.environ.get("DB_PATH", str(Path(__file__).parent / "icdas.db"))
 DATABASE_URL = os.environ.get("DATABASE_URL", "")
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "")
 
 # Logging
 logging.basicConfig(
@@ -209,6 +216,90 @@ def _hash_ip(ip):
 def _ultimo_nome_por_ip_hash(ip_hash):
     """Busca o último nome usado pelo mesmo identificador técnico."""
     return latest_name_for_ip_hash(ip_hash, **_db_options())
+
+
+def _quiz_version():
+    """Versão determinística do conjunto de imagens + descrições clínicas."""
+    digest = hashlib.sha256()
+    digest.update(DESCRICOES_PATH.read_bytes())
+    pasta = Path(__file__).parent / "static" / "imagens"
+    for arquivo in sorted(pasta.glob("*.webp"), key=lambda path: path.name):
+        if "logo-ufjf-gv" in arquivo.name:
+            continue
+        digest.update(arquivo.name.encode("utf-8"))
+        digest.update(arquivo.read_bytes())
+    return "quiz-" + digest.hexdigest()[:12]
+
+
+def _ensure_participant():
+    participant_id = session.get("participant_id")
+    if participant_id:
+        return participant_id
+    nome = (session.get("quiz_nome") or "").strip()
+    if not nome:
+        return None
+    participant = create_participant(nome, **_db_options())
+    session["participant_id"] = participant.id
+    session.modified = True
+    return participant.id
+
+
+def _start_session_attempt():
+    participant_id = _ensure_participant()
+    if not participant_id:
+        return None
+    attempt = start_attempt(
+        participant_id=participant_id,
+        mode=session.get("quiz_modo") or "aleatorio",
+        quiz_version=_quiz_version(),
+        ip_hash=_hash_ip(_client_ip()),
+        **_db_options(),
+    )
+    session["attempt_id"] = attempt.id
+    session["question_order"] = 0
+    session.pop("question_started_at", None)
+    session.pop("question_started_image_id", None)
+    session.modified = True
+    return attempt.id
+
+
+def _ensure_attempt():
+    attempt_id = session.get("attempt_id")
+    if attempt_is_active(attempt_id, **_db_options()):
+        return attempt_id
+    return _start_session_attempt()
+
+
+def _end_session_attempt(status):
+    attempt_id = session.get("attempt_id")
+    end_attempt(attempt_id, status, **_db_options())
+    session.pop("attempt_id", None)
+    session.pop("question_started_at", None)
+    session.pop("question_started_image_id", None)
+    session.modified = True
+
+
+def _mark_question_started(image_id):
+    if session.get("question_started_image_id") != image_id:
+        session["question_started_image_id"] = image_id
+        session["question_started_at"] = time.time()
+        session.modified = True
+
+
+def _response_time_ms(image_id):
+    if session.get("question_started_image_id") != image_id:
+        return None
+    started = session.get("question_started_at")
+    try:
+        elapsed = max(0.0, time.time() - float(started))
+    except (TypeError, ValueError):
+        return None
+    # Evita valores absurdos por suspensão do dispositivo/aba abandonada.
+    return min(round(elapsed * 1000), 24 * 60 * 60 * 1000)
+
+
+def _admin_authenticated():
+    return bool(ADMIN_PASSWORD and session.get("admin_authenticated") is True)
 
 
 def _imagens_destaque_home(imagens, limite=6):
@@ -415,6 +506,7 @@ def quiz():
         )
 
     modo_seq = session.get("quiz_modo") == "sequencial"
+    attempt_id = _ensure_attempt()
 
     if request.method == "POST":
         imagem_id = _safe_int(request.form.get("imagem_id"), -1)
@@ -440,25 +532,35 @@ def quiz():
                 quiz_nome=session.get("quiz_nome"),
             )
 
+        inserted, correto = record_answer(
+            attempt_id=attempt_id,
+            image_key=imagem["caminho"],
+            correct_code=imagem["icdas_code"],
+            answered_code=resposta,
+            response_time_ms=_response_time_ms(imagem_id),
+            question_order=session.get("question_order", 0) + 1,
+            **_db_options(),
+        )
+        if not inserted:
+            return redirect(url_for("quiz"))
+
+        session["question_order"] = session.get("question_order", 0) + 1
         session["score_total"] += 1
-        if resposta == imagem["icdas_code"]:
-            correto = True
+        if correto:
             session["score_acertos"] += 1
-            mensagem = (
-                f"Correto! Esta imagem mostra ICDAS {imagem['icdas_code']}."
-            )
+            mensagem = f"Correto! Esta imagem mostra ICDAS {imagem['icdas_code']}."
         else:
-            correto = False
-            mensagem = (
-                f"Incorreto. A resposta correta é ICDAS "
-                f"{imagem['icdas_code']}."
-            )
+            mensagem = f"Incorreto. A resposta correta é ICDAS {imagem['icdas_code']}."
+        session.pop("question_started_at", None)
+        session.pop("question_started_image_id", None)
         session.modified = True
 
         # Avança: limpa a imagem atual → próximo GET carrega a seguinte
         session.pop("quiz_atual", None)
         # Fila vazia após limpar o atual → todas as imagens respondidas
         quiz_completo = session.get("quiz_fila") == []
+        if quiz_completo:
+            _end_session_attempt("completed")
 
         # PRG — armazena feedback na sessão e redireciona;
         # F5 na página de feedback é um GET inofensivo.
@@ -518,6 +620,7 @@ def quiz():
         session["quiz_atual"] = imagem["id"]
         session.modified = True
 
+    _mark_question_started(imagem["id"])
     return render_template(
         "quiz.html",
         imagem=imagem,
@@ -556,12 +659,18 @@ def quiz_iniciar():
             quiz_nome=None,
         ), 400
 
-    session["quiz_nome"] = nome
+    if session.get("attempt_id"):
+        _end_session_attempt("student_change")
+    participant = create_participant(nome, **_db_options())
+    session["participant_id"] = participant.id
+    session["quiz_nome"] = participant.name
     session["score_acertos"] = 0
     session["score_total"] = 0
     session["quiz_fila"] = None
+    session["question_order"] = 0
     session.pop("quiz_atual", None)
     session.pop("quiz_feedback", None)
+    _start_session_attempt()
     session.modified = True
     return redirect(url_for("quiz"))
 
@@ -611,8 +720,9 @@ def _quiz_pop(imagens):
 @app.route("/quiz/modo", methods=["POST"])
 @limiter.limit("20 per minute")
 def quiz_modo():
-    """Alterna entre modo aleatório e sequencial e reinicia a fila."""
+    """Troca o modo encerrando a tentativa anterior sem apagar seu histórico."""
     session.permanent = True
+    _end_session_attempt("mode_change")
     modo = request.form.get("modo", "aleatorio")
     session["quiz_modo"] = modo if modo == "sequencial" else "aleatorio"
     session["quiz_fila"] = None
@@ -620,6 +730,9 @@ def quiz_modo():
     session.pop("quiz_feedback", None)
     session["score_acertos"] = 0
     session["score_total"] = 0
+    session["question_order"] = 0
+    if session.get("quiz_nome"):
+        _start_session_attempt()
     session.modified = True
     return redirect(url_for("quiz"))
 
@@ -627,45 +740,12 @@ def quiz_modo():
 @app.route("/quiz/finalizar", methods=["POST"])
 @limiter.limit("10 per minute")
 def quiz_finalizar():
-    """Salva a sessão no banco e reseta o placar."""
-    acertos = max(0, session.get("score_acertos", 0))
-    total = max(0, session.get("score_total", 0))
-    acertos = min(acertos, total)
-
-    nome = (
-        session.get("quiz_nome")
-        or request.form.get("nome", "").strip()[:100]
-        or "Anônimo"
-    )
-
-    ip_real = _client_ip()
-    ip_hash = _hash_ip(ip_real)
-
-    if total > 0:
-        for tentativa in range(3):
-            try:
-                save_score(
-                    data=datetime.now().strftime("%Y-%m-%d %H:%M"),
-                    total=total,
-                    acertos=acertos,
-                    nome=nome,
-                    ip_hash=ip_hash,
-                    **_db_options(),
-                )
-                break
-            except OperationalError as exc:
-                # SQLite pode serializar writes muito próximos. PostgreSQL e
-                # outros backends devem propagar seus próprios erros.
-                if (
-                    "locked" not in str(exc).lower()
-                    or DATABASE_URL
-                    or tentativa == 2
-                ):
-                    raise
-                time.sleep(0.1)
+    """Finaliza a tentativa; respostas já são persistidas uma a uma."""
+    _end_session_attempt("completed")
     session["score_acertos"] = 0
     session["score_total"] = 0
     session["quiz_fila"] = None
+    session["question_order"] = 0
     session.pop("quiz_atual", None)
     session.pop("quiz_feedback", None)
     session.modified = True
@@ -675,12 +755,31 @@ def quiz_finalizar():
 @app.route("/quiz/resetar", methods=["POST"])
 @limiter.limit("20 per minute")
 def quiz_resetar():
-    """Reseta a fila e o placar sem salvar."""
+    """Inicia nova tentativa e preserva a anterior como reset."""
+    _end_session_attempt("reset")
     session["score_acertos"] = 0
     session["score_total"] = 0
     session["quiz_fila"] = None
+    session["question_order"] = 0
     session.pop("quiz_atual", None)
     session.pop("quiz_feedback", None)
+    if session.get("quiz_nome"):
+        _start_session_attempt()
+    session.modified = True
+    return redirect(url_for("quiz"))
+
+
+@app.route("/quiz/trocar-aluno", methods=["POST"])
+@limiter.limit("20 per minute")
+def quiz_trocar_aluno():
+    """Permite uso sequencial do mesmo dispositivo por pessoas diferentes."""
+    _end_session_attempt("student_change")
+    for key in (
+        "participant_id", "quiz_nome", "score_acertos", "score_total",
+        "quiz_fila", "quiz_atual", "quiz_feedback", "question_order",
+        "question_started_at", "question_started_image_id",
+    ):
+        session.pop(key, None)
     session.modified = True
     return redirect(url_for("quiz"))
 
@@ -688,74 +787,62 @@ def quiz_resetar():
 @app.route("/scores")
 @limiter.limit("30 per minute")
 def scores():
-    historico = recent_scores(limit=20, **_db_options())
-    tentativas_validas = valid_scores(**_db_options())
+    snapshot = scoreboard_snapshot(**_db_options())
+    return render_template("scores.html", **snapshot)
 
-    ranking_por_aluno = {}
-    for tentativa in tentativas_validas:
-        nome = (tentativa.nome or "Anônimo").strip() or "Anônimo"
-        chave = nome.casefold()
-        pct = round(tentativa.acertos / tentativa.total * 100)
-        item = ranking_por_aluno.setdefault(
-            chave,
-            {
-                "nome": nome,
-                "tentativas": 0,
-                "melhor": None,
-                "pior": None,
-                "ultima_data": tentativa.data,
-            },
-        )
-        item["tentativas"] += 1
-        candidato = {
-            "pct": pct,
-            "acertos": tentativa.acertos,
-            "total": tentativa.total,
-            "data": tentativa.data,
-            "id": tentativa.id,
-        }
-        if (
-            item["melhor"] is None
-            or (pct, tentativa.acertos, tentativa.id)
-            > (item["melhor"]["pct"], item["melhor"]["acertos"], item["melhor"]["id"])
-        ):
-            item["melhor"] = candidato
-        if (
-            item["pior"] is None
-            or (pct, tentativa.acertos, -tentativa.id)
-            < (item["pior"]["pct"], item["pior"]["acertos"], -item["pior"]["id"])
-        ):
-            item["pior"] = candidato
 
-    ranking = sorted(
-        ranking_por_aluno.values(),
-        key=lambda item: (
-            item["melhor"]["pct"],
-            item["melhor"]["acertos"],
-            item["tentativas"],
-        ),
-        reverse=True,
-    )[:10]
+@app.route("/dashboard/login", methods=["GET", "POST"])
+@limiter.limit("10 per minute")
+def dashboard_login():
+    if _admin_authenticated():
+        return redirect(url_for("dashboard"))
+    mensagem = None
+    if request.method == "POST":
+        supplied = request.form.get("password", "")
+        if ADMIN_PASSWORD and hmac.compare_digest(supplied, ADMIN_PASSWORD):
+            session["admin_authenticated"] = True
+            session.permanent = True
+            session.modified = True
+            return redirect(url_for("dashboard"))
+        mensagem = "Senha inválida."
+    return render_template("dashboard_login.html", mensagem=mensagem), (401 if mensagem else 200)
 
-    aproveitamentos = [
-        round(s.acertos / s.total * 100)
-        for s in historico
-        if s.total > 0
+
+@app.route("/dashboard/logout", methods=["POST"])
+def dashboard_logout():
+    session.pop("admin_authenticated", None)
+    session.modified = True
+    return redirect(url_for("dashboard_login"))
+
+
+@app.route("/dashboard")
+@limiter.limit("60 per minute")
+def dashboard():
+    if not _admin_authenticated():
+        return redirect(url_for("dashboard_login"))
+    analytics = analytics_snapshot(**_db_options())
+    return render_template("dashboard.html", analytics=analytics)
+
+
+@app.route("/dashboard/export.csv")
+@limiter.limit("10 per minute")
+def dashboard_export():
+    if not _admin_authenticated():
+        return redirect(url_for("dashboard_login"))
+    rows = export_attempt_rows(**_db_options())
+    output = io.StringIO()
+    fields = [
+        "attempt_id", "participant_id", "nome", "started_at", "finished_at",
+        "status", "mode", "quiz_version", "total", "acertos", "percentual",
+        "ip_hash", "legacy_score_id",
     ]
-    total_questoes = sum(s.total for s in historico)
-    stats = {
-        "sessoes": len(historico),
-        "questoes": total_questoes,
-        "media": round(sum(aproveitamentos) / len(aproveitamentos))
-        if aproveitamentos else None,
-        "melhor": max(aproveitamentos) if aproveitamentos else None,
-    }
-    return render_template(
-        "scores.html",
-        historico=historico,
-        ranking=ranking,
-        stats=stats,
-    )
+    writer = csv.DictWriter(output, fieldnames=fields)
+    writer.writeheader()
+    writer.writerows(rows)
+    response = make_response(output.getvalue())
+    response.headers["Content-Type"] = "text/csv; charset=utf-8"
+    response.headers["Content-Disposition"] = "attachment; filename=icdasquiz-attempts.csv"
+    return response
 
 
 @app.route("/sobre")

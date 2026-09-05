@@ -1,4 +1,5 @@
 User-agent: *
 Disallow: /quiz
 Disallow: /scores
+Disallow: /dashboard
 Allow: /

@@ -17,7 +17,10 @@ Esta aplicação oferece:
 - **Página informativa** com a tabela completa dos códigos ICDAS 0–6 e suas descrições clínicas
 - **Galeria de imagens clínicas** filtráveis por código, com descrição de cada lesão
 - **Quiz interativo** que exibe imagens reais e pede ao usuário que classifique o código ICDAS correto, com feedback imediato e descrição clínica após a resposta
-- **Histórico de pontuações** salvo em banco relacional, com SQLite embedded para uso local e PostgreSQL para produção
+- **Histórico de tentativas** salvo em banco relacional, com SQLite embedded para uso local e PostgreSQL para produção
+- **Registro por resposta:** imagem, resposta dada, código correto, acerto/erro, ordem e tempo de resposta
+- **Versionamento automático do quiz** pelo conteúdo das imagens e descrições clínicas
+- **Dashboard do professor** com desempenho por ICDAS, matriz de confusão, imagens difíceis, evolução, modos/versões e exportação CSV
 - **Dois modos de quiz:** aleatório e sequencial (percorre todas as imagens uma vez)
 
 ---
@@ -42,7 +45,7 @@ Esta aplicação oferece:
 ```
 icdas-educacional/
 ├── app.py                  # Aplicação Flask e rotas
-├── database.py             # Modelos/repositório SQLAlchemy e seleção do backend
+├── database.py             # Participants, attempts, answers, analytics e seleção do backend
 ├── alembic.ini             # Configuração das migrations
 ├── migrations/             # Schema versionado e portável
 ├── tests.py                # Suite de testes (pytest)
@@ -66,7 +69,9 @@ icdas-educacional/
     ├── index.html          # Página inicial com tabela ICDAS
     ├── galeria.html        # Galeria de imagens com filtro
     ├── quiz.html           # Quiz interativo
-    ├── scores.html         # Histórico de pontuações
+    ├── scores.html         # Histórico público de tentativas concluídas
+    ├── dashboard.html      # Analytics acadêmico do professor
+    ├── dashboard_login.html# Login da área restrita
     ├── sobre.html          # Sobre o projeto e referências
     ├── 404.html            # Página de erro 404
     └── 500.html            # Página de erro 500
@@ -119,7 +124,9 @@ O código da aplicação não depende de um banco específico. A seleção é fe
 
 Isso permite entregar o projeto para execução local sem instalar um servidor de banco: basta deixar `DATABASE_URL` e `POSTGRES_HOST` ausentes e o próprio processo abre um arquivo SQLite. Em um servidor institucional ou serviço gerenciado, basta apontar para PostgreSQL sem alterar o código.
 
-O schema é controlado pelo **Alembic**. A aplicação aplica `alembic upgrade head` automaticamente ao iniciar. A migration inicial também adota bancos SQLite antigos que já possuíam a tabela `scores`.
+O schema é controlado pelo **Alembic**. A aplicação aplica `alembic upgrade head` automaticamente ao iniciar. Resultados antigos da tabela `scores` são preservados como tentativas legadas; respostas individuais não são inventadas para dados anteriores ao novo schema.
+
+O modelo atual separa `participants -> attempts -> answers`. Um participante representa uma identidade **declarada na sessão**, não uma prova de identidade civil. IP é retido apenas como HMAC em cada tentativa e não é usado sozinho para fundir pessoas — isso permite, por exemplo, João e Maria usarem o mesmo computador sem virarem a mesma pessoa no banco.
 
 ### Produção no Zezin
 
@@ -149,6 +156,7 @@ Copie `.env.example` para `.env` e preencha:
 |---|---|---|
 | `FLASK_DEBUG` | `1` para dev, `0` para produção | `0` |
 | `SECRET_KEY` | Chave criptográfica para sessões | *obrigatório em produção* |
+| `ADMIN_PASSWORD` | Senha da área restrita `/dashboard` | *obrigatório para usar o dashboard* |
 | `DATABASE_URL` | URL SQLAlchemy; use para PostgreSQL externo/gerenciado | vazio |
 | `DB_PATH` | Caminho do SQLite embedded quando não há backend servidor | `icdas.db` |
 | `POSTGRES_HOST` | Host PostgreSQL; ativa montagem de URL por componentes | vazio |
@@ -193,6 +201,9 @@ Os testes cobrem:
 - Rotas básicas (status code e conteúdo)
 - Lógica do quiz (fluxo POST→redirect→GET, placar, fila, modos aleatório e sequencial)
 - Persistência e migrations sobre SQLite; produção é validada também contra PostgreSQL
+- Tentativas, respostas individuais, idempotência e tempo de resposta
+- Reset/troca de modo/troca de aluno preservando histórico
+- Dashboard restrito e exportação CSV
 - Tratamento de entradas inválidas
 - Headers de segurança
 - Funções auxiliares (`get_imagens`, `_safe_int`, `_quiz_pop`)

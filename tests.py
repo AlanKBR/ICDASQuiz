@@ -11,6 +11,7 @@ import pytest
 # Configura ambiente ANTES de importar o app
 os.environ["FLASK_DEBUG"] = "0"
 os.environ["SECRET_KEY"] = "test-secret-key-only-for-testing"
+os.environ["ADMIN_PASSWORD"] = "test-admin"
 
 
 @pytest.fixture(autouse=True)
@@ -205,24 +206,21 @@ class TestQuizFluxo:
         assert img["nome"] in html
 
     def test_quiz_placar_sessao(self, client, app_module):
-        """Placar deve incrementar durante a sessão."""
+        """Placar deve incrementar com duas imagens distintas."""
         imagens = app_module.get_imagens()
-        if not imagens:
-            pytest.skip("Sem imagens")
-        img = imagens[0]
-        # Primeira resposta
+        if len(imagens) < 2:
+            pytest.skip("Precisa de pelo menos 2 imagens")
+        primeira, segunda = imagens[:2]
         client.post("/quiz", data={
-            "imagem_id": str(img["id"]),
-            "resposta": str(img["icdas_code"]),
+            "imagem_id": str(primeira["id"]),
+            "resposta": str(primeira["icdas_code"]),
         })
-        # Segunda resposta (errada)
-        resposta_errada = (img["icdas_code"] + 1) % 7
+        resposta_errada = (segunda["icdas_code"] + 1) % 7
         resp = client.post("/quiz", data={
-            "imagem_id": str(img["id"]),
+            "imagem_id": str(segunda["id"]),
             "resposta": str(resposta_errada),
         }, follow_redirects=True)
         html = resp.data.decode("utf-8")
-        # Deve mostrar 1/2
         assert "1 / 2" in html
 
     def test_quiz_botao_proxima_imagem(self, client, app_module):
@@ -450,19 +448,21 @@ class TestPlacarPersistencia:
         # Finaliza
         resp = client.post("/quiz/finalizar")
         assert resp.status_code == 302
-        # Verifica no banco
+        # Verifica o modelo atual: tentativa + resposta individual.
         db = sqlite3.connect(app_module.DB_PATH)
-        rows = db.execute("SELECT * FROM scores").fetchall()
+        attempts = db.execute(
+            "SELECT status, total, acertos FROM attempts ORDER BY id DESC LIMIT 1"
+        ).fetchone()
+        answers = db.execute("SELECT COUNT(*) FROM answers").fetchone()[0]
         db.close()
-        assert len(rows) == 1
-        assert rows[0][2] == 1  # total
-        assert rows[0][3] == 1  # acertos
+        assert attempts == ("completed", 1, 1)
+        assert answers == 1
 
     def test_finalizar_sessao_vazia_nao_salva(self, client, app_module):
         """Se total == 0, não deve criar registro."""
         client.post("/quiz/finalizar")
         db = sqlite3.connect(app_module.DB_PATH)
-        rows = db.execute("SELECT * FROM scores").fetchall()
+        rows = db.execute("SELECT * FROM attempts").fetchall()
         db.close()
         assert len(rows) == 0
 
@@ -1411,6 +1411,117 @@ class TestRobotsERobotsAbuse:
         # Não deve expor stack trace ou nomes de arquivo interno
         assert "Traceback" not in html
         assert "app.py" not in html
+
+
+class TestModeloAcademico:
+    """Cobertura do novo modelo de tentativas, respostas e dashboard."""
+
+    def test_quiz_registra_resposta_individual_e_versao(self, client, app_module):
+        imagens = app_module.get_imagens()
+        img = imagens[0]
+        client.get("/quiz")
+        client.post("/quiz", data={
+            "imagem_id": str(img["id"]),
+            "resposta": str(img["icdas_code"]),
+        })
+        db = sqlite3.connect(app_module.DB_PATH)
+        attempt = db.execute(
+            "SELECT quiz_version, total, acertos FROM attempts ORDER BY id DESC LIMIT 1"
+        ).fetchone()
+        answer = db.execute(
+            "SELECT image_key, correct_code, answered_code, correct, response_time_ms "
+            "FROM answers ORDER BY id DESC LIMIT 1"
+        ).fetchone()
+        db.close()
+        assert attempt[0].startswith("quiz-")
+        assert attempt[1:] == (1, 1)
+        assert answer[0] == img["caminho"]
+        assert answer[1:4] == (img["icdas_code"], img["icdas_code"], 1)
+        assert answer[4] is None or answer[4] >= 0
+
+    def test_post_repetido_da_mesma_imagem_e_idempotente(self, client, app_module):
+        img = app_module.get_imagens()[0]
+        payload = {"imagem_id": str(img["id"]), "resposta": str(img["icdas_code"])}
+        client.post("/quiz", data=payload)
+        client.post("/quiz", data=payload)
+        db = sqlite3.connect(app_module.DB_PATH)
+        count = db.execute("SELECT COUNT(*) FROM answers").fetchone()[0]
+        total = db.execute("SELECT total FROM attempts ORDER BY id DESC LIMIT 1").fetchone()[0]
+        db.close()
+        assert count == 1
+        assert total == 1
+
+    def test_reset_preserva_tentativa_anterior(self, client, app_module):
+        img = app_module.get_imagens()[0]
+        client.post("/quiz", data={
+            "imagem_id": str(img["id"]), "resposta": str(img["icdas_code"])
+        })
+        client.post("/quiz/resetar")
+        db = sqlite3.connect(app_module.DB_PATH)
+        rows = db.execute("SELECT status, total FROM attempts ORDER BY id").fetchall()
+        db.close()
+        assert rows[0] == ("reset", 1)
+        assert rows[-1][0] == "active"
+
+    def test_troca_modo_preserva_tentativa_anterior(self, client, app_module):
+        client.get("/quiz")
+        client.post("/quiz/modo", data={"modo": "sequencial"})
+        db = sqlite3.connect(app_module.DB_PATH)
+        rows = db.execute("SELECT status, mode FROM attempts ORDER BY id").fetchall()
+        db.close()
+        assert rows[0][0] == "mode_change"
+        assert rows[-1] == ("active", "sequencial")
+
+    def test_duas_pessoas_mesmo_dispositivo_ficam_separadas(self, client, app_module):
+        with client.session_transaction() as sess:
+            sess.clear()
+        client.post("/quiz/iniciar", data={"nome": "João"})
+        client.post("/quiz/trocar-aluno")
+        client.post("/quiz/iniciar", data={"nome": "Maria"})
+        db = sqlite3.connect(app_module.DB_PATH)
+        names = [row[0] for row in db.execute("SELECT name FROM participants ORDER BY id")]
+        hashes = [row[0] for row in db.execute("SELECT ip_hash FROM attempts ORDER BY id")]
+        db.close()
+        assert names == ["João", "Maria"]
+        assert len(set(hashes)) == 1
+        assert hashes[0]
+
+    def test_trocar_aluno_limpa_identidade_da_sessao(self, client):
+        client.post("/quiz/trocar-aluno")
+        resp = client.get("/quiz")
+        html = resp.data.decode("utf-8")
+        assert "Nome do aluno" in html
+
+    def test_quiz_version_e_deterministica(self, app_module):
+        assert app_module._quiz_version() == app_module._quiz_version()
+        assert app_module._quiz_version().startswith("quiz-")
+
+    def test_dashboard_exige_login(self, client):
+        resp = client.get("/dashboard")
+        assert resp.status_code == 302
+        assert "/dashboard/login" in resp.headers["Location"]
+
+    def test_dashboard_rejeita_senha_invalida(self, client):
+        resp = client.post("/dashboard/login", data={"password": "errada"})
+        assert resp.status_code == 401
+
+    def test_dashboard_login_e_export(self, client, app_module):
+        img = app_module.get_imagens()[0]
+        client.post("/quiz", data={
+            "imagem_id": str(img["id"]), "resposta": str(img["icdas_code"])
+        })
+        client.post("/quiz/finalizar")
+        resp = client.post("/dashboard/login", data={"password": "test-admin"})
+        assert resp.status_code == 302
+        dashboard = client.get("/dashboard")
+        assert dashboard.status_code == 200
+        html = dashboard.data.decode("utf-8")
+        assert "Dashboard do professor" in html
+        assert "Matriz de confusão" in html
+        export = client.get("/dashboard/export.csv")
+        assert export.status_code == 200
+        assert "text/csv" in export.content_type
+        assert "quiz_version" in export.data.decode("utf-8").splitlines()[0]
 
 
 if __name__ == "__main__":

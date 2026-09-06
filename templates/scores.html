@@ -44,7 +44,7 @@
             <span class="leader-rank">{{ loop.index }}</span>
             <div class="leader-info">
                 <strong>{{ aluno.nome }}</strong>
-                <span class="leader-attempts" aria-label="Tentativas registradas">
+                <span class="leader-attempts">
                     {{ aluno.tentativas }} {{ "tentativa" if aluno.tentativas == 1 else "tentativas" }}
                 </span>
             </div>
@@ -70,7 +70,7 @@
         <span>Últimas 20</span>
     </div>
 
-    <div class="scores-table-wrap">
+    <div class="scores-table-wrap" role="region" tabindex="0" aria-label="Histórico de sessões em tabela">
         <table class="scores-table">
             <thead>
                 <tr>
@@ -102,7 +102,7 @@
         </table>
     </div>
 
-    <div class="scores-cards" aria-label="Histórico de sessões">
+    <div class="scores-cards" role="region" aria-label="Histórico de sessões">
         {% for s in historico %}
         {% set pct = (s["acertos"] / s["total"] * 100) | round | int if s["total"] > 0 else none %}
         <article class="scores-card">

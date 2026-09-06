@@ -30,7 +30,7 @@
 
 <section class="dashboard-section">
     <div class="section-head-lite"><h2>Desempenho por código ICDAS</h2><span>respostas individuais</span></div>
-    <div class="scores-table-wrap">
+    <div class="scores-table-wrap" role="region" tabindex="0" aria-label="Desempenho por código ICDAS">
         <table class="scores-table">
             <thead><tr><th>Código</th><th>Respostas</th><th>Acertos</th><th>Acurácia</th><th>Tempo médio</th></tr></thead>
             <tbody>
@@ -50,7 +50,7 @@
 
 <section class="dashboard-section">
     <div class="section-head-lite"><h2>Matriz de confusão</h2><span>linha = correto · coluna = respondido</span></div>
-    <div class="scores-table-wrap confusion-wrap">
+    <div class="scores-table-wrap confusion-wrap" role="region" tabindex="0" aria-label="Matriz de confusão ICDAS">
         <table class="scores-table confusion-table">
             <thead>
                 <tr><th>Correto ↓ / resposta →</th>{% for code in range(7) %}<th>{{ code }}</th>{% endfor %}</tr>
@@ -96,7 +96,7 @@
 <section class="dashboard-section">
     <div class="section-head-lite"><h2>Evolução por nome declarado</h2><span>primeira → última tentativa concluída</span></div>
     {% if analytics.evolution %}
-    <div class="scores-table-wrap">
+    <div class="scores-table-wrap" role="region" tabindex="0" aria-label="Evolução por nome declarado">
         <table class="scores-table">
             <thead><tr><th>Aluno</th><th>Tentativas</th><th>Primeira</th><th>Última</th><th>Δ</th></tr></thead>
             <tbody>
@@ -111,7 +111,7 @@
 
 <section class="dashboard-section">
     <div class="section-head-lite"><h2>Tentativas recentes</h2><span>inclui resets e trocas</span></div>
-    <div class="scores-table-wrap">
+    <div class="scores-table-wrap" role="region" tabindex="0" aria-label="Tentativas recentes">
         <table class="scores-table">
             <thead><tr><th>ID</th><th>Aluno</th><th>Status</th><th>Modo</th><th>Versão</th><th>Resultado</th><th>IP técnico</th></tr></thead>
             <tbody>

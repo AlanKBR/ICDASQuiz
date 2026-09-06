@@ -4,7 +4,7 @@ import os
 import re
 import unicodedata
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from statistics import median
 from typing import Iterator
@@ -33,9 +33,19 @@ def utcnow() -> datetime:
     return datetime.now(timezone.utc)
 
 
+def clean_display_name(value: str) -> str:
+    """Normaliza um nome declarado sem aceitar controles invisíveis/NUL."""
+    normalized = unicodedata.normalize("NFKC", value or "")
+    visible = "".join(
+        " " if unicodedata.category(char).startswith("C") else char
+        for char in normalized
+    )
+    return " ".join(visible.split())[:100]
+
+
 def normalize_name(value: str) -> str:
     """Chave de agrupamento; não afirma identidade civil do participante."""
-    compact = " ".join((value or "").strip().split())
+    compact = clean_display_name(value)
     normalized = unicodedata.normalize("NFKD", compact.casefold())
     return "".join(char for char in normalized if not unicodedata.combining(char))[:120]
 
@@ -254,7 +264,7 @@ def valid_scores(*, database_url: str | None = None, db_path: str | None = None)
 # ---------------------------------------------------------------------------
 
 def create_participant(name: str, *, database_url: str | None = None, db_path: str | None = None) -> Participant:
-    clean = " ".join(name.strip().split())[:100]
+    clean = clean_display_name(name)
     if not clean:
         raise ValueError("nome vazio")
     with session_scope(database_url=database_url, db_path=db_path) as db:
@@ -262,6 +272,14 @@ def create_participant(name: str, *, database_url: str | None = None, db_path: s
         db.add(participant)
         db.commit()
         return participant
+
+
+def participant_exists(participant_id: int | None, *, database_url: str | None = None,
+                       db_path: str | None = None) -> bool:
+    if not participant_id:
+        return False
+    with session_scope(database_url=database_url, db_path=db_path) as db:
+        return db.get(Participant, participant_id) is not None
 
 
 def start_attempt(*, participant_id: int, mode: str, quiz_version: str, ip_hash: str,
@@ -293,8 +311,18 @@ def attempt_is_active(attempt_id: int | None, *, database_url: str | None = None
 def record_answer(*, attempt_id: int, image_key: str, correct_code: int, answered_code: int,
                   response_time_ms: int | None, question_order: int,
                   database_url: str | None = None, db_path: str | None = None) -> tuple[bool, bool]:
+    if not 0 <= correct_code <= 6 or not 0 <= answered_code <= 6:
+        raise ValueError("código ICDAS fora do intervalo")
+    if response_time_ms is not None:
+        response_time_ms = max(0, min(int(response_time_ms), 24 * 60 * 60 * 1000))
+    question_order = max(1, int(question_order))
+
     with session_scope(database_url=database_url, db_path=db_path) as db:
-        attempt = db.get(Attempt, attempt_id)
+        # Serializa respostas da mesma tentativa em PostgreSQL. Isso evita
+        # lost update dos contadores e torna POST concorrente idempotente.
+        attempt = db.execute(
+            select(Attempt).where(Attempt.id == attempt_id).with_for_update()
+        ).scalar_one_or_none()
         if attempt is None or attempt.status != "active":
             raise ValueError("tentativa não está ativa")
         existing = db.scalar(
@@ -324,19 +352,53 @@ def end_attempt(attempt_id: int | None, status: str, *, database_url: str | None
                 db_path: str | None = None) -> None:
     if not attempt_id:
         return
-    allowed = {"completed", "reset", "mode_change", "student_change"}
+    allowed = {"completed", "reset", "mode_change", "student_change", "empty", "expired"}
     if status not in allowed:
         raise ValueError("status final inválido")
     with session_scope(database_url=database_url, db_path=db_path) as db:
-        attempt = db.get(Attempt, attempt_id)
+        attempt = db.execute(
+            select(Attempt).where(Attempt.id == attempt_id).with_for_update()
+        ).scalar_one_or_none()
         if attempt is None or attempt.status != "active":
             return
-        attempt.status = status
+        # Finalizar uma tentativa sem nenhuma resposta não é conclusão.
+        attempt.status = "empty" if status == "completed" and attempt.total == 0 else status
         attempt.finished_at = utcnow()
         db.commit()
 
 
+def expire_stale_attempts(*, max_age_hours: int = 4, database_url: str | None = None,
+                          db_path: str | None = None) -> int:
+    """Fecha tentativas que sobreviveram ao tempo máximo da sessão web."""
+    cutoff = utcnow() - timedelta(hours=max(1, max_age_hours))
+    with session_scope(database_url=database_url, db_path=db_path) as db:
+        active = list(
+            db.scalars(
+                select(Attempt)
+                .where(Attempt.status == "active")
+                .with_for_update()
+            ).all()
+        )
+        stale = []
+        for attempt in active:
+            started = attempt.started_at
+            if started.tzinfo is None:
+                started = started.replace(tzinfo=timezone.utc)
+            else:
+                started = started.astimezone(timezone.utc)
+            if started < cutoff:
+                stale.append(attempt)
+        finished = utcnow()
+        for attempt in stale:
+            attempt.status = "expired"
+            attempt.finished_at = finished
+        if stale:
+            db.commit()
+        return len(stale)
+
+
 def scoreboard_snapshot(*, database_url: str | None = None, db_path: str | None = None) -> dict:
+    expire_stale_attempts(database_url=database_url, db_path=db_path)
     with session_scope(database_url=database_url, db_path=db_path) as db:
         attempts = list(
             db.scalars(
@@ -363,6 +425,8 @@ def scoreboard_snapshot(*, database_url: str | None = None, db_path: str | None 
             history.append(item)
         pct = round(attempt.acertos / attempt.total * 100)
         key = attempt.participant.name_key or normalize_name(attempt.participant.name)
+        if key == normalize_name("Anônimo"):
+            continue
         group = ranking_by_name.setdefault(
             key,
             {"nome": attempt.participant.name, "tentativas": 0, "melhor": None, "pior": None},
@@ -397,6 +461,7 @@ def scoreboard_snapshot(*, database_url: str | None = None, db_path: str | None 
 
 
 def analytics_snapshot(*, database_url: str | None = None, db_path: str | None = None) -> dict:
+    expire_stale_attempts(database_url=database_url, db_path=db_path)
     with session_scope(database_url=database_url, db_path=db_path) as db:
         participants = list(db.scalars(select(Participant).order_by(Participant.id)).all())
         attempts = list(
@@ -453,7 +518,8 @@ def analytics_snapshot(*, database_url: str | None = None, db_path: str | None =
     for attempt in completed:
         mode_groups.setdefault(attempt.mode, []).append(attempt.acertos / attempt.total * 100)
         version_groups[attempt.quiz_version] = version_groups.get(attempt.quiz_version, 0) + 1
-        name_groups.setdefault(attempt.participant.name_key, []).append(attempt)
+        if attempt.participant.name_key != normalize_name("Anônimo"):
+            name_groups.setdefault(attempt.participant.name_key, []).append(attempt)
 
     modes = [
         {"mode": mode, "attempts": len(values), "mean": round(sum(values) / len(values), 1)}
@@ -513,6 +579,7 @@ def analytics_snapshot(*, database_url: str | None = None, db_path: str | None =
 
 
 def export_attempt_rows(*, database_url: str | None = None, db_path: str | None = None) -> list[dict]:
+    expire_stale_attempts(database_url=database_url, db_path=db_path)
     with session_scope(database_url=database_url, db_path=db_path) as db:
         attempts = list(
             db.scalars(

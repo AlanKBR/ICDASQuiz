@@ -5,6 +5,7 @@ Rodar com: python -m pytest tests.py -v
 import json
 import os
 import sqlite3
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -78,6 +79,27 @@ def rate_client():
 def app_module():
     import app as app_module
     return app_module
+
+
+def _prepare_quiz_answer(client, app_module, image):
+    """Simula uma questão que foi realmente exibida antes do POST."""
+    client.get("/quiz")
+    with client.session_transaction() as sess:
+        attempt_id = sess.get("attempt_id")
+        assert attempt_id
+        sess["quiz_atual"] = image["id"]
+        fila = sess.get("quiz_fila")
+        if isinstance(fila, list):
+            sess["quiz_fila"] = [iid for iid in fila if iid != image["id"]]
+    return {"attempt_id": str(attempt_id), "imagem_id": str(image["id"])}
+
+
+def _payload_from_rendered_quiz(html):
+    import re
+    attempt = re.search(r'name="attempt_id"\s+value="(\d+)"', html)
+    image = re.search(r'name="imagem_id"\s+value="(\d+)"', html)
+    assert attempt and image, "formulário ativo do quiz não encontrado"
+    return {"attempt_id": attempt.group(1), "imagem_id": image.group(1)}
 
 
 # ============================================================
@@ -165,10 +187,9 @@ class TestQuizFluxo:
         if not imagens:
             pytest.skip("Sem imagens")
         img = imagens[0]
-        resp = client.post("/quiz", data={
-            "imagem_id": str(img["id"]),
-            "resposta": str(img["icdas_code"]),
-        }, follow_redirects=True)
+        payload = _prepare_quiz_answer(client, app_module, img)
+        payload["resposta"] = str(img["icdas_code"])
+        resp = client.post("/quiz", data=payload, follow_redirects=True)
         html = resp.data.decode("utf-8")
         assert "Correto" in html
         assert "✓" in html
@@ -183,10 +204,9 @@ class TestQuizFluxo:
             pytest.skip("Sem imagens")
         img = imagens[0]
         resposta_errada = (img["icdas_code"] + 1) % 7
-        resp = client.post("/quiz", data={
-            "imagem_id": str(img["id"]),
-            "resposta": str(resposta_errada),
-        }, follow_redirects=True)
+        payload = _prepare_quiz_answer(client, app_module, img)
+        payload["resposta"] = str(resposta_errada)
+        resp = client.post("/quiz", data=payload, follow_redirects=True)
         html = resp.data.decode("utf-8")
         assert "Incorreto" in html
         assert "✗" in html
@@ -197,10 +217,9 @@ class TestQuizFluxo:
         if not imagens:
             pytest.skip("Sem imagens")
         img = imagens[0]
-        resp = client.post("/quiz", data={
-            "imagem_id": str(img["id"]),
-            "resposta": str(img["icdas_code"]),
-        }, follow_redirects=True)
+        payload = _prepare_quiz_answer(client, app_module, img)
+        payload["resposta"] = str(img["icdas_code"])
+        resp = client.post("/quiz", data=payload, follow_redirects=True)
         html = resp.data.decode("utf-8")
         # A imagem original deve estar presente (URL-encoded por url_for)
         assert img["nome"] in html
@@ -211,15 +230,13 @@ class TestQuizFluxo:
         if len(imagens) < 2:
             pytest.skip("Precisa de pelo menos 2 imagens")
         primeira, segunda = imagens[:2]
-        client.post("/quiz", data={
-            "imagem_id": str(primeira["id"]),
-            "resposta": str(primeira["icdas_code"]),
-        })
+        payload = _prepare_quiz_answer(client, app_module, primeira)
+        payload["resposta"] = str(primeira["icdas_code"])
+        client.post("/quiz", data=payload)
         resposta_errada = (segunda["icdas_code"] + 1) % 7
-        resp = client.post("/quiz", data={
-            "imagem_id": str(segunda["id"]),
-            "resposta": str(resposta_errada),
-        }, follow_redirects=True)
+        payload = _prepare_quiz_answer(client, app_module, segunda)
+        payload["resposta"] = str(resposta_errada)
+        resp = client.post("/quiz", data=payload, follow_redirects=True)
         html = resp.data.decode("utf-8")
         assert "1 / 2" in html
 
@@ -230,10 +247,9 @@ class TestQuizFluxo:
             pytest.skip("Sem imagens")
         img = imagens[0]
         # Responde (follow_redirects consome a página de feedback via GET)
-        client.post("/quiz", data={
-            "imagem_id": str(img["id"]),
-            "resposta": str(img["icdas_code"]),
-        }, follow_redirects=True)
+        payload = _prepare_quiz_answer(client, app_module, img)
+        payload["resposta"] = str(img["icdas_code"])
+        client.post("/quiz", data=payload, follow_redirects=True)
         # Clica "Próxima imagem" (GET) — feedback já consumido,
         # mostra nova questão
         resp = client.get("/quiz")
@@ -269,7 +285,7 @@ class TestQuizIdentificacao:
         assert "Maria Silva" in html
         assert "Verificar Resposta" in html or "Nenhuma imagem" in html
 
-    def test_quiz_sugere_ultimo_nome_por_ip_hash(self, client, app_module):
+    def test_quiz_nao_prefill_nome_por_ip_compartilhado(self, client, app_module):
         ip_hash = app_module._hash_ip("127.0.0.1")
         db = sqlite3.connect(app_module.DB_PATH)
         try:
@@ -287,7 +303,8 @@ class TestQuizIdentificacao:
             sess.pop("quiz_nome", None)
         resp = client.get("/quiz")
         html = resp.data.decode("utf-8")
-        assert 'value="João Souza"' in html
+        assert 'value="João Souza"' not in html
+        assert 'value=""' in html
 
 
 # ============================================================
@@ -318,9 +335,8 @@ class TestQuizEdgeCases:
         imagens = app_module.get_imagens()
         if not imagens:
             pytest.skip("Sem imagens")
-        resp = client.post("/quiz", data={
-            "imagem_id": str(imagens[0]["id"]),
-        })
+        payload = _prepare_quiz_answer(client, app_module, imagens[0])
+        resp = client.post("/quiz", data=payload)
         assert resp.status_code == 200
 
     def test_quiz_post_resposta_negativa(self, client, app_module):
@@ -328,10 +344,9 @@ class TestQuizEdgeCases:
         imagens = app_module.get_imagens()
         if not imagens:
             pytest.skip("Sem imagens")
-        resp = client.post("/quiz", data={
-            "imagem_id": str(imagens[0]["id"]),
-            "resposta": "-1",
-        })
+        payload = _prepare_quiz_answer(client, app_module, imagens[0])
+        payload["resposta"] = "-1"
+        resp = client.post("/quiz", data=payload)
         html = resp.data.decode("utf-8")
         assert resp.status_code == 200
         # Não deve ter incrementado o placar
@@ -342,10 +357,9 @@ class TestQuizEdgeCases:
         imagens = app_module.get_imagens()
         if not imagens:
             pytest.skip("Sem imagens")
-        resp = client.post("/quiz", data={
-            "imagem_id": str(imagens[0]["id"]),
-            "resposta": "99",
-        })
+        payload = _prepare_quiz_answer(client, app_module, imagens[0])
+        payload["resposta"] = "99"
+        resp = client.post("/quiz", data=payload)
         html = resp.data.decode("utf-8")
         assert resp.status_code == 200
         # Should show the form again with validation message, not the feedback
@@ -386,21 +400,17 @@ class TestModoSequencial:
         for _ in range(len(imagens)):
             resp = client.get("/quiz")
             html = resp.data.decode("utf-8")
-            # Extrair imagem_id do formulário
-            import re
-            match = re.search(r'name="imagem_id"\s+value="(\d+)"', html)
-            if not match:
-                # Pode ter completado todas
+            try:
+                payload = _payload_from_rendered_quiz(html)
+            except AssertionError:
                 break
-            img_id = int(match.group(1))
+            img_id = int(payload["imagem_id"])
             assert img_id not in vistas, f"Imagem {img_id} repetida!"
             vistas.add(img_id)
             # Responde para avançar
             img = next(i for i in imagens if i["id"] == img_id)
-            client.post("/quiz", data={
-                "imagem_id": str(img_id),
-                "resposta": str(img["icdas_code"]),
-            }, follow_redirects=True)
+            payload["resposta"] = str(img["icdas_code"])
+            client.post("/quiz", data=payload, follow_redirects=True)
         assert len(vistas) == len(imagens)
 
     def test_sequencial_completo_mostra_parabens(self, client, app_module):
@@ -412,16 +422,14 @@ class TestModoSequencial:
         for _ in range(len(imagens)):
             resp = client.get("/quiz")
             html = resp.data.decode("utf-8")
-            import re
-            match = re.search(r'name="imagem_id"\s+value="(\d+)"', html)
-            if not match:
+            try:
+                payload = _payload_from_rendered_quiz(html)
+            except AssertionError:
                 break
-            img_id = int(match.group(1))
+            img_id = int(payload["imagem_id"])
             img = next(i for i in imagens if i["id"] == img_id)
-            client.post("/quiz", data={
-                "imagem_id": str(img_id),
-                "resposta": str(img["icdas_code"]),
-            }, follow_redirects=True)
+            payload["resposta"] = str(img["icdas_code"])
+            client.post("/quiz", data=payload, follow_redirects=True)
         # Agora, GET /quiz deve mostrar conclusão
         resp = client.get("/quiz")
         html = resp.data.decode("utf-8")
@@ -441,10 +449,9 @@ class TestPlacarPersistencia:
             pytest.skip("Sem imagens")
         img = imagens[0]
         # Responde uma pergunta
-        client.post("/quiz", data={
-            "imagem_id": str(img["id"]),
-            "resposta": str(img["icdas_code"]),
-        })
+        payload = _prepare_quiz_answer(client, app_module, img)
+        payload["resposta"] = str(img["icdas_code"])
+        client.post("/quiz", data=payload)
         # Finaliza
         resp = client.post("/quiz/finalizar")
         assert resp.status_code == 302
@@ -471,10 +478,9 @@ class TestPlacarPersistencia:
         if not imagens:
             pytest.skip("Sem imagens")
         img = imagens[0]
-        client.post("/quiz", data={
-            "imagem_id": str(img["id"]),
-            "resposta": str(img["icdas_code"]),
-        })
+        payload = _prepare_quiz_answer(client, app_module, img)
+        payload["resposta"] = str(img["icdas_code"])
+        client.post("/quiz", data=payload)
         # Reseta
         client.post("/quiz/resetar")
         # Verifica placar zerado
@@ -488,10 +494,9 @@ class TestPlacarPersistencia:
         if not imagens:
             pytest.skip("Sem imagens")
         img = imagens[0]
-        client.post("/quiz", data={
-            "imagem_id": str(img["id"]),
-            "resposta": str(img["icdas_code"]),
-        })
+        payload = _prepare_quiz_answer(client, app_module, img)
+        payload["resposta"] = str(img["icdas_code"])
+        client.post("/quiz", data=payload)
         client.post("/quiz/finalizar")
         resp = client.get("/scores")
         html = resp.data.decode("utf-8")
@@ -758,10 +763,9 @@ class TestFluxoCompleto:
                 acertos_esperados += 1
             else:  # erra a terceira
                 resposta = (img["icdas_code"] + 1) % 7
-            resp = client.post("/quiz", data={
-                "imagem_id": str(img["id"]),
-                "resposta": str(resposta),
-            }, follow_redirects=True)
+            payload = _prepare_quiz_answer(client, app_module, img)
+            payload["resposta"] = str(resposta)
+            resp = client.post("/quiz", data=payload, follow_redirects=True)
             assert resp.status_code == 200
             # Deve manter a mesma imagem (bug fix verificação)
             assert img["nome"] in resp.data.decode("utf-8")
@@ -783,10 +787,9 @@ class TestFluxoCompleto:
 
         for sessao_num in range(3):
             img = imagens[0]
-            client.post("/quiz", data={
-                "imagem_id": str(img["id"]),
-                "resposta": str(img["icdas_code"]),
-            })
+            payload = _prepare_quiz_answer(client, app_module, img)
+            payload["resposta"] = str(img["icdas_code"])
+            client.post("/quiz", data=payload)
             client.post("/quiz/finalizar")
 
         resp = client.get("/scores")
@@ -1419,11 +1422,9 @@ class TestModeloAcademico:
     def test_quiz_registra_resposta_individual_e_versao(self, client, app_module):
         imagens = app_module.get_imagens()
         img = imagens[0]
-        client.get("/quiz")
-        client.post("/quiz", data={
-            "imagem_id": str(img["id"]),
-            "resposta": str(img["icdas_code"]),
-        })
+        payload = _prepare_quiz_answer(client, app_module, img)
+        payload["resposta"] = str(img["icdas_code"])
+        client.post("/quiz", data=payload)
         db = sqlite3.connect(app_module.DB_PATH)
         attempt = db.execute(
             "SELECT quiz_version, total, acertos FROM attempts ORDER BY id DESC LIMIT 1"
@@ -1441,7 +1442,8 @@ class TestModeloAcademico:
 
     def test_post_repetido_da_mesma_imagem_e_idempotente(self, client, app_module):
         img = app_module.get_imagens()[0]
-        payload = {"imagem_id": str(img["id"]), "resposta": str(img["icdas_code"])}
+        payload = _prepare_quiz_answer(client, app_module, img)
+        payload["resposta"] = str(img["icdas_code"])
         client.post("/quiz", data=payload)
         client.post("/quiz", data=payload)
         db = sqlite3.connect(app_module.DB_PATH)
@@ -1453,9 +1455,9 @@ class TestModeloAcademico:
 
     def test_reset_preserva_tentativa_anterior(self, client, app_module):
         img = app_module.get_imagens()[0]
-        client.post("/quiz", data={
-            "imagem_id": str(img["id"]), "resposta": str(img["icdas_code"])
-        })
+        payload = _prepare_quiz_answer(client, app_module, img)
+        payload["resposta"] = str(img["icdas_code"])
+        client.post("/quiz", data=payload)
         client.post("/quiz/resetar")
         db = sqlite3.connect(app_module.DB_PATH)
         rows = db.execute("SELECT status, total FROM attempts ORDER BY id").fetchall()
@@ -1507,9 +1509,9 @@ class TestModeloAcademico:
 
     def test_dashboard_login_e_export(self, client, app_module):
         img = app_module.get_imagens()[0]
-        client.post("/quiz", data={
-            "imagem_id": str(img["id"]), "resposta": str(img["icdas_code"])
-        })
+        payload = _prepare_quiz_answer(client, app_module, img)
+        payload["resposta"] = str(img["icdas_code"])
+        client.post("/quiz", data=payload)
         client.post("/quiz/finalizar")
         resp = client.post("/dashboard/login", data={"password": "test-admin"})
         assert resp.status_code == 302
@@ -1522,6 +1524,160 @@ class TestModeloAcademico:
         assert export.status_code == 200
         assert "text/csv" in export.content_type
         assert "quiz_version" in export.data.decode("utf-8").splitlines()[0]
+
+    def test_form_ativo_carrega_attempt_id(self, client):
+        html = client.get("/quiz").data.decode("utf-8")
+        payload = _payload_from_rendered_quiz(html)
+        assert int(payload["attempt_id"]) > 0
+
+    def test_post_sem_attempt_id_nao_registra(self, client, app_module):
+        img = app_module.get_imagens()[0]
+        _prepare_quiz_answer(client, app_module, img)
+        resp = client.post("/quiz", data={
+            "imagem_id": str(img["id"]),
+            "resposta": str(img["icdas_code"]),
+        })
+        assert resp.status_code == 302
+        db = sqlite3.connect(app_module.DB_PATH)
+        assert db.execute("SELECT COUNT(*) FROM answers").fetchone()[0] == 0
+        db.close()
+
+    def test_post_de_outra_imagem_nao_registra(self, client, app_module):
+        imagens = app_module.get_imagens()
+        if len(imagens) < 2:
+            pytest.skip("Precisa de duas imagens")
+        payload = _prepare_quiz_answer(client, app_module, imagens[0])
+        payload["imagem_id"] = str(imagens[1]["id"])
+        payload["resposta"] = str(imagens[1]["icdas_code"])
+        resp = client.post("/quiz", data=payload)
+        assert resp.status_code == 302
+        db = sqlite3.connect(app_module.DB_PATH)
+        assert db.execute("SELECT COUNT(*) FROM answers").fetchone()[0] == 0
+        db.close()
+
+    def test_post_stale_apos_reset_nao_entra_na_nova_tentativa(self, client, app_module):
+        img = app_module.get_imagens()[0]
+        stale = _prepare_quiz_answer(client, app_module, img)
+        stale["resposta"] = str(img["icdas_code"])
+        old_attempt = int(stale["attempt_id"])
+        client.post("/quiz/resetar")
+        with client.session_transaction() as sess:
+            new_attempt = sess["attempt_id"]
+        assert new_attempt != old_attempt
+        resp = client.post("/quiz", data=stale)
+        assert resp.status_code == 302
+        db = sqlite3.connect(app_module.DB_PATH)
+        rows = db.execute("SELECT id, total FROM attempts ORDER BY id").fetchall()
+        answers = db.execute("SELECT COUNT(*) FROM answers").fetchone()[0]
+        db.close()
+        assert answers == 0
+        assert dict(rows)[new_attempt] == 0
+
+    def test_finalizar_vazio_vira_empty(self, client, app_module):
+        with client.session_transaction() as sess:
+            sess.clear()
+        client.post("/quiz/iniciar", data={"nome": "Sem resposta"})
+        client.post("/quiz/finalizar")
+        db = sqlite3.connect(app_module.DB_PATH)
+        row = db.execute("SELECT status, total FROM attempts ORDER BY id DESC LIMIT 1").fetchone()
+        db.close()
+        assert row == ("empty", 0)
+
+    def test_nome_remove_controles_e_nul(self, client, app_module):
+        with client.session_transaction() as sess:
+            sess.clear()
+        resp = client.post("/quiz/iniciar", data={"nome": "  João\x00\u202e  Silva\n "})
+        assert resp.status_code == 302
+        db = sqlite3.connect(app_module.DB_PATH)
+        name = db.execute("SELECT name FROM participants ORDER BY id DESC LIMIT 1").fetchone()[0]
+        db.close()
+        assert name == "João Silva"
+
+    def test_nome_apenas_controles_e_rejeitado(self, client):
+        with client.session_transaction() as sess:
+            sess.clear()
+        resp = client.post("/quiz/iniciar", data={"nome": "\x00\u202e\n\t"})
+        assert resp.status_code == 400
+
+    def test_csv_neutraliza_formula_em_nome(self, client, app_module):
+        with client.session_transaction() as sess:
+            sess.clear()
+        client.post("/quiz/iniciar", data={"nome": '=HYPERLINK("https://invalid")'})
+        img = app_module.get_imagens()[0]
+        payload = _prepare_quiz_answer(client, app_module, img)
+        payload["resposta"] = str(img["icdas_code"])
+        client.post("/quiz", data=payload)
+        client.post("/quiz/finalizar")
+        client.post("/dashboard/login", data={"password": "test-admin"})
+        text = client.get("/dashboard/export.csv").data.decode("utf-8")
+        assert "'=HYPERLINK" in text
+        assert "\n=HYPERLINK" not in text
+
+    def test_tentativa_stale_expira_no_dashboard(self, client, app_module):
+        client.get("/quiz")
+        old = (datetime.now(timezone.utc) - timedelta(hours=6)).isoformat()
+        db = sqlite3.connect(app_module.DB_PATH)
+        db.execute("UPDATE attempts SET started_at = ? WHERE status = 'active'", (old,))
+        db.commit()
+        db.close()
+        app_module.analytics_snapshot(**app_module._db_options())
+        db = sqlite3.connect(app_module.DB_PATH)
+        status = db.execute("SELECT status FROM attempts ORDER BY id DESC LIMIT 1").fetchone()[0]
+        db.close()
+        assert status == "expired"
+
+    def test_anonimo_legado_nao_vira_pessoa_no_ranking(self, app_module):
+        from database import create_participant, end_attempt, record_answer, scoreboard_snapshot, start_attempt
+        participant = create_participant("Anônimo", **app_module._db_options())
+        attempt = start_attempt(
+            participant_id=participant.id,
+            mode="legacy",
+            quiz_version="legacy-score-v1",
+            ip_hash="",
+            **app_module._db_options(),
+        )
+        record_answer(
+            attempt_id=attempt.id,
+            image_key="legacy/test",
+            correct_code=0,
+            answered_code=0,
+            response_time_ms=None,
+            question_order=1,
+            **app_module._db_options(),
+        )
+        end_attempt(attempt.id, "completed", **app_module._db_options())
+        snapshot = scoreboard_snapshot(**app_module._db_options())
+        assert all(item["nome"] != "Anônimo" for item in snapshot["ranking"])
+
+    def test_cookie_com_participant_id_stale_se_recupera(self, client, app_module):
+        client.get("/quiz")
+        with client.session_transaction() as sess:
+            stale_participant = sess["participant_id"]
+            stale_attempt = sess["attempt_id"]
+            nome = sess["quiz_nome"]
+        db = sqlite3.connect(app_module.DB_PATH)
+        db.execute("DELETE FROM answers WHERE attempt_id = ?", (stale_attempt,))
+        db.execute("DELETE FROM attempts WHERE id = ?", (stale_attempt,))
+        db.execute("DELETE FROM participants WHERE id = ?", (stale_participant,))
+        db.commit()
+        db.close()
+        resp = client.get("/quiz")
+        assert resp.status_code == 200
+        assert "Verificar Resposta" in resp.data.decode("utf-8")
+        with client.session_transaction() as sess:
+            assert sess["quiz_nome"] == nome
+            recovered_participant = sess["participant_id"]
+            recovered_attempt = sess["attempt_id"]
+        db = sqlite3.connect(app_module.DB_PATH)
+        participant_name = db.execute(
+            "SELECT name FROM participants WHERE id = ?", (recovered_participant,)
+        ).fetchone()[0]
+        attempt_participant = db.execute(
+            "SELECT participant_id FROM attempts WHERE id = ?", (recovered_attempt,)
+        ).fetchone()[0]
+        db.close()
+        assert participant_name == nome
+        assert attempt_participant == recovered_participant
 
 
 if __name__ == "__main__":

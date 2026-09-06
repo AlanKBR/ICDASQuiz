@@ -126,7 +126,7 @@ Isso permite entregar o projeto para execução local sem instalar um servidor d
 
 O schema é controlado pelo **Alembic**. A aplicação aplica `alembic upgrade head` automaticamente ao iniciar. Resultados antigos da tabela `scores` são preservados como tentativas legadas; respostas individuais não são inventadas para dados anteriores ao novo schema.
 
-O modelo atual separa `participants -> attempts -> answers`. Um participante representa uma identidade **declarada na sessão**, não uma prova de identidade civil. IP é retido apenas como HMAC em cada tentativa e não é usado sozinho para fundir pessoas — isso permite, por exemplo, João e Maria usarem o mesmo computador sem virarem a mesma pessoa no banco.
+O modelo atual separa `participants -> attempts -> answers`. Um participante representa uma identidade **declarada na sessão**, não uma prova de identidade civil. IP é retido apenas como HMAC em cada tentativa e não é usado para preencher nomes nem fundir pessoas — isso permite, por exemplo, João e Maria usarem o mesmo computador ou Wi-Fi sem virarem a mesma pessoa no banco. Formulários de resposta também são vinculados à tentativa e à questão realmente exibida, evitando replay de páginas antigas após reset, troca de modo ou troca de aluno.
 
 ### Produção no Zezin
 
@@ -183,7 +183,7 @@ As imagens clínicas são lidas dinamicamente da pasta `static/imagens/`. Para a
 2. Coloque o arquivo em `static/imagens/`
 3. O app detecta automaticamente na próxima requisição (cache por mtime)
 
-Formatos suportados: `.png`, `.jpg`, `.jpeg`, `.webp`
+Formato servido pelo quiz: `.webp`. Use `tools/convert_images.py` para normalizar material de origem antes de adicioná-lo ao conjunto clínico.
 
 ---
 
@@ -201,9 +201,10 @@ Os testes cobrem:
 - Rotas básicas (status code e conteúdo)
 - Lógica do quiz (fluxo POST→redirect→GET, placar, fila, modos aleatório e sequencial)
 - Persistência e migrations sobre SQLite; produção é validada também contra PostgreSQL
-- Tentativas, respostas individuais, idempotência e tempo de resposta
-- Reset/troca de modo/troca de aluno preservando histórico
-- Dashboard restrito e exportação CSV
+- Tentativas, respostas individuais, idempotência, concorrência e tempo de resposta
+- Reset/troca de modo/troca de aluno preservando histórico e rejeição de formulários antigos
+- Normalização de nomes, tentativas vazias/expiradas e uso compartilhado do mesmo dispositivo/IP
+- Dashboard restrito e exportação CSV protegida contra formula injection
 - Tratamento de entradas inválidas
 - Headers de segurança
 - Funções auxiliares (`get_imagens`, `_safe_int`, `_quiz_pop`)
@@ -227,7 +228,8 @@ A aplicação implementa as seguintes medidas:
 - Validação de todos os inputs do quiz no servidor
 - Validação de host em produção (`TRUSTED_HOSTS`)
 - Rate limiting pelo IP original validado da borda Cloudflare, sem confiar em `X-Forwarded-For`
-- Persistência apenas de HMAC do IP para a sugestão local de nome; o IP não é armazenado em claro nem mascarado
+- Persistência apenas de HMAC do IP como sinal técnico; o IP não é armazenado em claro, não preenche nomes e não define identidade
+- Vinculação de cada resposta à tentativa e à questão exibida, rejeitando formulários stale/forjados
 - Padrão PRG (Post/Redirect/Get) no quiz para evitar reenvio de formulário com F5
 
 ---

@@ -6,7 +6,7 @@
   --landing-text: #0f172a;
   --landing-muted: #475569;
   --landing-border: #d9e2ec;
-  --landing-brand: #0f9f95;
+  --landing-brand: #0f766e;
   --landing-brand-strong: #0b766f;
   --landing-accent: #b45309;
   --landing-danger: #991b1b;
@@ -20,7 +20,7 @@ body {
 }
 
 .reveal {
-  opacity: 0;
+  opacity: 1;
   transform: translateY(10px);
 }
 
@@ -233,7 +233,7 @@ body {
   bottom: 0.55rem;
   left: 0.55rem;
   padding: 0.45rem 0.55rem;
-  background: rgba(15, 23, 42, 0.82);
+  background: #0f172a;
   color: #fff;
   border-radius: 8px;
   font-size: 0.78rem;

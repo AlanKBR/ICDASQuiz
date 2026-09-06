@@ -28,7 +28,7 @@
             </div>
 
             {% if imagens_destaque %}
-            <div class="hero-visual" aria-label="Amostras de imagens ICDAS">
+            <div class="hero-visual" role="region" aria-label="Amostras de imagens ICDAS">
                 {% for imagem in imagens_destaque[:4] %}
                 {% set desc = descricoes.get(imagem.icdas_code | string) %}
                 <figure class="hero-photo hero-photo-{{ loop.index }}">
@@ -167,7 +167,7 @@
                     aria-labelledby="acc-btn-tabela"
                 >
                     <div class="acc-inner">
-                        <div class="table-scroll" tabindex="0" aria-label="Tabela ICDAS (rolagem horizontal)">
+                        <div class="table-scroll" role="region" tabindex="0" aria-label="Tabela ICDAS (rolagem horizontal)">
                             <table class="icdas-table">
                                 <thead>
                                     <tr>

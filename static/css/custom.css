@@ -5,9 +5,9 @@
 
 :root {
   /* Marca (verde menta puxado ao azul) */
-  --icdas-brand: #14b8a6;
-  --icdas-brand-hover: #0d9488;
-  --icdas-brand-focus: rgba(20, 184, 166, 0.28);
+  --icdas-brand: #0f766e;
+  --icdas-brand-hover: #115e59;
+  --icdas-brand-focus: rgba(15, 118, 110, 0.28);
   --icdas-font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, "Noto Sans", "Liberation Sans", sans-serif;
 }
 
@@ -172,7 +172,7 @@ body {
 }
 
 .gallery-card-head span {
-  color: #0d9488;
+  color: #0f766e;
   font-weight: 900;
 }
 
@@ -266,8 +266,8 @@ body {
 
 .quiz-mode-pill {
   font-size: 0.75rem;
-  background: var(--icdas-brand-focus);
-  color: var(--icdas-brand);
+  background: #ccfbf1;
+  color: #0f766e;
   border-radius: 999px;
   padding: 0.15rem 0.6rem;
   font-weight: 700;
@@ -651,7 +651,7 @@ body {
   background: #ecfdf5;
   border: 1px solid #99f6e4;
   border-radius: 999px;
-  color: #0d9488;
+  color: #0f766e;
   font-weight: 900;
 }
 
@@ -706,7 +706,7 @@ body {
 
 .leader-results small {
   margin-top: 0.15rem;
-  color: #64748b;
+  color: #475569;
 }
 
 .leader-result-best {
@@ -721,6 +721,11 @@ body {
 
 .scores-table-wrap {
   overflow-x: auto;
+}
+
+.scores-table-wrap:focus-visible {
+  outline: 3px solid var(--icdas-brand-focus);
+  outline-offset: 2px;
 }
 
 .scores-table {
@@ -961,11 +966,9 @@ body {
 
 @keyframes quiz-soft-enter {
   from {
-    opacity: 0;
     transform: translateY(8px);
   }
   to {
-    opacity: 1;
     transform: translateY(0);
   }
 }

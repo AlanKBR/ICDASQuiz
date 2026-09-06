@@ -11,8 +11,8 @@
 @layer base {
   :root {
     /* Marca (verde menta puxado ao azul) */
-    --icdas-brand: #14b8a6;
-    --icdas-brand-hover: #0d9488;
+    --icdas-brand: #0f766e;
+    --icdas-brand-hover: #115e59;
   }
 }
 

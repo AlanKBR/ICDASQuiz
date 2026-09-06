@@ -11,6 +11,7 @@
 
     {% if pedir_nome is defined and pedir_nome %}
     <section class="quiz-start-card">
+        <h1 class="quiz-title">Quiz ICDAS</h1>
         <form action="{{ url_for('quiz_iniciar') }}" method="post" class="quiz-start-form">
             {{ csrf() }}
             {% if mensagem %}
@@ -20,15 +21,12 @@
             <input type="text"
                    name="nome"
                    id="nome-inicio"
-                   value="{{ nome_sugerido or '' }}"
+                   value=""
                    placeholder="Ex.: Maria Silva"
                    autocomplete="name"
                    maxlength="100"
                    required
                    class="input">
-            {% if nome_sugerido %}
-            <small class="quiz-start-hint">Nome sugerido pelo histórico deste acesso.</small>
-            {% endif %}
             <button type="submit" class="btn-primary">Começar quiz</button>
         </form>
     </section>
@@ -37,7 +35,7 @@
     {# ── Barra superior ── #}
     <div class="quiz-topbar">
         <div class="quiz-topbar-left">
-            <span class="quiz-title">Quiz ICDAS</span>
+            <h1 class="quiz-title">Quiz ICDAS</h1>
             {% if quiz_nome %}
             <span class="quiz-student-pill">{{ quiz_nome }}</span>
             {% endif %}
@@ -141,6 +139,7 @@
             {% endif %}
             <form action="{{ url_for('quiz') }}" method="post" class="quiz-form">
                 {{ csrf() }}
+                <input type="hidden" name="attempt_id" value="{{ session.get('attempt_id', '') }}">
                 <input type="hidden" name="imagem_id" value="{{ imagem.id }}">
                 <p class="quiz-question">Qual é o código ICDAS?</p>
                 <div class="quiz-opts">

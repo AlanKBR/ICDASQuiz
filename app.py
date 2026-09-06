@@ -31,7 +31,7 @@ from database import (
     database_healthy,
     end_attempt,
     export_attempt_rows,
-    latest_name_for_ip_hash,
+    participant_exists,
     record_answer,
     reset_engine,
     scoreboard_snapshot,
@@ -213,11 +213,6 @@ def _hash_ip(ip):
     return hmac.new(secret, ip.encode("utf-8"), hashlib.sha256).hexdigest()
 
 
-def _ultimo_nome_por_ip_hash(ip_hash):
-    """Busca o último nome usado pelo mesmo identificador técnico."""
-    return latest_name_for_ip_hash(ip_hash, **_db_options())
-
-
 def _quiz_version():
     """Versão determinística do conjunto de imagens + descrições clínicas."""
     digest = hashlib.sha256()
@@ -233,10 +228,13 @@ def _quiz_version():
 
 def _ensure_participant():
     participant_id = session.get("participant_id")
-    if participant_id:
+    if participant_exists(participant_id, **_db_options()):
         return participant_id
-    nome = (session.get("quiz_nome") or "").strip()
-    if not nome:
+    # Cookie pode sobreviver a restore/limpeza do banco. Recrie a identidade
+    # declarada em vez de deixar um FK stale causar erro 500.
+    session.pop("participant_id", None)
+    nome = session.get("quiz_nome") or ""
+    if not nome.strip():
         return None
     participant = create_participant(nome, **_db_options())
     session["participant_id"] = participant.id
@@ -267,6 +265,17 @@ def _ensure_attempt():
     attempt_id = session.get("attempt_id")
     if attempt_is_active(attempt_id, **_db_options()):
         return attempt_id
+    # Uma tentativa expirada/encerrada não pode herdar fila, placar ou questão
+    # de outra tentativa da mesma sessão de navegador.
+    session.pop("attempt_id", None)
+    session["score_acertos"] = 0
+    session["score_total"] = 0
+    session["quiz_fila"] = None
+    session["question_order"] = 0
+    session.pop("quiz_atual", None)
+    session.pop("question_started_at", None)
+    session.pop("question_started_image_id", None)
+    session.modified = True
     return _start_session_attempt()
 
 
@@ -300,6 +309,16 @@ def _response_time_ms(image_id):
 
 def _admin_authenticated():
     return bool(ADMIN_PASSWORD and session.get("admin_authenticated") is True)
+
+
+def _csv_safe_cell(value):
+    """Impede formula injection ao abrir exportações em Excel/LibreOffice."""
+    if not isinstance(value, str):
+        return value
+    probe = value.lstrip()
+    if probe.startswith(("=", "+", "-", "@", "\t", "\r")):
+        return "'" + value
+    return value
 
 
 def _imagens_destaque_home(imagens, limite=6):
@@ -489,7 +508,6 @@ def quiz():
     if not session.get("quiz_nome"):
         if request.method == "POST":
             return redirect(url_for("quiz"))
-        ip_hash = _hash_ip(_client_ip())
         return render_template(
             "quiz.html",
             imagem=None,
@@ -501,15 +519,24 @@ def quiz():
             score_total=session.get("score_total", 0),
             modo_sequencial=session.get("quiz_modo") == "sequencial",
             pedir_nome=True,
-            nome_sugerido=_ultimo_nome_por_ip_hash(ip_hash),
+            nome_sugerido="",
             quiz_nome=None,
         )
 
     modo_seq = session.get("quiz_modo") == "sequencial"
-    attempt_id = _ensure_attempt()
 
     if request.method == "POST":
         imagem_id = _safe_int(request.form.get("imagem_id"), -1)
+        submitted_attempt_id = _safe_int(request.form.get("attempt_id"), -1)
+        attempt_id = session.get("attempt_id")
+        if (
+            not attempt_id
+            or submitted_attempt_id != attempt_id
+            or session.get("quiz_atual") != imagem_id
+            or not attempt_is_active(attempt_id, **_db_options())
+        ):
+            return redirect(url_for("quiz"))
+
         resposta = _safe_int(request.form.get("resposta"), -1)
         imagem = next(
             (img for img in imagens if img["id"] == imagem_id), None
@@ -596,7 +623,29 @@ def quiz():
                 quiz_nome=session.get("quiz_nome"),
             )
 
-    # GET — 2) imagem atual (recarregar página sem reenviar)
+    # GET — 2) conclusão persistente. Não abra uma tentativa nova só porque
+    # o feedback final já foi consumido por um reload.
+    if session.get("quiz_fila") == [] and session.get("quiz_atual") is None:
+        if session.get("attempt_id"):
+            _end_session_attempt("completed")
+        return render_template(
+            "quiz.html",
+            imagem=None,
+            mensagem=None,
+            correto=None,
+            descricao_codigo=None,
+            respondido=False,
+            score_acertos=session.get("score_acertos", 0),
+            score_total=session.get("score_total", 0),
+            modo_sequencial=modo_seq,
+            quiz_completo=True,
+            quiz_nome=session.get("quiz_nome"),
+        )
+
+    # GET — 3) imagem atual (recarregar página sem reenviar)
+    attempt_id = _ensure_attempt()
+    if not attempt_id:
+        return redirect(url_for("quiz"))
     valid_ids = {img["id"] for img in imagens}
     atual_id = session.get("quiz_atual")
     if atual_id is not None and atual_id in valid_ids:
@@ -604,6 +653,7 @@ def quiz():
     else:
         imagem = _quiz_pop(imagens)
         if imagem is None:
+            _end_session_attempt("completed")
             return render_template(
                 "quiz.html",
                 imagem=None,
@@ -641,13 +691,14 @@ def quiz():
 def quiz_iniciar():
     """Identifica o aluno antes de iniciar o quiz."""
     session.permanent = True
-    nome = request.form.get("nome", "").strip()[:100]
-    if not nome:
-        ip_hash = _hash_ip(_client_ip())
+    raw_name = request.form.get("nome", "")
+    try:
+        participant = create_participant(raw_name, **_db_options())
+    except ValueError:
         return render_template(
             "quiz.html",
             imagem=None,
-            mensagem="Informe seu nome para começar.",
+            mensagem="Informe um nome válido para começar.",
             correto=None,
             descricao_codigo=None,
             respondido=False,
@@ -655,13 +706,12 @@ def quiz_iniciar():
             score_total=session.get("score_total", 0),
             modo_sequencial=session.get("quiz_modo") == "sequencial",
             pedir_nome=True,
-            nome_sugerido=_ultimo_nome_por_ip_hash(ip_hash),
+            nome_sugerido="",
             quiz_nome=None,
         ), 400
 
     if session.get("attempt_id"):
         _end_session_attempt("student_change")
-    participant = create_participant(nome, **_db_options())
     session["participant_id"] = participant.id
     session["quiz_nome"] = participant.name
     session["score_acertos"] = 0
@@ -838,7 +888,10 @@ def dashboard_export():
     ]
     writer = csv.DictWriter(output, fieldnames=fields)
     writer.writeheader()
-    writer.writerows(rows)
+    writer.writerows(
+        {key: _csv_safe_cell(value) for key, value in row.items()}
+        for row in rows
+    )
     response = make_response(output.getvalue())
     response.headers["Content-Type"] = "text/csv; charset=utf-8"
     response.headers["Content-Disposition"] = "attachment; filename=icdasquiz-attempts.csv"

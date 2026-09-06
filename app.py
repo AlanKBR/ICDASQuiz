@@ -69,7 +69,7 @@ app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 # Habilita Secure flag apenas fora do modo debug (HTTPS em produção)
 app.config["SESSION_COOKIE_SECURE"] = _is_production
-app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(hours=4)
+app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(hours=1)
 app.config["WTF_CSRF_TIME_LIMIT"] = 3600  # token válido por 1h
 app.config["MAX_CONTENT_LENGTH"] = 32 * 1024  # 32 KB — formulários do quiz
 if _is_production:

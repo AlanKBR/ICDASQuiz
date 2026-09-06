@@ -1615,7 +1615,7 @@ class TestModeloAcademico:
 
     def test_tentativa_stale_expira_no_dashboard(self, client, app_module):
         client.get("/quiz")
-        old = (datetime.now(timezone.utc) - timedelta(hours=6)).isoformat()
+        old = (datetime.now(timezone.utc) - timedelta(minutes=61)).isoformat()
         db = sqlite3.connect(app_module.DB_PATH)
         db.execute("UPDATE attempts SET started_at = ? WHERE status = 'active'", (old,))
         db.commit()

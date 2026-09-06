@@ -126,7 +126,7 @@ Isso permite entregar o projeto para execução local sem instalar um servidor d
 
 O schema é controlado pelo **Alembic**. A aplicação aplica `alembic upgrade head` automaticamente ao iniciar. Resultados antigos da tabela `scores` são preservados como tentativas legadas; respostas individuais não são inventadas para dados anteriores ao novo schema.
 
-O modelo atual separa `participants -> attempts -> answers`. Um participante representa uma identidade **declarada na sessão**, não uma prova de identidade civil. IP é retido apenas como HMAC em cada tentativa e não é usado para preencher nomes nem fundir pessoas — isso permite, por exemplo, João e Maria usarem o mesmo computador ou Wi-Fi sem virarem a mesma pessoa no banco. Formulários de resposta também são vinculados à tentativa e à questão realmente exibida, evitando replay de páginas antigas após reset, troca de modo ou troca de aluno.
+O modelo atual separa `participants -> attempts -> answers`. Um participante representa uma identidade **declarada na sessão**, não uma prova de identidade civil. IP é retido apenas como HMAC em cada tentativa e não é usado para preencher nomes nem fundir pessoas — isso permite, por exemplo, João e Maria usarem o mesmo computador ou Wi-Fi sem virarem a mesma pessoa no banco. Formulários de resposta também são vinculados à tentativa e à questão realmente exibida, evitando replay de páginas antigas após reset, troca de modo ou troca de aluno. Sessões permanentes duram 1 hora e tentativas `active` com mais de 1 hora são expiradas de forma lazy no próximo acesso relevante, sem scheduler residente; isso permanece compatível com scale-to-zero.
 
 ### Produção no Zezin
 

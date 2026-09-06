@@ -367,7 +367,7 @@ def end_attempt(attempt_id: int | None, status: str, *, database_url: str | None
         db.commit()
 
 
-def expire_stale_attempts(*, max_age_hours: int = 4, database_url: str | None = None,
+def expire_stale_attempts(*, max_age_hours: int = 1, database_url: str | None = None,
                           db_path: str | None = None) -> int:
     """Fecha tentativas que sobreviveram ao tempo máximo da sessão web."""
     cutoff = utcnow() - timedelta(hours=max(1, max_age_hours))

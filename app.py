@@ -156,6 +156,7 @@ init_db()
 # ---------------------------------------------------------------------------
 
 IMAGEM_EXTENSOES = {".webp"}
+QUIZ_QUESTIONS_PER_ATTEMPT = 10
 
 
 def _stable_image_id(caminho: str) -> int:
@@ -249,6 +250,21 @@ def _ensure_participant():
     return participant.id
 
 
+def _clear_quiz_progress():
+    """Zera somente o estado transitório de uma tentativa no cookie de sessão."""
+    session["score_acertos"] = 0
+    session["score_total"] = 0
+    session["quiz_fila"] = None
+    session["quiz_used_ids"] = []
+    session["question_order"] = 0
+    session.pop("quiz_total", None)
+    session.pop("quiz_atual", None)
+    session.pop("quiz_feedback", None)
+    session.pop("question_started_at", None)
+    session.pop("question_started_image_id", None)
+    session.modified = True
+
+
 def _start_session_attempt():
     participant_id = _ensure_participant()
     if not participant_id:
@@ -275,14 +291,7 @@ def _ensure_attempt():
     # Uma tentativa expirada/encerrada não pode herdar fila, placar ou questão
     # de outra tentativa da mesma sessão de navegador.
     session.pop("attempt_id", None)
-    session["score_acertos"] = 0
-    session["score_total"] = 0
-    session["quiz_fila"] = None
-    session["question_order"] = 0
-    session.pop("quiz_atual", None)
-    session.pop("question_started_at", None)
-    session.pop("question_started_image_id", None)
-    session.modified = True
+    _clear_quiz_progress()
     return _start_session_attempt()
 
 
@@ -499,12 +508,16 @@ def quiz():
     session.setdefault("score_acertos", 0)
     session.setdefault("score_total", 0)
 
+    if imagens:
+        _repair_quiz_state(imagens)
+    quiz_total = _quiz_total_for_view(imagens)
+
     if not imagens:
         return render_template(
             "quiz.html",
             imagem=None,
             mensagem="Nenhuma imagem disponível para o quiz.",
-            total_imagens=len(imagens),
+            total_imagens=quiz_total,
             correto=None,
             descricao_codigo=None,
             respondido=False,
@@ -520,7 +533,7 @@ def quiz():
             "quiz.html",
             imagem=None,
             mensagem=None,
-            total_imagens=len(imagens),
+            total_imagens=quiz_total,
             correto=None,
             descricao_codigo=None,
             respondido=False,
@@ -559,7 +572,7 @@ def quiz():
                 "quiz.html",
                 imagem=imagem,
                 mensagem="Selecione uma opção antes de verificar.",
-                total_imagens=len(imagens),
+                total_imagens=quiz_total,
                 correto=None,
                 descricao_codigo=None,
                 respondido=False,
@@ -583,6 +596,12 @@ def quiz():
 
         session["question_order"] = session.get("question_order", 0) + 1
         session["score_total"] += 1
+        usados = session.get("quiz_used_ids")
+        if not isinstance(usados, list):
+            usados = []
+        if imagem_id not in usados:
+            usados.append(imagem_id)
+        session["quiz_used_ids"] = usados[-QUIZ_QUESTIONS_PER_ATTEMPT:]
         if correto:
             session["score_acertos"] += 1
             mensagem = f"Correto! Esta imagem mostra ICDAS {imagem['icdas_code']}."
@@ -623,7 +642,7 @@ def quiz():
                 "quiz.html",
                 imagem=imagem,
                 mensagem=feedback["mensagem"],
-                total_imagens=len(imagens),
+                total_imagens=quiz_total,
                 correto=feedback["correto"],
                 descricao_codigo=DESCRICOES.get(feedback["descricao_key"]),
                 respondido=True,
@@ -643,7 +662,7 @@ def quiz():
             "quiz.html",
             imagem=None,
             mensagem=None,
-            total_imagens=len(imagens),
+            total_imagens=quiz_total,
             correto=None,
             descricao_codigo=None,
             respondido=False,
@@ -670,7 +689,7 @@ def quiz():
                 "quiz.html",
                 imagem=None,
                 mensagem=None,
-                total_imagens=len(imagens),
+                total_imagens=quiz_total,
                 correto=None,
                 descricao_codigo=None,
                 respondido=False,
@@ -688,7 +707,7 @@ def quiz():
         "quiz.html",
         imagem=imagem,
         mensagem=None,
-        total_imagens=len(imagens),
+        total_imagens=quiz_total,
         correto=None,
         descricao_codigo=None,
         respondido=False,
@@ -713,7 +732,7 @@ def quiz_iniciar():
             "quiz.html",
             imagem=None,
             mensagem="Informe um nome válido para começar.",
-            total_imagens=len(get_imagens()),
+            total_imagens=min(QUIZ_QUESTIONS_PER_ATTEMPT, len(get_imagens())),
             correto=None,
             descricao_codigo=None,
             respondido=False,
@@ -729,19 +748,13 @@ def quiz_iniciar():
         _end_session_attempt("student_change")
     session["participant_id"] = participant.id
     session["quiz_nome"] = participant.name
-    session["score_acertos"] = 0
-    session["score_total"] = 0
-    session["quiz_fila"] = None
-    session["question_order"] = 0
-    session.pop("quiz_atual", None)
-    session.pop("quiz_feedback", None)
+    _clear_quiz_progress()
     _start_session_attempt()
-    session.modified = True
     return redirect(url_for("quiz"))
 
 
 def _balanced_random_ids(imagens):
-    """Embaralha todo o acervo reduzindo repetições consecutivas do mesmo código."""
+    """Ordena uma amostra aleatória reduzindo repetições consecutivas do mesmo código."""
     grupos = {}
     for imagem in imagens:
         grupos.setdefault(imagem["icdas_code"], []).append(imagem["id"])
@@ -762,32 +775,146 @@ def _balanced_random_ids(imagens):
     return fila
 
 
+def _new_quiz_queue(imagens, modo=None):
+    """Sorteia a amostra fixa da tentativa e devolve sua ordem de apresentação."""
+    quantidade = min(QUIZ_QUESTIONS_PER_ATTEMPT, len(imagens))
+    if quantidade <= 0:
+        return []
+    selecionadas = random.sample(imagens, k=quantidade)
+    if modo == "sequencial":
+        selecionadas.sort(key=lambda img: (img["icdas_code"], img["id"]))
+        return [img["id"] for img in selecionadas]
+    return _balanced_random_ids(selecionadas)
+
+
+def _quiz_total_for_view(imagens):
+    """Total da tentativa atual; rejeita metadata de sessão fora do contrato."""
+    total = _safe_int(session.get("quiz_total"), -1)
+    if 1 <= total <= QUIZ_QUESTIONS_PER_ATTEMPT:
+        return total
+    if total == 0 and not imagens:
+        return 0
+    score_total = max(0, _safe_int(session.get("score_total"), 0))
+    if session.get("quiz_fila") == [] and score_total > QUIZ_QUESTIONS_PER_ATTEMPT:
+        # Uma tentativa concluída na versão antiga pode legitimamente ter >10.
+        return score_total
+    return min(QUIZ_QUESTIONS_PER_ATTEMPT, len(imagens))
+
+
+def _repair_quiz_state(imagens):
+    """Normaliza cookies antigos/corrompidos sem deixar uma tentativa ultrapassar 10 questões."""
+    fila = session.get("quiz_fila")
+    if fila is None:
+        # Antes da primeira questão, None é o estado esperado. Depois de já
+        # haver respostas, perder a fila torna impossível provar quais imagens
+        # ainda são inéditas; reinicie em vez de arriscar repetição/stuck.
+        if max(0, _safe_int(session.get("score_total"), 0)) > 0:
+            if session.get("attempt_id"):
+                _end_session_attempt("reset")
+            _clear_quiz_progress()
+            if session.get("quiz_nome"):
+                _start_session_attempt()
+        return
+
+    if not isinstance(fila, list):
+        if session.get("attempt_id"):
+            _end_session_attempt("reset")
+        _clear_quiz_progress()
+        if session.get("quiz_nome"):
+            _start_session_attempt()
+        return
+
+    valid_ids = {img["id"] for img in imagens}
+    atual = session.get("quiz_atual")
+    if atual not in valid_ids:
+        session.pop("quiz_atual", None)
+        atual = None
+
+    usados_raw = session.get("quiz_used_ids")
+    usados = []
+    if isinstance(usados_raw, list):
+        vistos = set()
+        for iid in usados_raw:
+            if iid in valid_ids and iid not in vistos:
+                usados.append(iid)
+                vistos.add(iid)
+    session["quiz_used_ids"] = usados
+
+    vistos_fila = set(usados)
+    if atual is not None:
+        vistos_fila.add(atual)
+    fila_limpa = []
+    for iid in fila:
+        if iid in valid_ids and iid not in vistos_fila:
+            fila_limpa.append(iid)
+            vistos_fila.add(iid)
+
+    score_total = max(0, _safe_int(session.get("score_total"), 0))
+    score_acertos = max(0, _safe_int(session.get("score_acertos"), 0))
+    session["score_total"] = score_total
+    session["score_acertos"] = min(score_acertos, score_total)
+
+    total_salvo = _safe_int(session.get("quiz_total"), -1)
+    estado_novo = 1 <= total_salvo <= QUIZ_QUESTIONS_PER_ATTEMPT
+    if score_total >= QUIZ_QUESTIONS_PER_ATTEMPT:
+        # Sessões da versão antiga podem já ter >10 respostas. Preserve o
+        # placar real, mas finalize sem servir novas questões.
+        session["quiz_total"] = max(score_total, QUIZ_QUESTIONS_PER_ATTEMPT)
+        session["quiz_fila"] = []
+        session.pop("quiz_atual", None)
+        session.modified = True
+        return
+
+    alvo = total_salvo if estado_novo else min(QUIZ_QUESTIONS_PER_ATTEMPT, len(imagens))
+    minimo_em_andamento = score_total + (1 if atual is not None else 0)
+    alvo = max(minimo_em_andamento, min(alvo, len(imagens)))
+    capacidade = max(0, alvo - score_total - (1 if atual is not None else 0))
+    fila_limpa = fila_limpa[:capacidade]
+
+    # Em tentativas criadas pela versão nova, se um asset desaparecer durante
+    # a sessão, substitua somente a questão ainda não respondida. IDs já usados
+    # ficam excluídos, então a tentativa continua sem repetição.
+    if estado_novo and len(fila_limpa) < capacidade:
+        bloqueados = set(usados) | set(fila_limpa)
+        if atual is not None:
+            bloqueados.add(atual)
+        candidatos = [img for img in imagens if img["id"] not in bloqueados]
+        faltam = min(capacidade - len(fila_limpa), len(candidatos))
+        if faltam:
+            reposicoes = random.sample(candidatos, k=faltam)
+            fila_limpa.extend(img["id"] for img in reposicoes)
+            if session.get("quiz_modo") == "sequencial":
+                codigo = {img["id"]: img["icdas_code"] for img in imagens}
+                fila_limpa.sort(key=lambda iid: (codigo[iid], iid))
+
+    session["quiz_total"] = score_total + (1 if atual is not None else 0) + len(fila_limpa)
+    session["quiz_fila"] = fila_limpa
+    session.modified = True
+
+
 def _quiz_pop(imagens):
     """Retorna a próxima imagem da fila, inicializando-a se necessário.
 
     Fila (quiz_fila) na sessão:
-    - None : não inicializada → cria agora com todos os IDs
+    - None : não inicializada → sorteia até 10 imagens agora
     - []   : esgotada → quiz completo, retorna None
     - [...]: pop do início e retorna a imagem
 
-    Modo aleatório : IDs embaralhados com random.shuffle.
-    Modo sequencial: IDs ordenados pelo código ICDAS crescente.
+    A amostra é aleatória e sem reposição em ambos os modos. No modo
+    sequencial, apenas a ordem de apresentação da amostra é por código ICDAS.
     """
     valid_ids = {img["id"] for img in imagens}
     fila = session.get("quiz_fila")
 
     if fila is None:
-        if session.get("quiz_modo") == "sequencial":
-            fila = [
-                img["id"]
-                for img in sorted(
-                    imagens,
-                    key=lambda x: x["icdas_code"] if x["icdas_code"]
-                    is not None else 99,
-                )
-            ]
-        else:
-            fila = _balanced_random_ids(imagens)
+        fila = _new_quiz_queue(imagens, modo=session.get("quiz_modo"))
+        session["quiz_total"] = len(fila)
+        session["quiz_used_ids"] = []
+    elif not isinstance(fila, list):
+        # Defesa adicional; a rota normalmente corrige isso antes de chegar aqui.
+        fila = _new_quiz_queue(imagens, modo=session.get("quiz_modo"))
+        session["quiz_total"] = len(fila)
+        session["quiz_used_ids"] = []
 
     # Remove IDs que não existem mais (proteção se imagens forem removidas)
     fila = [iid for iid in fila if iid in valid_ids]
@@ -811,15 +938,9 @@ def quiz_modo():
     _end_session_attempt("mode_change")
     modo = request.form.get("modo", "aleatorio")
     session["quiz_modo"] = modo if modo == "sequencial" else "aleatorio"
-    session["quiz_fila"] = None
-    session.pop("quiz_atual", None)
-    session.pop("quiz_feedback", None)
-    session["score_acertos"] = 0
-    session["score_total"] = 0
-    session["question_order"] = 0
+    _clear_quiz_progress()
     if session.get("quiz_nome"):
         _start_session_attempt()
-    session.modified = True
     return redirect(url_for("quiz"))
 
 
@@ -828,13 +949,7 @@ def quiz_modo():
 def quiz_finalizar():
     """Finaliza a tentativa; respostas já são persistidas uma a uma."""
     _end_session_attempt("completed")
-    session["score_acertos"] = 0
-    session["score_total"] = 0
-    session["quiz_fila"] = None
-    session["question_order"] = 0
-    session.pop("quiz_atual", None)
-    session.pop("quiz_feedback", None)
-    session.modified = True
+    _clear_quiz_progress()
     return redirect(url_for("scores"))
 
 
@@ -843,15 +958,9 @@ def quiz_finalizar():
 def quiz_resetar():
     """Inicia nova tentativa e preserva a anterior como reset."""
     _end_session_attempt("reset")
-    session["score_acertos"] = 0
-    session["score_total"] = 0
-    session["quiz_fila"] = None
-    session["question_order"] = 0
-    session.pop("quiz_atual", None)
-    session.pop("quiz_feedback", None)
+    _clear_quiz_progress()
     if session.get("quiz_nome"):
         _start_session_attempt()
-    session.modified = True
     return redirect(url_for("quiz"))
 
 
@@ -862,7 +971,7 @@ def quiz_trocar_aluno():
     _end_session_attempt("student_change")
     for key in (
         "participant_id", "quiz_nome", "score_acertos", "score_total",
-        "quiz_fila", "quiz_atual", "quiz_feedback", "question_order",
+        "quiz_fila", "quiz_total", "quiz_used_ids", "quiz_atual", "quiz_feedback", "question_order",
         "question_started_at", "question_started_image_id",
     ):
         session.pop(key, None)

@@ -12,6 +12,7 @@
     {% if pedir_nome is defined and pedir_nome %}
     <section class="quiz-start-card">
         <h1 class="quiz-title">Quiz ICDAS</h1>
+        <p class="quiz-start-hint">Cada tentativa sorteia 10 imagens do acervo, sem repetir fotos.</p>
         <form action="{{ url_for('quiz_iniciar') }}" method="post" class="quiz-start-form">
             {{ csrf() }}
             {% if mensagem %}
@@ -85,7 +86,7 @@
             {% if pct == 100 %}
                 <p class="quiz-modal-emoji" aria-hidden="true">🏆</p>
                 <h2>Parabéns! Perfeito!</h2>
-                <p>Você acertou <strong>todas</strong> as imagens e completou o quiz sem erros. Domínio total do sistema ICDAS!</p>
+                <p>Você acertou <strong>todas</strong> as imagens sorteadas e completou a tentativa sem erros. Domínio total do sistema ICDAS!</p>
             {% elif pct >= 90 %}
                 <p class="quiz-modal-emoji" aria-hidden="true">🌟</p>
                 <h2>Parabéns! Muito bem!</h2>
@@ -121,7 +122,7 @@
     </dialog>
     {# Fallback visível sem JS / enquanto modal abre #}
     <div class="quiz-completion-fallback">
-        <p>Você completou todas as imagens!</p>
+        <p>Você completou as imagens sorteadas desta tentativa.</p>
     </div>
     {% endif %}
 

@@ -10,6 +10,20 @@ document.addEventListener("DOMContentLoaded", function () {
         return;
     }
 
+    var submitting = false;
+    quizForm.addEventListener("submit", function (event) {
+        if (submitting) {
+            event.preventDefault();
+            return;
+        }
+        submitting = true;
+        var submitButton = quizForm.querySelector('button[type="submit"]');
+        if (submitButton) {
+            submitButton.disabled = true;
+            submitButton.textContent = "Verificando…";
+        }
+    });
+
     document.addEventListener("keydown", function (event) {
         if (event.ctrlKey || event.metaKey || event.altKey) {
             return;

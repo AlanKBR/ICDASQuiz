@@ -183,8 +183,8 @@ class TestQuizFluxo:
         # Deve ter um formulário com radio buttons ou mensagem de sem imagem
         assert "imagem_id" in html or "Nenhuma imagem" in html
 
-    def test_quiz_mostra_progresso_do_acervo(self, client, app_module):
-        total = len(app_module.get_imagens())
+    def test_quiz_mostra_progresso_da_tentativa(self, client, app_module):
+        total = min(app_module.QUIZ_QUESTIONS_PER_ATTEMPT, len(app_module.get_imagens()))
         resp = client.get("/quiz")
         html = resp.data.decode("utf-8")
         assert f"0 / {total} respondidas" in html
@@ -407,7 +407,8 @@ class TestModoSequencial:
         # Ativar modo sequencial
         client.post("/quiz/modo", data={"modo": "sequencial"})
         vistas = set()
-        for _ in range(len(imagens)):
+        esperado = min(app_module.QUIZ_QUESTIONS_PER_ATTEMPT, len(imagens))
+        for _ in range(esperado):
             resp = client.get("/quiz")
             html = resp.data.decode("utf-8")
             try:
@@ -421,7 +422,7 @@ class TestModoSequencial:
             img = next(i for i in imagens if i["id"] == img_id)
             payload["resposta"] = str(img["icdas_code"])
             client.post("/quiz", data=payload, follow_redirects=True)
-        assert len(vistas) == len(imagens)
+        assert len(vistas) == esperado
 
     def test_sequencial_completo_mostra_parabens(self, client, app_module):
         """Quando todas as imagens foram vistas, mostra tela de conclusão."""
@@ -429,7 +430,8 @@ class TestModoSequencial:
         if not imagens:
             pytest.skip("Sem imagens")
         client.post("/quiz/modo", data={"modo": "sequencial"})
-        for _ in range(len(imagens)):
+        esperado = min(app_module.QUIZ_QUESTIONS_PER_ATTEMPT, len(imagens))
+        for _ in range(esperado):
             resp = client.get("/quiz")
             html = resp.data.decode("utf-8")
             try:
@@ -444,6 +446,140 @@ class TestModoSequencial:
         resp = client.get("/quiz")
         html = resp.data.decode("utf-8")
         assert "Parabéns" in html or "completou" in html
+
+
+class TestAmostraDaTentativa:
+    """Cada tentativa usa uma amostra fixa de até 10 imagens do acervo."""
+
+    def test_tentativa_com_acervo_maior_usa_exatamente_10_imagens(self, client, app_module):
+        imagens = app_module.get_imagens()
+        assert len(imagens) > app_module.QUIZ_QUESTIONS_PER_ATTEMPT
+
+        resp = client.get("/quiz")
+        assert resp.status_code == 200
+        with client.session_transaction() as sess:
+            atual = sess.get("quiz_atual")
+            fila = sess.get("quiz_fila")
+            assert sess.get("quiz_total") == app_module.QUIZ_QUESTIONS_PER_ATTEMPT
+            assert isinstance(fila, list)
+            selecionadas = ([atual] if atual is not None else []) + fila
+
+        assert len(selecionadas) == app_module.QUIZ_QUESTIONS_PER_ATTEMPT
+        assert len(set(selecionadas)) == len(selecionadas)
+        assert set(selecionadas) <= {img["id"] for img in imagens}
+        assert "0 / 10 respondidas" in resp.data.decode("utf-8")
+
+    def test_amostra_nao_repete_e_respeita_limite(self, app_module):
+        imagens = [{"id": i, "icdas_code": i % 7} for i in range(30)]
+        fila = app_module._new_quiz_queue(imagens, modo="aleatorio")
+        assert len(fila) == app_module.QUIZ_QUESTIONS_PER_ATTEMPT
+        assert len(set(fila)) == len(fila)
+        assert set(fila) <= {img["id"] for img in imagens}
+
+    def test_acervo_menor_que_10_usa_todas_sem_repetir(self, app_module):
+        imagens = [{"id": i, "icdas_code": i % 7} for i in range(6)]
+        fila = app_module._new_quiz_queue(imagens, modo="aleatorio")
+        assert len(fila) == 6
+        assert set(fila) == set(range(6))
+
+    def test_sequencial_tambem_sorteia_10_antes_de_ordenar(self, app_module, monkeypatch):
+        imagens = [{"id": i, "icdas_code": (29 - i) % 7} for i in range(30)]
+        escolhidas = imagens[3:13]
+        monkeypatch.setattr(app_module.random, "sample", lambda population, k: escolhidas[:k])
+        fila = app_module._new_quiz_queue(imagens, modo="sequencial")
+        assert set(fila) == {img["id"] for img in escolhidas}
+        codigo = {img["id"]: img["icdas_code"] for img in imagens}
+        assert [codigo[i] for i in fila] == sorted(codigo[i] for i in fila)
+
+    def test_sessao_legada_com_fila_grande_e_capada_em_10(self, client, app_module):
+        imagens = app_module.get_imagens()
+        client.get("/quiz")
+        ids = [img["id"] for img in imagens]
+        with client.session_transaction() as sess:
+            sess["score_total"] = 3
+            sess["score_acertos"] = 2
+            sess["quiz_atual"] = ids[0]
+            sess["quiz_fila"] = ids[1:]
+            sess.pop("quiz_total", None)
+            sess.pop("quiz_used_ids", None)
+
+        resp = client.get("/quiz")
+        assert resp.status_code == 200
+        with client.session_transaction() as sess:
+            assert sess["quiz_total"] == app_module.QUIZ_QUESTIONS_PER_ATTEMPT
+            assert len(sess["quiz_fila"]) == 6
+            assert sess["score_total"] + 1 + len(sess["quiz_fila"]) == 10
+
+    def test_fila_corrompida_reinicia_tentativa_com_10(self, client, app_module):
+        client.get("/quiz")
+        with client.session_transaction() as sess:
+            old_attempt = sess["attempt_id"]
+            sess["score_total"] = 2
+            sess["score_acertos"] = 1
+            sess["quiz_fila"] = "corrompida"
+
+        resp = client.get("/quiz")
+        assert resp.status_code == 200
+        with client.session_transaction() as sess:
+            assert sess["attempt_id"] != old_attempt
+            assert sess["score_total"] == 0
+            assert sess["quiz_total"] == app_module.QUIZ_QUESTIONS_PER_ATTEMPT
+            assert len(sess["quiz_fila"]) == 9
+
+        db = sqlite3.connect(app_module.DB_PATH)
+        old_status = db.execute("SELECT status FROM attempts WHERE id = ?", (old_attempt,)).fetchone()[0]
+        db.close()
+        assert old_status == "reset"
+
+    def test_fila_perdida_apos_respostas_reinicia_sem_repetir_estado(self, client, app_module):
+        imagens = app_module.get_imagens()
+        img = imagens[0]
+        payload = _prepare_quiz_answer(client, app_module, img)
+        payload["resposta"] = str(img["icdas_code"])
+        client.post("/quiz", data=payload)
+        with client.session_transaction() as sess:
+            old_attempt = sess["attempt_id"]
+            sess["quiz_fila"] = None
+
+        resp = client.get("/quiz")
+        assert resp.status_code == 200
+        with client.session_transaction() as sess:
+            assert sess["attempt_id"] != old_attempt
+            assert sess["score_total"] == 0
+            assert sess["quiz_total"] == app_module.QUIZ_QUESTIONS_PER_ATTEMPT
+            assert len(sess["quiz_fila"]) == 9
+
+    def test_quiz_total_corrompido_nao_vaza_para_progresso(self, client, app_module):
+        with client.session_transaction() as sess:
+            sess["quiz_total"] = 9999
+            sess["quiz_fila"] = None
+        resp = client.get("/quiz")
+        html = resp.data.decode("utf-8")
+        assert "0 / 10 respondidas" in html
+        assert 'max="10"' in html
+
+    def test_modo_aleatorio_conclui_exatamente_em_10_respostas(self, client, app_module):
+        imagens = app_module.get_imagens()
+        vistas = set()
+        for _ in range(app_module.QUIZ_QUESTIONS_PER_ATTEMPT):
+            resp = client.get("/quiz")
+            payload = _payload_from_rendered_quiz(resp.data.decode("utf-8"))
+            img_id = int(payload["imagem_id"])
+            assert img_id not in vistas
+            vistas.add(img_id)
+            img = next(i for i in imagens if i["id"] == img_id)
+            payload["resposta"] = str(img["icdas_code"])
+            client.post("/quiz", data=payload, follow_redirects=True)
+
+        resp = client.get("/quiz")
+        assert "completou" in resp.data.decode("utf-8")
+        db = sqlite3.connect(app_module.DB_PATH)
+        status, total = db.execute(
+            "SELECT status, total FROM attempts ORDER BY id DESC LIMIT 1"
+        ).fetchone()
+        answers = db.execute("SELECT COUNT(*) FROM answers").fetchone()[0]
+        db.close()
+        assert (status, total, answers) == ("completed", 10, 10)
 
 
 # ============================================================

@@ -37,6 +37,7 @@ This project goes beyond a static educational page. It includes product, data, r
 - **Versioned schema:** Alembic controls database changes across both supported backends.
 - **Structured analytics:** the data model separates participants, attempts, and individual answers, including response order and timing.
 - **Content-aware versioning:** quiz versions are derived from the image and description set, keeping historical results interpretable as content changes.
+- **Balanced visual practice:** random mode interleaves ICDAS classes when possible, image IDs are stable across collection growth, progress is visible, and keyboard shortcuts 0–6 + Enter speed up practice.
 - **Replay-safe forms:** each submission is bound to the attempt and question actually shown, so stale or forged responses are rejected.
 - **Shared-device support:** declared learner identity is separate from the network signal, allowing multiple people to use the same computer or Wi-Fi.
 - **Scale-to-zero friendly lifecycle:** expired active attempts are handled lazily without requiring a resident scheduler.
@@ -153,6 +154,8 @@ Clinical images are loaded from `static/imagens/`.
 2. Normalize it with `tools/convert_images.py`.
 3. Add the generated WebP asset and matching description.
 4. Run the test suite before publishing the new content version.
+
+The normalization pipeline applies EXIF orientation, limits oversized images to 1280×720 while preserving aspect ratio, strips unnecessary metadata, and writes WebP at quality 86/method 6. Session-facing image IDs are derived from asset paths, so adding new images does not renumber existing ones.
 
 ## Security controls
 

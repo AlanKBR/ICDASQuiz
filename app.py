@@ -157,6 +157,13 @@ init_db()
 
 IMAGEM_EXTENSOES = {".webp"}
 
+
+def _stable_image_id(caminho: str) -> int:
+    """ID estável do asset; adicionar/remover arquivos não renumera os demais."""
+    digest = hashlib.sha256(caminho.encode("utf-8")).digest()
+    return int.from_bytes(digest[:8], "big") & ((1 << 63) - 1)
+
+
 # Cache simples para get_imagens(): (pasta_mtime, contagem, resultado)
 _imagens_cache: tuple = (None, None, [])
 
@@ -185,7 +192,7 @@ def get_imagens():
                 icdas_code = int(match.group(1)) if match else None
                 if icdas_code is not None:
                     imagens.append({
-                        "id": len(imagens),
+                        "id": _stable_image_id(caminho),
                         "nome": nome,
                         "caminho": caminho,
                         "icdas_code": icdas_code,
@@ -321,7 +328,7 @@ def _csv_safe_cell(value):
     return value
 
 
-def _imagens_destaque_home(imagens, limite=6):
+def _imagens_destaque_home(imagens, limite=7):
     """Seleciona exemplos variados para a landing page."""
     selecionadas = []
     vistos = set()
@@ -497,6 +504,7 @@ def quiz():
             "quiz.html",
             imagem=None,
             mensagem="Nenhuma imagem disponível para o quiz.",
+            total_imagens=len(imagens),
             correto=None,
             descricao_codigo=None,
             respondido=False,
@@ -512,6 +520,7 @@ def quiz():
             "quiz.html",
             imagem=None,
             mensagem=None,
+            total_imagens=len(imagens),
             correto=None,
             descricao_codigo=None,
             respondido=False,
@@ -550,6 +559,7 @@ def quiz():
                 "quiz.html",
                 imagem=imagem,
                 mensagem="Selecione uma opção antes de verificar.",
+                total_imagens=len(imagens),
                 correto=None,
                 descricao_codigo=None,
                 respondido=False,
@@ -613,6 +623,7 @@ def quiz():
                 "quiz.html",
                 imagem=imagem,
                 mensagem=feedback["mensagem"],
+                total_imagens=len(imagens),
                 correto=feedback["correto"],
                 descricao_codigo=DESCRICOES.get(feedback["descricao_key"]),
                 respondido=True,
@@ -632,6 +643,7 @@ def quiz():
             "quiz.html",
             imagem=None,
             mensagem=None,
+            total_imagens=len(imagens),
             correto=None,
             descricao_codigo=None,
             respondido=False,
@@ -658,6 +670,7 @@ def quiz():
                 "quiz.html",
                 imagem=None,
                 mensagem=None,
+                total_imagens=len(imagens),
                 correto=None,
                 descricao_codigo=None,
                 respondido=False,
@@ -675,6 +688,7 @@ def quiz():
         "quiz.html",
         imagem=imagem,
         mensagem=None,
+        total_imagens=len(imagens),
         correto=None,
         descricao_codigo=None,
         respondido=False,
@@ -699,6 +713,7 @@ def quiz_iniciar():
             "quiz.html",
             imagem=None,
             mensagem="Informe um nome válido para começar.",
+            total_imagens=len(get_imagens()),
             correto=None,
             descricao_codigo=None,
             respondido=False,
@@ -723,6 +738,28 @@ def quiz_iniciar():
     _start_session_attempt()
     session.modified = True
     return redirect(url_for("quiz"))
+
+
+def _balanced_random_ids(imagens):
+    """Embaralha todo o acervo reduzindo repetições consecutivas do mesmo código."""
+    grupos = {}
+    for imagem in imagens:
+        grupos.setdefault(imagem["icdas_code"], []).append(imagem["id"])
+    for ids in grupos.values():
+        random.shuffle(ids)
+
+    fila = []
+    codigo_anterior = None
+    while grupos:
+        candidatos = [codigo for codigo in grupos if codigo != codigo_anterior]
+        if not candidatos:
+            candidatos = list(grupos)
+        codigo = random.choice(candidatos)
+        fila.append(grupos[codigo].pop())
+        if not grupos[codigo]:
+            del grupos[codigo]
+        codigo_anterior = codigo
+    return fila
 
 
 def _quiz_pop(imagens):
@@ -750,8 +787,7 @@ def _quiz_pop(imagens):
                 )
             ]
         else:
-            fila = [img["id"] for img in imagens]
-            random.shuffle(fila)
+            fila = _balanced_random_ids(imagens)
 
     # Remove IDs que não existem mais (proteção se imagens forem removidas)
     fila = [iid for iid in fila if iid in valid_ids]

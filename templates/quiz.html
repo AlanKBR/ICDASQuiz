@@ -50,8 +50,11 @@
             </form>
         </div>
         <div class="quiz-topbar-right">
+            {% if total_imagens %}
+            <span class="quiz-progress-label">{{ score_total }} / {{ total_imagens }} respondidas</span>
+            {% endif %}
             <span class="quiz-score-label">
-                <strong>{{ score_acertos }} / {{ score_total }}</strong>
+                Acertos <strong>{{ score_acertos }} / {{ score_total }}</strong>
                 {% if score_total > 0 %}
                 <span class="quiz-score-pct">&nbsp;{{ pct }}%</span>
                 {% endif %}
@@ -70,6 +73,10 @@
             </form>
         </div>
     </div>
+    {% if total_imagens %}
+    <progress class="quiz-progress" value="{{ score_total }}" max="{{ total_imagens }}"
+              aria-label="Progresso do quiz: {{ score_total }} de {{ total_imagens }} imagens respondidas"></progress>
+    {% endif %}
 
     {# ── Modal de conclusão ── #}
     {% if quiz_completo is defined and quiz_completo %}
@@ -125,7 +132,7 @@
         {# Painel da imagem #}
         <div class="quiz-image-panel">
             <img src="{{ url_for('static', filename=imagem.caminho) }}"
-                 alt="Imagem clínica ICDAS — {{ imagem.nome }}"
+                 alt="Fotografia clínica para classificação ICDAS"
                  class="quiz-img"
                  fetchpriority="high" decoding="async">
         </div>
@@ -152,6 +159,7 @@
                     {% endfor %}
                 </div>
                 <button type="submit" class="quiz-verify-btn btn-primary">Verificar Resposta</button>
+                <p class="quiz-shortcut-hint" aria-hidden="true">Teclas 0–6 selecionam · Enter confirma</p>
             </form>
 
             {% else %}

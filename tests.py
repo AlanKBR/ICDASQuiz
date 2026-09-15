@@ -6,6 +6,7 @@ import json
 import os
 import sqlite3
 from datetime import datetime, timedelta, timezone
+from urllib.parse import quote
 
 import pytest
 
@@ -182,6 +183,15 @@ class TestQuizFluxo:
         # Deve ter um formulário com radio buttons ou mensagem de sem imagem
         assert "imagem_id" in html or "Nenhuma imagem" in html
 
+    def test_quiz_mostra_progresso_do_acervo(self, client, app_module):
+        total = len(app_module.get_imagens())
+        resp = client.get("/quiz")
+        html = resp.data.decode("utf-8")
+        assert f"0 / {total} respondidas" in html
+        assert f'max="{total}"' in html
+        assert "Fotografia clínica para classificação ICDAS" in html
+        assert "alt=\"Imagem clínica ICDAS" not in html
+
     def test_quiz_post_resposta_correta(self, client, app_module):
         imagens = app_module.get_imagens()
         if not imagens:
@@ -221,8 +231,8 @@ class TestQuizFluxo:
         payload["resposta"] = str(img["icdas_code"])
         resp = client.post("/quiz", data=payload, follow_redirects=True)
         html = resp.data.decode("utf-8")
-        # A imagem original deve estar presente (URL-encoded por url_for)
-        assert img["nome"] in html
+        # A imagem original deve estar presente pela URL do asset, sem depender do alt.
+        assert quote(img["nome"]) in html
 
     def test_quiz_placar_sessao(self, client, app_module):
         """Placar deve incrementar com duas imagens distintas."""
@@ -614,6 +624,47 @@ class TestHelpers:
         ids = [img["id"] for img in imagens]
         assert len(ids) == len(set(ids)), "IDs devem ser únicos"
 
+    def test_image_id_e_estavel(self, app_module):
+        caminho = "imagens/ICDAS 3a.webp"
+        assert app_module._stable_image_id(caminho) == app_module._stable_image_id(caminho)
+        assert app_module._stable_image_id(caminho) != app_module._stable_image_id("imagens/ICDAS 3b.webp")
+
+    def test_acervo_cobre_todos_os_codigos(self, app_module):
+        codigos = {img["icdas_code"] for img in app_module.get_imagens()}
+        assert codigos == set(range(7))
+
+    def test_lote_drive_foi_importado_completo(self, app_module):
+        nomes = {img["nome"] for img in app_module.get_imagens()}
+        esperados = {
+            "ICDAS 0a", "ICDAS 0b", "ICDAS 0c", "ICDAS 1a",
+            "ICDAS 2a", "ICDAS 2b", "ICDAS 2c",
+            "ICDAS 3a", "ICDAS 3b", "ICDAS 3c", "ICDAS 3d", "ICDAS 3e",
+            "ICDAS 4a", "ICDAS 4b", "ICDAS 4c", "ICDAS 5a", "ICDAS 5b",
+        }
+        assert esperados <= nomes
+
+    def test_destaques_home_representam_0_a_6(self, app_module):
+        destaques = app_module._imagens_destaque_home(app_module.get_imagens())
+        assert [img["icdas_code"] for img in destaques] == list(range(7))
+
+    def test_embaralhamento_balanceado_preserva_e_intercala(self, app_module):
+        imagens = [
+            {"id": 1, "icdas_code": 0},
+            {"id": 2, "icdas_code": 0},
+            {"id": 3, "icdas_code": 0},
+            {"id": 4, "icdas_code": 1},
+            {"id": 5, "icdas_code": 1},
+            {"id": 6, "icdas_code": 1},
+        ]
+        fila = app_module._balanced_random_ids(imagens)
+        assert len(fila) == len(set(fila)) == 6
+        assert set(fila) == {1, 2, 3, 4, 5, 6}
+        codigo_por_id = {img["id"]: img["icdas_code"] for img in imagens}
+        assert all(
+            codigo_por_id[atual] != codigo_por_id[proximo]
+            for atual, proximo in zip(fila, fila[1:])
+        )
+
     def test_descricoes_completas(self, app_module):
         """descricoes.json deve ter entradas para ICDAS 0-6."""
         for i in range(7):
@@ -767,8 +818,8 @@ class TestFluxoCompleto:
             payload["resposta"] = str(resposta)
             resp = client.post("/quiz", data=payload, follow_redirects=True)
             assert resp.status_code == 200
-            # Deve manter a mesma imagem (bug fix verificação)
-            assert img["nome"] in resp.data.decode("utf-8")
+            # Deve manter a mesma imagem (bug fix verificação), sem depender do alt.
+            assert quote(img["nome"]) in resp.data.decode("utf-8")
 
         # 6. Finaliza sessão
         resp = client.post("/quiz/finalizar", follow_redirects=True)

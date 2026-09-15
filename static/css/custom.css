@@ -294,9 +294,38 @@ body {
   white-space: nowrap;
 }
 
-.quiz-score-label {
+.quiz-score-label,
+.quiz-progress-label {
   font-size: 0.9rem;
   white-space: nowrap;
+}
+
+.quiz-progress-label {
+  color: #475569;
+  font-size: 0.8rem;
+}
+
+.quiz-progress {
+  width: 100%;
+  height: 0.35rem;
+  margin: -0.25rem 0 0;
+  border: 0;
+  border-radius: 999px;
+  overflow: hidden;
+  background: #e2e8f0;
+  accent-color: var(--icdas-brand);
+}
+
+.quiz-progress::-webkit-progress-bar {
+  background: #e2e8f0;
+}
+
+.quiz-progress::-webkit-progress-value {
+  background: var(--icdas-brand);
+}
+
+.quiz-progress::-moz-progress-bar {
+  background: var(--icdas-brand);
 }
 
 .quiz-score-pct {
@@ -401,6 +430,19 @@ body {
 .quiz-verify-btn {
   width: 100%;
   margin: 0;
+}
+
+.quiz-shortcut-hint {
+  margin: 0.45rem 0 0;
+  color: #64748b;
+  font-size: 0.75rem;
+  text-align: center;
+}
+
+@media (pointer: coarse) {
+  .quiz-shortcut-hint {
+    display: none;
+  }
 }
 
 .quiz-feedback {

@@ -1,5 +1,5 @@
 """
-Pipeline de conversão de imagens para WebP.
+Pipeline de normalização de imagens clínicas para WebP.
 
 Uso:
     python tools/convert_images.py
@@ -8,17 +8,21 @@ Requisito:
     pip install Pillow
 
 Comportamento:
-    - Processa todos os PNG/JPEG em static/imagens/
-    - Converte para WebP com qualidade 82 (method=6)
-    - Exibe tamanho original, tamanho novo e % de redução
-    - Não apaga os originais (validar em produção antes de remover)
+    - Processa PNG/JPEG em static/imagens/;
+    - Corrige orientação EXIF;
+    - Reduz apenas imagens acima de 1280x720, preservando proporção;
+    - Converte para WebP com qualidade 86 (method=6);
+    - Não carrega EXIF/metadata para o arquivo servido;
+    - Exibe tamanho original, tamanho novo e redução;
+    - Não apaga os originais.
 """
 
 import sys
 from pathlib import Path
 
-QUALIDADE = 82
+QUALIDADE = 86
 METHOD = 6
+MAX_RESOLUCAO = (1280, 720)
 EXTENSOES_ORIGEM = {".png", ".jpg", ".jpeg"}
 PASTA = Path(__file__).parent.parent / "static" / "imagens"
 
@@ -27,7 +31,7 @@ def converter(arquivo: Path) -> None:
     destino = arquivo.with_suffix(".webp")
 
     try:
-        from PIL import Image  # type: ignore[import]
+        from PIL import Image, ImageOps  # type: ignore[import]
     except ImportError:
         print(
             "Pillow não instalado. Execute: pip install Pillow",
@@ -37,13 +41,23 @@ def converter(arquivo: Path) -> None:
 
     tamanho_original = arquivo.stat().st_size
 
-    with Image.open(arquivo) as img:
-        # Preserva transparência (RGBA) se existir
+    with Image.open(arquivo) as origem:
+        img = ImageOps.exif_transpose(origem)
+        img.thumbnail(MAX_RESOLUCAO, Image.Resampling.LANCZOS)
+
+        # Uma conversão explícita evita propagar metadata do arquivo de origem.
         if img.mode in ("RGBA", "LA"):
-            img.save(destino, "WEBP", quality=QUALIDADE, method=METHOD, lossless=False)
+            normalizada = img.convert("RGBA")
         else:
-            img = img.convert("RGB")
-            img.save(destino, "WEBP", quality=QUALIDADE, method=METHOD)
+            normalizada = img.convert("RGB")
+
+        normalizada.save(
+            destino,
+            "WEBP",
+            quality=QUALIDADE,
+            method=METHOD,
+            lossless=False,
+        )
 
     tamanho_novo = destino.stat().st_size
     reducao = (1 - tamanho_novo / tamanho_original) * 100
@@ -93,7 +107,7 @@ def main() -> None:
         )
         print(
             "\nOriginais mantidos."
-            " Após validar em produção, remova os PNGs/JPEGs."
+            " Após validar os WebPs, remova os PNGs/JPEGs."
         )
     else:
         print("\nNenhuma conversão nova realizada.")

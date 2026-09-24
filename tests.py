@@ -1560,23 +1560,18 @@ class TestRobotsERobotsAbuse:
         assert resp.status_code == 200
         assert "text/" in resp.content_type
 
-    def test_robots_txt_bloqueia_quiz(self, client):
-        """Disallow: /quiz deve estar presente."""
+    def test_robots_txt_permite_crawl_para_ler_noindex(self, client):
+        """O Google precisa acessar as URLs para encontrar o noindex."""
         resp = client.get("/robots.txt")
         body = resp.data.decode("utf-8")
-        assert "Disallow: /quiz" in body
+        assert "User-agent: *" in body
+        assert "Allow: /" in body
+        assert "Disallow:" not in body
 
-    def test_robots_txt_bloqueia_scores(self, client):
-        """Disallow: /scores deve estar presente."""
-        resp = client.get("/robots.txt")
-        body = resp.data.decode("utf-8")
-        assert "Disallow: /scores" in body
-
-    def test_robots_txt_libera_home(self, client):
-        """Allow: / deve estar presente."""
-        resp = client.get("/robots.txt")
-        body = resp.data.decode("utf-8")
-        assert "Allow: /" in body or "User-agent: *" in body
+    @pytest.mark.parametrize("path", ["/", "/quiz", "/scores", "/dashboard", "/static/robots.txt"])
+    def test_noindex_em_paginas_e_recursos(self, client, path):
+        resp = client.get(path)
+        assert resp.headers["X-Robots-Tag"] == "noindex"
 
     def test_enumeracao_rotas_retorna_404(self, client):
         """Rotas inexistentes devem retornar 404, não 200 nem 500."""

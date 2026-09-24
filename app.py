@@ -445,6 +445,7 @@ _CSP = (
 @app.after_request
 def set_security_headers(response):
     response.headers["Content-Security-Policy"] = _CSP
+    response.headers["X-Robots-Tag"] = "noindex"
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"

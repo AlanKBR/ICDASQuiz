@@ -88,7 +88,7 @@
 .tree-question {
   display: flex; justify-content: center; align-items: center;
   gap: 10px; min-height: 46px;
-  width: fit-content; max-width: 100%; min-width: 198px;
+  width: fit-content; max-width: 100%;
   border: 1px solid #d8e7e3;
   background: #fff;
   border-radius: 12px; padding: 10px 16px;
@@ -99,14 +99,7 @@
   color: #0c786b; border-color: #6abbac;
   box-shadow: 0 8px 28px -21px rgba(13, 137, 112, .4);
 }
-.tree-step {
-  display: inline-grid; place-items: center;
-  width: 25px; height: 25px; flex: 0 0 25px;
-  color: #367e72; background: #e7f4f0;
-  font-size: .69rem; font-weight: 850;
-  border-radius: 8px; font-variant-numeric: tabular-nums;
-}
-.tree-question h2 {
+.tree-question h3 {
   font-size: .90rem; line-height: 1.25; font-weight: 830;
   margin: 0; letter-spacing: -.01em;
 }
@@ -120,7 +113,11 @@
   gap: 10px;
   margin: 47px auto 0;
 }
-.tree-choices--code { max-width: 100%; gap: 7px; }
+.tree-choices--code {
+  max-width: 100%;
+  gap: 7px;
+  container-type: inline-size;
+}
 .tree-choices--surface .tree-option { flex: 0 1 142px; }
 .tree-choices--activity .tree-option,
 .tree-choices--risk .tree-option { flex: 0 1 118px; }
@@ -171,7 +168,7 @@
 .tree-symbol { font-size: 1.17rem; line-height: 1; color: #69a89d; }
 .tree-option.is-selected .tree-symbol { color: #198b79; }
 .tree-choices--code .tree-option {
-  --code-diameter: clamp(33px, calc((100vw - 98px) / 7), 50px);
+  --code-diameter: clamp(27px, calc((100cqw - 42px) / 7), 50px);
   flex: 0 0 var(--code-diameter);
   width: var(--code-diameter);
   height: var(--code-diameter);
@@ -254,7 +251,10 @@
   .tree-choices--code { gap: 4px; }
   .tree-choices--rx .tree-option { min-height: 150px; }
   .tree-option { font-size: .75rem !important; min-height: 46px; padding: 9px 11px; }
-  .tree-choices--code .tree-option { font-size: 1.05rem !important; }
+  .tree-choices--code .tree-option {
+    --code-diameter: clamp(27px, calc((100cqw - 24px) / 7), 50px);
+    font-size: 1.05rem !important;
+  }
   .tree-choices--surface .tree-option { flex-basis: 132px; }
   .tree-choices--activity .tree-option,
   .tree-choices--risk .tree-option { flex-basis: 112px; }
@@ -263,9 +263,12 @@
 }
 @media (max-width: 380px) {
   .tree-stage { padding-inline: 10px; }
-  .tree-question { min-width: 170px; padding-inline: 11px; }
+  .tree-question { padding-inline: 11px; }
   .tree-choices--code { gap: 3px; }
-  .tree-choices--code .tree-option { --code-diameter: clamp(32px, calc((100vw - 98px) / 7), 44px); font-size: .97rem !important; }
+  .tree-choices--code .tree-option {
+    --code-diameter: clamp(26px, calc((100cqw - 18px) / 7), 44px);
+    font-size: .97rem !important;
+  }
   .tree-choices--rx .tree-option { flex: 1 1 100%; max-width: 230px; min-height: 140px; }
   .tree-choices--depth .tree-option { padding: 8px 6px; }
   .tree-rx-diagram { width: 105px; height: 76px; }

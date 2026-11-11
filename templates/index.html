@@ -4,6 +4,7 @@
 
 {% block styles %}
     <link rel="stylesheet" href="{{ versioned_url('css/landing.css') }}">
+    <link rel="stylesheet" href="{{ versioned_url('css/arvore_tratamento.css') }}">
 {% endblock %}
 
 {% block content %}
@@ -17,7 +18,7 @@
                 </p>
                 <div class="hero-cta">
                     <a href="{{ url_for('quiz') }}" role="button" class="btn-primary no-underline">Começar treino</a>
-                    <a href="{{ url_for('galeria') }}" role="button" class="btn-secondary no-underline">Ver galeria</a>
+                    <a href="#arvore-de-tratamento" class="btn-secondary no-underline">Explorar árvore</a>
                 </div>
                 <dl class="hero-stats" aria-label="Resumo do acervo">
                     <div>
@@ -65,6 +66,32 @@
         </article>
     </section>
 
+    <section id="arvore-de-tratamento" class="landing-treatment reveal" data-reveal aria-labelledby="tratamento-title">
+        <div class="landing-treatment-layout">
+            <header class="landing-treatment-intro">
+                <p class="eyebrow">Raciocínio clínico interativo</p>
+                <h2 id="tratamento-title">Explore a árvore <span>de tratamento.</span></h2>
+                <p>Escolha os achados e acompanhe o percurso visualmente. Você pode mudar qualquer resposta.</p>
+                <p class="landing-treatment-review">Material didático em revisão clínica</p>
+                <div class="landing-treatment-hint">
+                    <span class="landing-treatment-hint-mark" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="6" cy="5" r="2"></circle>
+                            <circle cx="18" cy="10" r="2"></circle>
+                            <circle cx="6" cy="19" r="2"></circle>
+                            <path d="M6 7v10M8 5h3a7 7 0 0 1 7 3"></path>
+                        </svg>
+                    </span>
+                    <span>As opções cinzas também são clicáveis para alterar o caminho.</span>
+                </div>
+                <a href="{{ url_for('arvore_tratamento') }}" class="text-link landing-treatment-open">Abrir somente a árvore</a>
+            </header>
+            <div class="tree-lab tree-lab--embedded">
+                {% include "_arvore_tratamento_widget.html" %}
+            </div>
+        </div>
+    </section>
+
     {% if imagens_destaque %}
     <section class="image-strip reveal" data-reveal aria-labelledby="amostras-title">
         <div class="section-head">
@@ -102,41 +129,6 @@
             principalmente nos códigos ICDAS 1 e 2. Use a foto como referência visual, mas confirme a classificação
             após limpeza, iluminação adequada e secagem por cerca de 5 segundos.
         </p>
-    </section>
-
-    <section id="arvore-de-decisao" class="decision-tree reveal" data-reveal aria-labelledby="arvore-title">
-        <div class="section-head">
-            <div>
-                <p class="eyebrow">Classificação visual</p>
-                <h2 id="arvore-title" class="section-title">Guia de classificação ICDAS</h2>
-            </div>
-            <div class="section-actions">
-                <a href="{{ url_for('arvore_tratamento') }}" class="text-link">Explorar tratamento</a>
-                <a href="{{ url_for('quiz') }}" class="text-link">Treinar agora</a>
-            </div>
-        </div>
-        <div class="decision-guide" data-decision-guide>
-            <div class="decision-question" aria-live="polite">
-                <span class="decision-step-label" data-decision-step>Etapa 1 de 6</span>
-                <h3 data-decision-title>O campo está pronto?</h3>
-                <p data-decision-copy>Antes de codificar, limpe a superfície, controle umidade, ilumine bem e seque por cerca de 5 segundos.</p>
-            </div>
-            <div class="decision-options" data-decision-options>
-                <button type="button" data-next="1">Sim, seguir para avaliação visual</button>
-                <button type="button" data-next="0">Ainda não, revisar preparo</button>
-            </div>
-            <div class="decision-result" data-decision-result>
-                Prepare o campo antes de decidir. Umidade pode mascarar alterações iniciais, especialmente ICDAS 1 e 2.
-            </div>
-        </div>
-        <ol class="decision-map" aria-label="Resumo dos caminhos ICDAS">
-            <li><strong>ICDAS 0</strong><span>Sem alteração visual após secagem.</span></li>
-            <li><strong>ICDAS 1</strong><span>Alteração vista apenas após secagem ou restrita à fissura.</span></li>
-            <li><strong>ICDAS 2</strong><span>Alteração distinta visível mesmo úmida, sem cavitação.</span></li>
-            <li><strong>ICDAS 3</strong><span>Quebra localizada de esmalte, sem dentina visível.</span></li>
-            <li><strong>ICDAS 4</strong><span>Sombra de dentina sob esmalte aparentemente intacto.</span></li>
-            <li><strong>ICDAS 5-6</strong><span>Cavidade com dentina visível; extensa quando envolve metade ou mais da superfície.</span></li>
-        </ol>
     </section>
 
     <section id="conteudos" class="landing-accordion reveal" data-reveal>
@@ -306,4 +298,6 @@
 
 {% block scripts %}
     <script src="{{ versioned_url('js/landing.js') }}"></script>
+    <script src="{{ versioned_url('js/arvore_modelo.js') }}"></script>
+    <script src="{{ versioned_url('js/arvore_tratamento.js') }}"></script>
 {% endblock %}

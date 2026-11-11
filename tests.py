@@ -144,7 +144,7 @@ class TestRotasBasicas:
         assert 'data-tree-lines' in html
         assert html.count("data-tree-content") == 1
         assert 'data-tree-variant' not in html
-        assert "não constituem indicação clínica" in html
+        assert "Não constitui indicação de tratamento" in html
 
     def test_arvore_svg_esquematico_e_tamanhos_responsivos(self, client):
         """Corte único, sem opções ou CSS legados dos spikes descartados."""
@@ -170,8 +170,27 @@ class TestRotasBasicas:
 
     def test_home_distingue_classificacao_de_tratamento(self, client):
         html = client.get("/").data.decode("utf-8")
-        assert "Guia de classificação ICDAS" in html
+        assert "Classificação e conteúdos rápidos" in html
+        assert "Árvore de tratamento" in html or "árvore" in html
+        assert 'id="arvore-de-tratamento"' in html
+        assert html.count("data-treatment-tree") == 1
+        assert html.count("data-tree-content") == 1
+        assert "arvore_modelo.js" in html and "arvore_tratamento.js" in html
+        assert "arvore_tratamento.css" in html
+        assert 'href="/#arvore-de-tratamento"' in html
         assert 'href="/arvore-de-tratamento"' in html
+        assert "data-decision-guide" not in html
+        assert "tree-step" not in html
+
+    def test_arvore_sem_numeracao_de_etapas_e_sem_assistente_legado(self, client):
+        javascript = client.get("/static/js/arvore_tratamento.js").get_data(as_text=True)
+        landing = client.get("/static/js/landing.js").get_data(as_text=True)
+        stylesheet = client.get("/static/css/arvore_tratamento.css").get_data(as_text=True)
+        assert 'class="tree-step"' not in javascript
+        assert "tree-step" not in javascript
+        assert ".tree-step" not in stylesheet
+        assert "data-decision-guide" not in landing
+        assert "100cqw" in stylesheet  # círculos dimensionados pela largura da árvore
 
     def test_quiz_status(self, client):
         resp = client.get("/quiz")

@@ -1,46 +1,47 @@
-# Árvore de tratamento — interface consolidada
+# Árvore de tratamento — integração à página inicial
 
-Estado: **versão visual escolhida — Corte**, implementada no ICDASQuiz. A validação clínica dos percursos com o professor Rodrigo Varella de Carvalho continua pendente.
+Estado: **versão visual com SVG de corte consolidada no ICDASQuiz** e incorporada à home. A transcrição clínica continua pendente de validação com o professor Rodrigo Varella de Carvalho.
 
-## Direção visual adotada
+## Experiência adotada
 
-- **Uma única árvore vertical**, sem os spikes horizontal, stepper ou outros modos.
-- **Um único SVG esquemático em corte dental** para cada alternativa radiográfica; não há botão de alternância nem visualização “Camadas”.
-- Os desenhos locais ilustram esmalte, dentina e, quando aplicável, uma região escurecida indicando extensão aproximada. **Não são radiografias reais nem representam regras clínicas validadas.**
-- As caixas ajustam largura e altura conforme conteúdo e espaço disponível; códigos ICDAS são círculos com diâmetro responsivo.
-- Perguntas, escolhas e resultados permanecem centralizados. Se o ramo tiver somente 1 ou 3 códigos disponíveis, nenhum espaço é reservado para opções ausentes.
-- Alternativas não selecionadas permanecem **cinzas, visíveis e clicáveis**. Clicar em outra alternativa recalcula os passos descendentes.
-- O SVG de conexões usa somente dois paths (linhas e pontas) e desenha apenas o caminho escolhido: pergunta → opção → próxima pergunta ou desfecho.
-- As etiquetas são por extenso; resultados compostos mantêm a separação do slide sem presumir o significado da barra.
-- Tudo funciona sem requisições novas, dependências JavaScript externas, cookies ou escrita no banco.
+- A home apresenta a árvore diretamente após a introdução do estudo, dentro da própria página, **sem iframe** nem navegação obrigatória para outra tela.
+- Em desktop, uma apresentação compacta fica à esquerda e a árvore à direita; em tablets/celulares os elementos ficam empilhados. O link **Tratamento** na navegação leva ao trecho correspondente da home.
+- A rota /arvore-de-tratamento permanece disponível para leitura isolada. Ambas usam **um único template compartilhado**, templates/_arvore_tratamento_widget.html, com o mesmo JS, CSS e dados.
+- **Etapas sem numeração:** apenas os títulos dos achados permanecem. Os números 0–6 dentro dos círculos são códigos ICDAS, não números das fases.
+- O questionário antigo de *classificação ICDAS* da home foi retirado para evitar dois fluxos distintos na mesma tela. O conteúdo teórico, incluindo a **tabela de códigos ICDAS**, segue disponível no acordeão.
+- A árvore mantém um único desenho radiográfico **em corte** e não oferece o antigo modo Camadas. São ilustrações esquemáticas, **não radiografias reais**.
+- As alternativas não selecionadas continuam cinzas e clicáveis. O SVG conecta apenas o trajeto ativo com duas formas reutilizáveis (traço e pontas), ancoradas nos elementos efetivos da interface.
+- Os códigos são círculos responsivos cuja largura acompanha o **próprio container** para caberem na mesma linha mesmo quando a árvore está dentro da seção da home.
+- Alternativas só aparecem quando existe saída representada nos slides; omissões do material não foram convertidas em recomendações clínicas.
 
-## Arquivos e ownership
+## Ownership
 
-- `app.py` e `templates/arvore_tratamento.html`: rota GET e estrutura HTML.
-- `static/js/arvore_modelo.js`: grafo declarativo de transcrição e filtro que evita percursos sem saída.
-- `static/js/arvore_tratamento.js`: estado, interação, geração única de SVG em corte e posicionamento das setas.
-- `static/css/arvore_tratamento.css`: estilo responsivo isolado da árvore.
-- `tools/test_arvore_modelo.cjs` e `tests.py`: testes de lógica e integração.
+- app.py — rota dedicada Flask.
+- templates/index.html — integração nativa da seção na home.
+- templates/arvore_tratamento.html — rota de estudo isolada.
+- templates/_arvore_tratamento_widget.html — única composição HTML da árvore.
+- static/js/arvore_modelo.js — grafo do material e filtro das saídas transcritas.
+- static/js/arvore_tratamento.js — interação, desenho em corte e posicionamento das setas.
+- static/css/arvore_tratamento.css e static/css/landing.css — árvore e composição responsiva da home.
+- static/js/landing.js — apenas visibilidade progressiva e acordeão; questionário anterior foi removido.
+- tests.py e tools/test_arvore_modelo.cjs — testes de integração e do grafo.
 
-As seções existentes do guia de classificação ICDAS, quiz, galeria e dashboard não foram substituídas pela árvore de tratamento.
+Não foi introduzida nenhuma migração, escrita de banco, chamada externa ou dependência JS nova.
 
-## Ressalvas acadêmicas
+## Limitações acadêmicas
 
-Os slides fornecidos por Alan são a fonte da transcrição. A referência citada é Meyer-Lueckel H, Paris S. *When and How to Intervene in the Caries Process.* Oper Dent. 2016;41(S7):S35–S47. DOI 10.2341/15-022-O.
+Fonte indicada nos slides: Meyer-Lueckel H, Paris S. *When and How to Intervene in the Caries Process.* Oper Dent. 2016;41(S7):S35–S47. DOI 10.2341/15-022-O.
 
-**Ainda exige confirmação do orientador:**
-1. Se S/N corresponde à atividade e B/A ao risco de cárie; as palavras atuais são interpretações provisórias.
-2. Significado de saídas separadas por barra.
-3. Lacunas dos slides: oclusal ICDAS 4–6 com N; proximal sem radiolucidez com ICDAS 3–6.
-4. Terminologia radiográfica, equivalência exata com os slides, autoria das figuras e forma de citação no TCC.
+Permanecem para confirmação com o orientador:
+1. S/N como atividade e B/A como risco.
+2. Sentido das saídas separadas por barra.
+3. Ramos ausentes: oclusal ICDAS 4–6 com N; proximal sem radiolucidez e ICDAS 3–6.
+4. Termos radiográficos, equivalência exata com os slides e autoria/atribuição das figuras para o TCC.
 
-Combinações sem desfecho foram **omitidas dos botões**, não preenchidas com condutas inventadas; isso **não significa impossibilidade clínica**. Não apresentar no TCC como protocolo de tratamento validado.
+O código da home e da árvore **não deve ser descrito no TCC como protocolo de tratamento clinicamente validado** antes dessa revisão.
 
 ## Validação
 
-- `node --test tools/test_arvore_modelo.cjs`: percursos transcritos e exclusão dos ramos sem saída.
-- `python -m pytest -p no:cacheprovider tests.py -q`: rotas, segurança e quiz com SQLite descartável.
-- Teste em navegador real: corte em oclusal e proximal, ausência de seletor Camadas, edição de ramos, redimensionamento de caixas, números circulares, ausência de overflow, alinhamento das setas e dimensões mobile/desktop.
-- Imagem Docker construída e rotas GET da prévia local verificadas sem utilização do banco de produção.
-
-**Produção, estado PostgreSQL e TCC:** preservar até decisão explícita de publicação e validação clínica.
+- Testes Python e do grafo com SQLite descartável e Docker construído sem acesso ao PostgreSQL de produção.
+- Navegador real em 320, 390, 768, 1024 e 1440 px: a árvore funciona na home e na rota isolada, não causa overflow horizontal, mantém todos os códigos circulares na mesma linha e preserva o comportamento de mudança de ramo/resultado.
+- Produção, PostgreSQL e documento do TCC permanecem fora do escopo desta integração.

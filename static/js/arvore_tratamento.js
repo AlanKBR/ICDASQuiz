@@ -119,13 +119,12 @@
     return button;
   }
 
-  function level(entry, index) {
+  function level(entry) {
     var section = el("section", "tree-level" + (entry.selected === null ? " is-current" : " is-complete"));
     section.dataset.field = entry.field;
     var question = el("div", "tree-question");
     question.tabIndex = -1;
-    question.appendChild(el("span", "tree-step", String(index + 1).padStart(2, "0")));
-    question.appendChild(el("h2", "", model.fields[entry.field].label));
+    question.appendChild(el("h3", "", model.fields[entry.field].label));
 
     section.appendChild(question);
     var choices = model.availableOptions(state, entry.field);

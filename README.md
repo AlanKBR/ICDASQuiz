@@ -20,6 +20,8 @@ A production-deployed visual learning platform for the **International Caries De
 
 Learners can review the ICDAS 0–6 criteria, browse labeled clinical examples, and practice classifying lesions in 10-image attempts. Each attempt samples up to 10 unique clinical images at random from the current collection; random mode balances presentation order when possible, while sequential mode orders the same random sample by ICDAS code. Each answer receives immediate feedback and an explanation of the relevant clinical signs.
 
+The source code also includes a separate interactive **treatment decision tree** at \`/arvore-de-tratamento\`, with a single responsive, cutaway-style tooth illustration for radiographic depth. This is a didactic transcription of instructor slides, **not a clinically validated treatment protocol**. It remains pending academic review and is not part of the current pinned production release. See [docs/ARVORE_TRATAMENTO.md](docs/ARVORE_TRATAMENTO.md) for scope and limitations.
+
 For instructors, the restricted dashboard turns quiz activity into useful teaching data:
 
 - performance by ICDAS code
@@ -38,6 +40,7 @@ This project goes beyond a static educational page. It includes product, data, r
 - **Structured analytics:** the data model separates participants, attempts, and individual answers, including response order and timing.
 - **Content-aware versioning:** quiz versions are derived from the image and description set, keeping historical results interpretable as content changes.
 - **Bounded visual practice:** each attempt uses a fixed random sample of 10 unique images (or the whole collection when fewer than 10 exist); random mode interleaves ICDAS classes when possible, sequential mode orders the same sample by code, image IDs remain stable across collection growth, progress is visible, and keyboard shortcuts 0–6 + Enter speed up practice.
+- **Isolated decision-tree module:** client-side branching from documented educational source material, selectable siblings, SVG arrows anchored to active choices, one cutaway radiographic illustration, and explicit exclusion of undocumented endpoints without inventing clinical guidance.
 - **Replay-safe forms:** each submission is bound to the attempt and question actually shown, so stale or forged responses are rejected.
 - **Shared-device support:** declared learner identity is separate from the network signal, allowing multiple people to use the same computer or Wi-Fi.
 - **Scale-to-zero friendly lifecycle:** expired active attempts are handled lazily without requiring a resident scheduler.

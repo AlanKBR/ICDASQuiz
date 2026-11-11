@@ -107,10 +107,13 @@
     <section id="arvore-de-decisao" class="decision-tree reveal" data-reveal aria-labelledby="arvore-title">
         <div class="section-head">
             <div>
-                <p class="eyebrow">Raciocínio rápido</p>
-                <h2 id="arvore-title" class="section-title">Árvore de decisão ICDAS</h2>
+                <p class="eyebrow">Classificação visual</p>
+                <h2 id="arvore-title" class="section-title">Guia de classificação ICDAS</h2>
             </div>
-            <a href="{{ url_for('quiz') }}" class="text-link">Treinar agora</a>
+            <div class="section-actions">
+                <a href="{{ url_for('arvore_tratamento') }}" class="text-link">Explorar tratamento</a>
+                <a href="{{ url_for('quiz') }}" class="text-link">Treinar agora</a>
+            </div>
         </div>
         <div class="decision-guide" data-decision-guide>
             <div class="decision-question" aria-live="polite">

@@ -131,6 +131,48 @@ class TestRotasBasicas:
         for i in range(7):
             assert f"ICDAS {i}" in html
 
+    def test_explorador_tratamento_isolado_do_quiz(self, client):
+        resp = client.get("/arvore-de-tratamento")
+        assert resp.status_code == 200
+        html = resp.data.decode("utf-8")
+        assert "Árvore de tratamento" in html
+        assert "Em revisão" in html
+        assert "arvore_modelo.js" in html
+        assert "arvore_tratamento.js" in html
+        assert "arvore_tratamento.css" in html
+        assert "data-treatment-tree" in html
+        assert 'data-tree-lines' in html
+        assert html.count("data-tree-content") == 1
+        assert 'data-tree-variant' not in html
+        assert "não constituem indicação clínica" in html
+
+    def test_arvore_svg_esquematico_e_tamanhos_responsivos(self, client):
+        """Corte único, sem opções ou CSS legados dos spikes descartados."""
+        js = client.get("/static/js/arvore_tratamento.js")
+        css = client.get("/static/css/arvore_tratamento.css")
+        assert js.status_code == css.status_code == 200
+        javascript = js.get_data(as_text=True)
+        stylesheet = css.get_data(as_text=True)
+        assert "radiographicCut" in javascript
+        assert "CUT_PATHS" in javascript
+        assert "RX_EXTENT_PATHS" in javascript
+        assert "OCCLUSAL_EXTENT_PATHS" in javascript
+        assert "tree-rx-radiolucency" in javascript
+        assert '"0 0 118 84"' in javascript
+        assert "tree-rx-diagram" in stylesheet
+        assert "tree-rx-layer" not in stylesheet
+        assert "tree-rx-switch" not in stylesheet
+        assert "diagramStyle" not in javascript
+        assert "data-diagram-switch" not in javascript
+        assert "tree-rx-diagram--layers" not in stylesheet
+        assert "border-radius: 50%" in stylesheet  # números ICDAS circulares
+        assert "tree-choices--code" in stylesheet
+
+    def test_home_distingue_classificacao_de_tratamento(self, client):
+        html = client.get("/").data.decode("utf-8")
+        assert "Guia de classificação ICDAS" in html
+        assert 'href="/arvore-de-tratamento"' in html
+
     def test_quiz_status(self, client):
         resp = client.get("/quiz")
         assert resp.status_code == 200

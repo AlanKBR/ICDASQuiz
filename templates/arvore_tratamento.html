@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block title %}Árvore de tratamento — ICDAS Educacional{% endblock %}
+{% block description %}Explore visualmente os caminhos de tratamento para superfícies oclusais e proximais. Material acadêmico em revisão.{% endblock %}
+{% block styles %}
+<link rel="stylesheet" href="{{ versioned_url('css/arvore_tratamento.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="tree-lab">
+  <header class="tree-intro">
+    <div>
+      <div class="tree-crumb"><a href="{{ url_for('home') }}">Início</a><span aria-hidden="true">/</span> Tratamento</div>
+      <h1>Árvore de tratamento</h1>
+      <p>Escolha um caminho. Toque em qualquer alternativa para mudar.</p>
+    </div>
+    <span class="tree-review"><span class="tree-review-dot"></span> Em revisão</span>
+  </header>
+
+  <section class="tree-demo" data-treatment-tree aria-label="Árvore interativa de escolhas">
+    <div class="tree-toolbar">
+      <span class="tree-toolbar-label">Fluxo interativo</span>
+      <button type="button" class="tree-reset" data-tree-reset>Recomeçar <span aria-hidden="true">↺</span></button>
+    </div>
+    <div class="tree-stage" data-tree-stage>
+      <div class="tree-board" data-tree-board>
+        <svg class="tree-lines" data-tree-lines aria-hidden="true" focusable="false"></svg>
+        <div class="tree-levels" data-tree-content>
+          <p class="tree-loading">Carregando…</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <p class="tree-ethical-note">Percursos didáticos em revisão; não constituem indicação clínica. Combinações sem desfecho nos slides não são oferecidas.</p>
+  <details class="tree-academic-details">
+    <summary>Fonte e limitações dos fluxos</summary>
+    <div>
+      <p>Os SVGs são esquemas originais de profundidade e não reproduzem radiografias reais. Atividade, risco e resultados compostos são interpretações provisórias. As alternativas sem saída no slide são omitidas da interface, mas isso não significa que sejam impossíveis clinicamente. O material ainda precisa de conferência com o professor Rodrigo Varella de Carvalho.</p>
+      <p>Fonte dos slides: Meyer-Lueckel H, Paris S. <em>When and How to Intervene in the Caries Process.</em> Oper Dent. 2016;41(S7):S35–S47. <a href="https://doi.org/10.2341/15-022-O" target="_blank" rel="noopener noreferrer">DOI 10.2341/15-022-O</a>.</p>
+    </div>
+  </details>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ versioned_url('js/arvore_modelo.js') }}"></script>
+<script src="{{ versioned_url('js/arvore_tratamento.js') }}"></script>
+{% endblock %}

@@ -31,6 +31,9 @@
                     <a class="nav-link" href="{{ url_for('galeria') }}"{% if request.endpoint == 'galeria' %} aria-current="page"{% endif %}>Galeria</a>
                 </li>
                 <li>
+                    <a class="nav-link" href="{{ url_for('arvore_tratamento') }}"{% if request.endpoint == 'arvore_tratamento' %} aria-current="page"{% endif %}>Tratamento</a>
+                </li>
+                <li>
                     <a href="{{ url_for('quiz') }}"
                        class="btn-primary px-3 py-1.5 text-sm no-underline"
                        {% if request.endpoint in ('quiz', 'quiz_iniciar', 'quiz_finalizar', 'quiz_resetar', 'quiz_modo') %} aria-current="page"{% endif %}>

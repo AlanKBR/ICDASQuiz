@@ -500,6 +500,12 @@ def galeria():
     )
 
 
+@app.route("/arvore-de-tratamento")
+def arvore_tratamento():
+    """Árvore didática de tratamento; sem escrita no banco ou efeito no quiz."""
+    return render_template("arvore_tratamento.html")
+
+
 @app.route("/quiz", methods=["GET", "POST"])
 @limiter.limit("60 per minute", methods=["POST"])
 def quiz():

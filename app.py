@@ -416,15 +416,10 @@ def inject_globals():
 
 # Pré-aquece o cache de hashes na inicialização do processo (--preload safe).
 for _f in (
-    "css/custom.css",
-    "css/ui.css",
-    "css/landing.css",
-    "css/tailwind.css",
+    "css/app.css",
     "js/base.js",
-    "js/landing.js",
     "js/galeria.js",
     "js/quiz.js",
-    "css/redesign.css",
     "js/redesign.js",
 ):
     _get_asset_hash(_f)
@@ -1067,9 +1062,8 @@ def dashboard():
     period = request.args.get("periodo", "30")
     if period not in ("30", "90", "tudo"):
         period = "30"
-    analytics = analytics_snapshot(**_db_options())
     redesign = dashboard_redesign_snapshot(period=period, **_db_options())
-    return render_template("dashboard.html", analytics=analytics, report=redesign)
+    return render_template("dashboard.html", report=redesign)
 
 
 @app.route("/dashboard/export.csv")

@@ -4,6 +4,6 @@
 {% block styles %}<link rel="stylesheet" href="{{ versioned_url('css/arvore_tratamento.css') }}">{% endblock %}
 {% block content %}
 <section class="page-heading"><div><span class="kick">Em revisão clínica</span><h1 class="page-title">Árvore de tratamento<i>.</i></h1><p class="section-lead">Escolha os achados e explore o percurso didático. A árvore não constitui indicação clínica.</p></div></section>
-<div class="treatment-container standalone-treatment">{% include '_arvore_tratamento_widget.html' %}</div>
+<div class="treatment-container standalone-treatment"><h2 class="sr-only">Percurso de avaliação</h2>{% include '_arvore_tratamento_widget.html' %}</div>
 {% endblock %}
 {% block scripts %}<script src="{{ versioned_url('js/arvore_modelo.js') }}" defer></script><script src="{{ versioned_url('js/arvore_tratamento.js') }}" defer></script>{% endblock %}

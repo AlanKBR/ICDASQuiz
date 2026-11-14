@@ -37,7 +37,11 @@
   modal.querySelector('[data-lightbox-close]').addEventListener('click', close);
   modal.querySelector('[data-lightbox-prev]').addEventListener('click', () => {index = (index - 1 + visible.length) % visible.length;render();});
   modal.querySelector('[data-lightbox-next]').addEventListener('click', () => {index = (index + 1) % visible.length;render();});
-  modal.addEventListener('click', event => { if (event.target === modal) close(); });
+  // closedby="any" delegates backdrop dismissal to the browser. Older
+  // browsers use this one progressive-enhancement fallback.
+  if (!('closedBy' in HTMLDialogElement.prototype)) {
+    modal.addEventListener('click', event => { if (event.target === modal) close(); });
+  }
   modal.addEventListener('keydown', event => {
     if (event.key === 'ArrowLeft') { index = (index - 1 + visible.length) % visible.length; render(); event.preventDefault(); }
     if (event.key === 'ArrowRight') { index = (index + 1) % visible.length; render(); event.preventDefault(); }

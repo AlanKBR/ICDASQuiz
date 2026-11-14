@@ -10,6 +10,7 @@
   </div>
 </header>
 {% endblock %}
+{% block scripts %}<script src="{{ versioned_url('js/redesign.js') }}" defer></script>{% endblock %}
 {% block main_class %}dashboard-shell{% endblock %}
 {% block content %}
 <section class="page-heading">
@@ -30,12 +31,12 @@
 </section>
 <div class="dashboard-grid">
   <section class="dash-card" data-chart-region><h2>Atividade</h2><p class="subtitle">Tentativas iniciadas por {{ 'dia' if report.period == '30' else 'semana' }} · verde: concluídas, lilás: interrompidas</p>
-    <svg class="activity-svg" viewBox="0 0 700 180" role="img" aria-label="Atividade ao longo do período: tentativas concluídas e interrompidas">
+    <svg class="activity-svg" viewBox="0 0 700 180" role="group" aria-label="Atividade ao longo do período: tentativas concluídas e interrompidas">
       {% set slot = 700 / (report.activity|length if report.activity|length else 1) %}
       {% for item in report.activity %}
         {% set h1 = item.complete / report.activity_max * 160 %}{% set h2 = item.incomplete / report.activity_max * 160 %}
-        <rect tabindex="0" class="activity-complete" x="{{ (loop.index0 * slot + slot*0.13)|round(2) }}" y="{{ (170 - h1)|round(2) }}" width="{{ (slot * 0.34)|round(2) }}" height="{{ h1|round(2) }}" rx="3" data-reading="{{ item.label }}: {{ item.complete }} concluídas, {{ item.incomplete }} interrompidas" aria-label="{{ item.label }}: {{ item.complete }} concluídas"/>
-        <rect tabindex="0" class="activity-interrupted" x="{{ (loop.index0 * slot + slot * 0.52)|round(2) }}" y="{{ (170 - h2)|round(2) }}" width="{{ (slot * 0.34)|round(2) }}" height="{{ h2|round(2) }}" rx="3" data-reading="{{ item.label }}: {{ item.complete }} concluídas, {{ item.incomplete }} interrompidas" aria-label="{{ item.label }}: {{ item.incomplete }} interrompidas"/>
+        <rect role="button" tabindex="0" class="activity-complete" x="{{ (loop.index0 * slot + slot*0.13)|round(2) }}" y="{{ (170 - h1)|round(2) }}" width="{{ (slot * 0.34)|round(2) }}" height="{{ h1|round(2) }}" rx="3" data-reading="{{ item.label }}: {{ item.complete }} concluídas, {{ item.incomplete }} interrompidas" aria-label="{{ item.label }}: {{ item.complete }} concluídas"/>
+        <rect role="button" tabindex="0" class="activity-interrupted" x="{{ (loop.index0 * slot + slot * 0.52)|round(2) }}" y="{{ (170 - h2)|round(2) }}" width="{{ (slot * 0.34)|round(2) }}" height="{{ h2|round(2) }}" rx="3" data-reading="{{ item.label }}: {{ item.complete }} concluídas, {{ item.incomplete }} interrompidas" aria-label="{{ item.label }}: {{ item.incomplete }} interrompidas"/>
       {% endfor %}
     </svg>
     <div class="chart-activity-labels"><span>{{ report.activity[0].label if report.activity else '' }}</span><span>{{ report.activity[-1].label if report.activity else '' }}</span></div>
@@ -43,7 +44,7 @@
   </section>
   <section class="dash-card" data-chart-region><h2>Horários de uso</h2><p class="subtitle">Início das tentativas por dia da semana e hora local</p>
     {% set weekdays=['seg','ter','qua','qui','sex','sáb','dom'] %}
-    <div class="heat-scroll"><table class="heat-table" aria-label="Mapa de calor de uso por horário"><thead><tr><th></th>{% for hour in range(8,24,2) %}<th scope="col">{{ hour }}h</th>{% endfor %}</tr></thead><tbody>
+    <div class="heat-scroll"><table class="heat-table" aria-label="Mapa de calor de uso por horário"><thead><tr><th scope="col"><span class="sr-only">Dia</span></th>{% for hour in range(8,24,2) %}<th scope="col">{{ hour }}h</th>{% endfor %}</tr></thead><tbody>
     {% for day in range(7) %}<tr><th scope="row">{{ weekdays[day] }}</th>{% for slot in range(8) %}
       {% set v=report.heat[day][slot] %}{% set shade=1 + ((v / report.heat_max * 5)|int) if v else 1 %}
       <td><button type="button" class="shade-{{ shade }}" data-reading="{{ weekdays[day] }}, {{ 8+slot*2 }}h–{{ 10+slot*2 }}h: {{ v }} tentativas" aria-label="{{ weekdays[day] }}, {{ 8+slot*2 }} horas, {{ v }} tentativas">{{ v if v else '' }}</button></td>
@@ -58,7 +59,7 @@
     </div>
   </section>
   <section class="dash-card" data-chart-region><h2>Matriz de confusão</h2><p class="subtitle">Linha = código correto · coluna = resposta</p>
-    <div class="heat-scroll"><table class="confusion-table"><thead><tr><th></th>{% for i in range(7) %}<th scope="col">{{ i }}</th>{% endfor %}</tr></thead><tbody>
+    <div class="heat-scroll"><table class="confusion-table"><thead><tr><th scope="col"><span class="sr-only">Código correto</span></th>{% for i in range(7) %}<th scope="col">{{ i }}</th>{% endfor %}</tr></thead><tbody>
     {% for i in range(7) %}<tr><th scope="row">{{ i }}</th>{% for j in range(7) %}
       {% set pct=report.confusion_pct[i][j] %}{% set shade=1+((pct/100*5)|int) if pct else 1 %}
       <td><button type="button" class="shade-{{ shade }} {% if i==j %}diag{% endif %}" data-reading="ICDAS {{ i }} respondido como {{ j }}: {{ report.confusion[i][j] }} vezes ({{ pct }}% das respostas para este código)." aria-label="Código {{ i }} respondido como {{ j }}, {{ report.confusion[i][j] }} vezes">{{ report.confusion[i][j] }}</button></td>

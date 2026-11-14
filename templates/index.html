@@ -14,12 +14,12 @@
     <p class="hero-note"><span aria-hidden="true">◌</span> Fotos têm limite: nem sempre é possível saber se a superfície foi seca, condição necessária para distinguir ICDAS 1 e 2.</p>
   </div>
   {% if imagens_destaque|length >= 2 %}
-  <div class="hero-deck" data-mini-quiz aria-label="Experimente classificar duas fotografias">
+  <div class="hero-deck" role="region" data-mini-quiz aria-label="Experimente classificar duas fotografias">
     <span class="hero-deck-back" aria-hidden="true"></span><span class="hero-deck-back back2" aria-hidden="true"></span>
     <div class="hero-deck-front">
       {% for imagem in imagens_destaque[:2] %}
       <div data-demo-photo data-demo-code="{{ imagem.icdas_code }}" {% if not loop.first %}hidden{% endif %}>
-        <img src="{{ url_for('static', filename=imagem.caminho) }}" alt="Fotografia clínica pública para teste de classificação" width="500" height="500" {% if loop.first %}fetchpriority="high"{% else %}loading="lazy"{% endif %}>
+        <img src="{{ url_for('static', filename=imagem.caminho) }}" alt="Fotografia clínica pública para teste de classificação" width="500" height="500" {% if loop.first %}fetchpriority="high"{% else %}loading="lazy" fetchpriority="low"{% endif %} decoding="async">
         <span class="question-chip">Qual código?</span>
       </div>
       {% endfor %}
@@ -36,7 +36,8 @@
 <div class="marquee" aria-hidden="true">
   {% for direction in (0,1) %}
   <div class="marquee-row {% if direction %}reverse{% endif %}">
-    {% for repeat in range(4) %}{% for imagem in imagens_destaque %}<img src="{{ url_for('static', filename=imagem.caminho) }}" alt="" loading="lazy" decoding="async" width="180" height="130">{% endfor %}{% endfor %}
+    {# Exactly two repetitions make a seamless 50%-translate loop. #}
+    {% for repeat in range(2) %}{% for imagem in imagens_destaque %}<img src="{{ url_for('static', filename=imagem.caminho) }}" alt="" loading="lazy" decoding="async" width="180" height="130">{% endfor %}{% endfor %}
   </div>
   {% endfor %}
 </div>
@@ -49,7 +50,7 @@
       <p class="section-lead">Ferramenta digital desenvolvida como Trabalho de Conclusão de Curso em Odontologia na Universidade Federal de Juiz de Fora, Campus Governador Valadares. Para estudantes e profissionais que desejam revisar critérios visuais de detecção e classificação de lesões cariosas.</p>
       <p class="project-credits">Autor <strong>Alan Anjos Miranda</strong><span> · </span>Orientação <strong>Prof. Dr. Rodrigo Varella de Carvalho</strong></p>
     </div>
-    <div class="project-number" aria-label="{{ total_imagens }} fotografias clínicas">{{ total_imagens }}<small>fotografias clínicas no acervo</small></div>
+    <div class="project-number">{{ total_imagens }}<small>fotografias clínicas no acervo</small></div>
   </div>
 </section>
 <section id="escala" class="landing-section" aria-labelledby="scale-title">
@@ -75,7 +76,7 @@
   <h2 id="prep-title" class="section-title">Prepare o campo, depois <em>compare.</em></h2>
   <div class="steps-grid">
     <article class="step-card"><span class="step-num">01</span><h3>Prepare o campo</h3><p>Dente limpo, seco e bem iluminado.</p></article>
-    <article class="step-card"><span class="step-num">02</span><h3>Seque por cerca de 5 segundos</h3><p>A secagem evidencia alterações iniciais do esmalte, especialmente nos códigos 1 e 2.</p><div class="dry-timer" aria-label="5 segundos"><span>5 s</span></div></article>
+    <article class="step-card"><span class="step-num">02</span><h3>Seque por cerca de 5 segundos</h3><p>A secagem evidencia alterações iniciais do esmalte, especialmente nos códigos 1 e 2.</p><div class="dry-timer"><span>5 s</span></div></article>
     <article class="step-card"><span class="step-num">03</span><h3>Compare sinais</h3><p>Observe opacidade, sombra, cavidade e dentina.</p></article>
   </div>
   <aside class="diff-card" aria-label="Diagnósticos diferenciais">
@@ -104,4 +105,4 @@
   </ol>
 </section>
 {% endblock %}
-{% block scripts %}<script src="{{ versioned_url('js/arvore_modelo.js') }}" defer></script><script src="{{ versioned_url('js/arvore_tratamento.js') }}" defer></script>{% endblock %}
+{% block scripts %}<script src="{{ versioned_url('js/arvore_modelo.js') }}" defer></script><script src="{{ versioned_url('js/arvore_tratamento.js') }}" defer></script><script src="{{ versioned_url('js/redesign.js') }}" defer></script>{% endblock %}

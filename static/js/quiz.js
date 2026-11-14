@@ -39,7 +39,8 @@
       button.textContent = 'Verificando…';
     });
     document.addEventListener('keydown', event => {
-      if (event.ctrlKey || event.metaKey || event.altKey || /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName || '')) return;
+      // Respect native IME composition (e.g. Japanese/Chinese/Korean input).
+      if (event.isComposing || event.keyCode === 229 || event.ctrlKey || event.metaKey || event.altKey || /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName || '')) return;
       if (/^[0-6]$/.test(event.key)) {
         const radio = radios.find(r => r.value === event.key);
         if (radio) { radio.checked = true; radio.dispatchEvent(new Event('change', {bubbles: true})); event.preventDefault(); }
@@ -54,13 +55,24 @@
     const open = document.querySelector('[data-photo-open]');
     const close = viewer.querySelector('[data-photo-close]');
     const img = viewer.querySelector('img');
-    const shut = () => { viewer.hidden = true; img.classList.remove('zoomed'); if (open) open.focus(); };
-    open?.addEventListener('click', () => { viewer.hidden = false; close.focus(); });
-    close?.addEventListener('click', shut);
-    viewer.addEventListener('click', event => { if (event.target === viewer) shut(); });
-    img.addEventListener('click', () => { img.classList.toggle('zoomed'); img.style.transform = img.classList.contains('zoomed') ? 'scale(1.9)' : ''; });
-    document.addEventListener('keydown', event => {
-      if (event.key === 'Escape' && !viewer.hidden) { event.preventDefault(); shut(); }
+    // HTML Invoker Commands run natively when available. A tiny local fallback
+    // preserves older browsers without downloading a general-purpose polyfill.
+    if (!('commandForElement' in HTMLButtonElement.prototype)) {
+      open?.addEventListener('click', () => viewer.showModal());
+      close?.addEventListener('click', () => viewer.close());
+    }
+    viewer.addEventListener('close', () => {
+      img.classList.remove('zoomed');
+      img.style.transform = '';
+      open?.focus();
+    });
+    // Native closedby="any" handles light dismissal in capable browsers.
+    if (!('closedBy' in HTMLDialogElement.prototype)) {
+      viewer.addEventListener('click', event => { if (event.target === viewer) viewer.close(); });
+    }
+    img.addEventListener('click', () => {
+      img.classList.toggle('zoomed');
+      img.style.transform = img.classList.contains('zoomed') ? 'scale(1.9)' : '';
     });
   }
 

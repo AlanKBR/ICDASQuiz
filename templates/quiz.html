@@ -14,6 +14,7 @@
     <span class="blob a"></span><span class="blob b"></span>
     <form class="quiz-start-form lift" method="post" action="{{ url_for('quiz_iniciar') }}">
       {{ csrf() }}
+      <h1 class="sr-only">Quiz ICDAS</h1>
       {% if mensagem %}<p role="alert" class="form-alert">{{ mensagem }}</p>{% endif %}
       <label class="sr-only" for="quiz-nome">Seu nome</label>
       <input id="quiz-nome" name="nome" class="quiz-name" placeholder="Seu nome" autocomplete="name" maxlength="100" required autofocus>
@@ -63,7 +64,8 @@
   <section class="quiz-workspace {% if respondido %}has-feedback{% endif %}">
     <header class="quiz-progressbar">
       <a href="{{ url_for('home') }}" class="xbtn" aria-label="Voltar ao início">×</a>
-      <div class="quiz-segments" role="progressbar" aria-label="Progresso do quiz" aria-valuemin="0" aria-valuemax="{{ n }}" aria-valuenow="{{ score_total }}">
+      <progress class="quiz-native-progress sr-only" max="{{ n }}" value="{{ score_total }}" aria-label="{{ score_total }} de {{ n }} imagens respondidas"></progress>
+      <div class="quiz-segments" aria-hidden="true">
         {% for i in range(n) %}<span class="{% if i < outcomes|length %}{{ 'ok' if outcomes[i] else 'no' }}{% elif i == current_number - 1 %}cur{% endif %}"></span>{% endfor %}
       </div>
       <span class="quiz-progress-n">{{ current_number }}/{{ n }}</span>
@@ -73,8 +75,8 @@
       </div></details>
     </header>
     <div class="quiz-image-panel {% if respondido %}{{ 'ok' if correto else 'no' }}{% endif %}">
-      <img id="quiz-photo" class="quiz-photo" src="{{ url_for('static', filename=imagem.caminho) }}" alt="Fotografia clínica para classificação ICDAS" fetchpriority="high" decoding="async">
-      <button type="button" class="photo-zoom" data-photo-open aria-label="Ampliar imagem" aria-haspopup="dialog">
+      <img id="quiz-photo" class="quiz-photo" src="{{ url_for('static', filename=imagem.caminho) }}" alt="Fotografia clínica para classificação ICDAS" width="640" height="640" fetchpriority="high" decoding="async">
+      <button type="button" class="photo-zoom" data-photo-open commandfor="quiz-viewer" command="show-modal" aria-label="Ampliar imagem" aria-haspopup="dialog">
         <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="6"/><path d="m20 20-4.5-4.5M11 8v6M8 11h6"/></svg>
       </button>
     </div>
@@ -94,7 +96,7 @@
           {% if not respondido %}<p id="quiz-code-hint" class="quiz-answer-hint" aria-live="polite">Toque no código</p>{% endif %}
         </form>
         {% if respondido %}
-        <article class="quiz-feedback-card {{ 'ok' if correto else 'no' }}" role="status">
+        <div class="quiz-feedback-card {{ 'ok' if correto else 'no' }}" role="status">
           <p class="feedback-head"><span class="feedback-icon">{{ '✓' if correto else '×' }}</span>{{ mensagem }}{% if correto and outcomes|length >= 2 and outcomes[-2] %}<span class="streak">2+ seguidas</span>{% endif %}</p>
           {% if descricao_codigo %}
           <p class="feedback-title"><small>ICDAS {{ imagem.icdas_code }}</small><strong>{{ descricao_codigo.titulo }}</strong></p>
@@ -104,7 +106,7 @@
             {% if example_photo %}<img src="{{ url_for('static', filename=example_photo) }}" alt="Outro exemplo do código {{ imagem.icdas_code }}" loading="lazy">{% endif %}
             <span>Você marcou <strong>ICDAS {{ answered_code }}</strong>{% if descriptions.get(answered_code|string) %}, {{ descriptions[answered_code|string].titulo }}{% endif %}.</span>
           </p>{% endif %}
-        </article>
+        </div>
         {% endif %}
       </div>
       <div class="quiz-action-bar">
@@ -113,11 +115,11 @@
       </div>
     </div>
   </section>
-  <div id="quiz-viewer" class="photo-viewer" role="dialog" aria-modal="true" aria-label="Foto ampliada" hidden>
-    <button type="button" class="xbtn" data-photo-close aria-label="Fechar imagem ampliada">×</button>
+  <dialog id="quiz-viewer" class="photo-viewer" aria-label="Foto ampliada" closedby="any">
+    <button type="button" class="xbtn" data-photo-close commandfor="quiz-viewer" command="close" aria-label="Fechar imagem ampliada" autofocus>×</button>
     <div class="photo-viewer-canvas"><img src="{{ url_for('static', filename=imagem.caminho) }}" alt="Fotografia clínica ampliada"></div>
     <p>Use dois dedos para ampliar</p>
-  </div>
+  </dialog>
 {% else %}
   <section class="empty-state"><h1>Nenhuma imagem disponível</h1><p>{{ mensagem or 'O acervo está temporariamente indisponível.' }}</p><a href="{{ url_for('home') }}" class="go">Início</a></section>
 {% endif %}

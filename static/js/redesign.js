@@ -44,6 +44,14 @@
      point.addEventListener('focus', show);
      point.addEventListener('click', show);
      point.addEventListener('pointerenter', show);
+     if (point.tagName.toLowerCase() === 'rect') {
+       point.addEventListener('keydown', event => {
+         if (event.key === 'Enter' || event.key === ' ') {
+           event.preventDefault();
+           show();
+         }
+       });
+     }
    });
  });
  document.querySelectorAll('[data-show-student]').forEach(button => {

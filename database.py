@@ -649,12 +649,13 @@ def dashboard_redesign_snapshot(*, period: str = "30", database_url: str | None 
                                 db_path: str | None = None, now: datetime | None = None) -> dict:
     """Aggregate de-identified analytics for the professor's responsive dashboard.
 
-    All grouping uses Sao Paulo civil dates. This view performs no writes and
-    deliberately emits no raw IP address, only a truncated HMAC in recent rows.
+    Grouping uses Sao Paulo civil dates. The only possible write is the same
+    lazy expiration of stale attempts already used by the legacy dashboard.
+    No raw IP is emitted, only a truncated HMAC in recent rows.
     """
     from collections import Counter, defaultdict
     from zoneinfo import ZoneInfo
-    from datetime import date
+    from datetime import time as dt_time
 
     tz = ZoneInfo("America/Sao_Paulo")
     current = now or utcnow()
@@ -663,6 +664,10 @@ def dashboard_redesign_snapshot(*, period: str = "30", database_url: str | None 
     today = current.astimezone(tz).date()
     period = str(period) if str(period) in ("30", "90", "tudo") else "30"
     days = None if period == "tudo" else int(period)
+
+    # The dashboard used to load two full snapshots of the database for every
+    # request. Keep the expiry contract but avoid the unused legacy scan.
+    expire_stale_attempts(database_url=database_url, db_path=db_path)
 
     def local(ts):
         if ts is None:
@@ -678,9 +683,26 @@ def dashboard_redesign_snapshot(*, period: str = "30", database_url: str | None 
         end = today - timedelta(days=days * offset)
         return [a for a in items if (dt := local(a.started_at)) and start <= dt.date() <= end]
 
+    # Only the requested period and its comparison window need to be fetched.
+    # SQL-side filtering avoids loading years of answers for a 30-day report.
+    cutoff = None
+    if days is not None:
+        local_start = datetime.combine(today - timedelta(days=days * 2 - 1), dt_time.min, tzinfo=tz)
+        cutoff = local_start.astimezone(timezone.utc)
+
     with session_scope(database_url=database_url, db_path=db_path) as db:
-        attempts_all = list(db.scalars(select(Attempt).options(selectinload(Attempt.participant)).order_by(Attempt.started_at, Attempt.id)).all())
-        answers_all = list(db.scalars(select(Answer).order_by(Answer.id)).all())
+        attempt_query = (
+            select(Attempt).options(selectinload(Attempt.participant))
+            .order_by(Attempt.started_at, Attempt.id)
+        )
+        answer_query = select(Answer).order_by(Answer.id)
+        if cutoff is not None:
+            attempt_query = attempt_query.where(Attempt.started_at >= cutoff)
+            answer_query = answer_query.join(Attempt, Answer.attempt_id == Attempt.id).where(
+                Attempt.started_at >= cutoff
+            )
+        attempts_all = list(db.scalars(attempt_query).all())
+        answers_all = list(db.scalars(answer_query).all())
     attempts = select_period(attempts_all)
     previous = select_period(attempts_all, 1) if days is not None else []
     ids = {a.id for a in attempts}

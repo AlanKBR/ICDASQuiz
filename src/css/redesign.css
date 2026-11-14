@@ -1,5 +1,5 @@
 /* ICDASQuiz 2026 · production integration of the approved "enxuta" design. */
-@font-face{font-family:Onest;src:url('../fonts/onest.woff2') format('woff2');font-weight:100 900;font-style:normal;font-display:swap}
+@font-face{font-family:Onest;src:url('../fonts/onest-cb4d777c.woff2') format('woff2');font-weight:100 900;font-style:normal;font-display:swap}
 :root{--canvas:#f3f7f6;--surface:#fff;--sunken:#eef4f2;--ink:#192521;--ink2:#4c5855;--ink3:#67726f;--hair:#e4ebe9;--line:#d8e0dd;--mint:#6ce4c2;--acc:#138168;--acc-d:#0d5f4c;--lil:#c1b3ef;--lil-s:#f3f0ff;--lil-d:#715ea5;--seq-1:#eef4f2;--seq-2:#cdeee3;--seq-3:#94dcc4;--seq-4:#4fb79b;--seq-5:#1f8a71;--seq-6:#0d5f4c}
 html{scroll-behavior:smooth;scroll-padding-top:90px}
 body.bx.dx{min-height:100vh;display:flex;flex-direction:column;overflow-x:hidden;overflow-y:auto;position:relative;isolation:isolate;color:var(--ink);background:var(--canvas);font-family:Onest,system-ui,sans-serif;font-feature-settings:'ss02';font-size:15px;line-height:1.55}
@@ -207,3 +207,33 @@ body.quiz-active .quiz-main{flex:1;min-height:0;max-width:none;padding:0;display
 .gallery-lightbox[open]{display:flex;width:100vw;height:100dvh;max-width:none;max-height:none;margin:0;border:0}
 .feedback-wrong>span{min-width:0;flex:1}
 @media(max-width:650px){.gallery-lightbox[open]{padding:0}}
+/* 2026 Modern Web Guidance progressive enhancements. */
+body.bx.dx{--acc:#0d6752}
+.site-brand b{color:var(--acc-d)}
+.skip-link{position:fixed;left:14px;top:14px;z-index:1000;transform:translateY(-150%);padding:12px 16px;background:#fff;color:var(--ink);border:2px solid var(--acc-d);border-radius:12px;font-weight:600;text-decoration:none}
+.skip-link:focus{transform:none}
+.tree-toolbar-label{color:#52605f}
+.tree-option.is-muted{color:#52605f}
+.tree-ethical-note{color:#52605f}
+.diff-card h3 em{color:var(--mint)}
+.activity-svg rect:focus-visible{stroke:var(--ink);stroke-width:2px}
+.photo-viewer:not([open]){display:none!important}
+.photo-viewer[open]{display:block;position:fixed;width:100vw;height:100dvh;max-width:none;max-height:none;margin:0;padding:0;border:0;inset:0}
+.photo-viewer::backdrop{background:#000}
+dialog:modal{overscroll-behavior:contain}
+dialog::backdrop{overscroll-behavior:contain;overflow:hidden}
+/* The treatment graph and reference list are well below the initial fold.
+   Offscreen layout is deferred without hiding it from the accessibility tree. */
+@supports (content-visibility:auto){
+  #arvore-de-tratamento{content-visibility:auto;contain-intrinsic-size:auto none auto 640px}
+  .landing-section.references{content-visibility:auto;contain-intrinsic-size:auto none auto 270px}
+}
+/* Compact screens cannot fit seven 44px touch targets in one row. */
+@media (max-width:380px){
+  .quiz-codes{display:flex;flex-wrap:wrap;justify-content:center;gap:6px}
+  .quiz-code.k{flex:none;width:44px;height:44px;min-width:44px;min-height:44px;aspect-ratio:1}
+  .quiz-workspace .quiz-image-panel{height:40dvh}
+  .quiz-workspace.has-feedback .quiz-image-panel{height:25dvh}
+}
+/* Secondary credits on the About page must meet WCAG AA on the sunken surface. */
+.about-people small{color:#52605f}

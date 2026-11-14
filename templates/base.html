@@ -8,16 +8,13 @@
   <meta name="description" content="{% block description %}ICDASQuiz — treino de classificação visual em fotografias clínicas, com sete códigos de ICDAS.{% endblock %}">
   <title>{% block title %}ICDAS Quiz — UFJF-GV{% endblock %}</title>
   <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
-  <link rel="preload" href="{{ versioned_url('fonts/onest.woff2') }}" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="{{ versioned_url('css/tailwind.css') }}">
-  <link rel="stylesheet" href="{{ versioned_url('css/custom.css') }}">
-  <link rel="stylesheet" href="{{ versioned_url('css/ui.css') }}">
-  <link rel="stylesheet" href="{{ versioned_url('css/design-tokens.css') }}">
-  <link rel="stylesheet" href="{{ versioned_url('css/design-components.css') }}">
-  <link rel="stylesheet" href="{{ versioned_url('css/redesign.css') }}">
+  {# Identical URL to the @font-face src avoids a duplicate font download. #}
+  <link rel="preload" href="{{ url_for('static', filename='fonts/onest-cb4d777c.woff2') }}" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="{{ versioned_url('css/app.css') }}">
   {% block styles %}{% endblock %}
 </head>
 <body class="bx dx redesigned {% block body_class %}{% endblock %}">
+  <a class="skip-link" href="#main">Pular para o conteúdo</a>
   <div id="offline-bar" hidden role="alert" aria-live="assertive">Sem conexão — verifique sua internet antes de enviar respostas.</div>
   {% block header %}
   <header class="site-header bar0" role="banner">
@@ -40,7 +37,6 @@
   </footer>
   {% endblock %}
   <script src="{{ versioned_url('js/base.js') }}" defer></script>
-  <script src="{{ versioned_url('js/redesign.js') }}" defer></script>
   {% block scripts %}{% endblock %}
 </body>
 </html>

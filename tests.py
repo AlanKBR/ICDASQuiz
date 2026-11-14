@@ -184,7 +184,7 @@ class TestRotasBasicas:
 
     def test_arvore_sem_numeracao_de_etapas_e_sem_assistente_legado(self, client):
         javascript = client.get("/static/js/arvore_tratamento.js").get_data(as_text=True)
-        landing = client.get("/static/js/landing.js").get_data(as_text=True)
+        landing = client.get("/static/js/redesign.js").get_data(as_text=True)
         stylesheet = client.get("/static/css/arvore_tratamento.css").get_data(as_text=True)
         assert 'class="tree-step"' not in javascript
         assert "tree-step" not in javascript
@@ -248,7 +248,8 @@ class TestQuizFluxo:
         total = min(app_module.QUIZ_QUESTIONS_PER_ATTEMPT, len(app_module.get_imagens()))
         resp = client.get("/quiz")
         html = resp.data.decode("utf-8")
-        assert f'aria-valuemax="{total}"' in html and 'aria-valuenow="0"' in html
+        assert f'max="{total}" value="0"' in html
+        assert 'class="quiz-native-progress sr-only"' in html
         assert f'max="{total}"' in html
         assert "Fotografia clínica para classificação ICDAS" in html
         assert "alt=\"Imagem clínica ICDAS" not in html
@@ -535,7 +536,7 @@ class TestAmostraDaTentativa:
         assert len(selecionadas) == app_module.QUIZ_QUESTIONS_PER_ATTEMPT
         assert len(set(selecionadas)) == len(selecionadas)
         assert set(selecionadas) <= {img["id"] for img in imagens}
-        assert 'aria-valuenow="0"' in resp.data.decode("utf-8") and '1/10' in resp.data.decode("utf-8")
+        assert 'max="10" value="0"' in resp.data.decode("utf-8") and '1/10' in resp.data.decode("utf-8")
 
     def test_amostra_nao_repete_e_respeita_limite(self, app_module):
         imagens = [{"id": i, "icdas_code": i % 7} for i in range(30)]
@@ -623,7 +624,7 @@ class TestAmostraDaTentativa:
             sess["quiz_fila"] = None
         resp = client.get("/quiz")
         html = resp.data.decode("utf-8")
-        assert 'aria-valuenow="0"' in html and '1/10' in html
+        assert 'max="10" value="0"' in html and '1/10' in html
         assert 'max="10"' in html
 
     def test_modo_aleatorio_conclui_exatamente_em_10_respostas(self, client, app_module):
@@ -1533,7 +1534,7 @@ class TestHeadersSeguranca:
 
     def test_cache_control_imutavel_em_static(self, client):
         """Assets estáticos devem ter cache longo e imutável."""
-        resp = client.get("/static/css/custom.css")
+        resp = client.get("/static/css/app.css")
         cc = resp.headers.get("Cache-Control", "")
         # O arquivo pode não existir em CI, mas se retornar 200, verifica cache
         if resp.status_code == 200:
@@ -1549,9 +1550,10 @@ class TestHeadersSeguranca:
     def test_css_local_versionado(self, client):
         """HTML deve usar CSS local com cache-busting."""
         html = client.get("/").data.decode("utf-8")
-        assert "/static/css/tailwind.css?v=" in html
-        assert "/static/css/custom.css?v=" in html
-        assert "/static/css/ui.css?v=" in html
+        assert "/static/css/app.css?v=" in html
+        assert "/static/css/tailwind.css?v=" not in html
+        assert "/static/css/custom.css?v=" not in html
+        assert "/static/css/ui.css?v=" not in html
         assert "https://cdn.jsdelivr.net" not in html
 
 
@@ -1939,8 +1941,76 @@ if __name__ == "__main__":
 # ---------------------------------------------------------------------------
 
 class TestRedesign2026:
+    def test_modern_web_assets_sao_unicos_e_bundle_esta_atual(self, client):
+        """Avoid duplicate font downloads and stale generated CSS."""
+        from hashlib import sha256
+        from pathlib import Path
+        from runpy import run_path
+
+        root = Path(__file__).resolve().parent
+        font = root / 'static/fonts/onest-cb4d777c.woff2'
+        assert sha256(font.read_bytes()).hexdigest().startswith('cb4d777c')
+        css = (root / 'static/css/app.css').read_text()
+        assert "../fonts/onest-cb4d777c.woff2" in css
+        html = client.get('/').get_data(as_text=True)
+        assert html.count('fonts/onest-cb4d777c.woff2') == 1
+        assert html.count('css/app.css?v=') == 1
+        assert html.count('rel="stylesheet"') == 2  # app + treatment tree
+        assert 'fonts/onest.woff2' not in html
+        build = run_path(str(root / 'tools/build_web_css.py'), run_name='_css_test')['build']
+        assert css == build()
+
+    def test_nativo_dialog_e_progresso_acessivel(self, client):
+        html = client.get('/quiz').get_data(as_text=True)
+        assert '<progress class="quiz-native-progress sr-only" max="10" value="0"' in html
+        assert 'class="quiz-segments" aria-hidden="true"' in html
+        assert 'commandfor="quiz-viewer" command="show-modal"' in html
+        assert '<dialog id="quiz-viewer" class="photo-viewer"' in html
+        assert 'closedby="any"' in html
+        gallery = client.get('/galeria').get_data(as_text=True)
+        assert '<dialog class="gallery-lightbox"' in gallery
+        assert 'closedby="any"' in gallery
+        home = client.get('/').get_data(as_text=True)
+        assert 'class="skip-link" href="#main"' in home
+        assert 'role="region" data-mini-quiz' in home
+
+    def test_dashboard_filtra_pelo_periodo_sem_carregar_todo_historico(self, app_module):
+        from database import (
+            Attempt, create_participant, record_answer, session_scope,
+            start_attempt, utcnow,
+        )
+
+        options = app_module._db_options()
+        def add_case(name, age_days, image_key):
+            person = create_participant(name, **options)
+            attempt = start_attempt(
+                participant_id=person.id, mode='aleatorio',
+                quiz_version='performance-test', ip_hash='0' * 64,
+                **options,
+            )
+            record_answer(
+                attempt_id=attempt.id, image_key=image_key,
+                correct_code=0, answered_code=0, response_time_ms=4000,
+                question_order=1, **options,
+            )
+            with session_scope(**options) as db:
+                row = db.get(Attempt, attempt.id)
+                row.started_at = utcnow() - timedelta(days=age_days)
+                db.commit()
+
+        add_case('Atual', 0, 'imagens/atual.webp')
+        add_case('Antigo', 70, 'imagens/antigo.webp')
+        last30 = app_module.dashboard_redesign_snapshot(period='30', **options)
+        last90 = app_module.dashboard_redesign_snapshot(period='90', **options)
+        alltime = app_module.dashboard_redesign_snapshot(period='tudo', **options)
+        assert last30['summary'][1]['value'] == 1
+        assert last30['codes'][0]['n'] == 1
+        assert last90['summary'][1]['value'] == 2
+        assert last90['codes'][0]['n'] == 2
+        assert alltime['summary'][1]['value'] == 2
+
     def test_galeria_modal_fechado_eh_oculto_no_css(self, client):
-        stylesheet = client.get('/static/css/redesign.css').get_data(as_text=True)
+        stylesheet = client.get('/static/css/app.css').get_data(as_text=True)
         assert '.gallery-lightbox:not([open]){display:none!important}' in stylesheet
         assert '.gallery-lightbox[open]{display:flex' in stylesheet
         assert '.hero-deck-back{pointer-events:none;z-index:0' in stylesheet
@@ -1951,15 +2021,13 @@ class TestRedesign2026:
             response = client.get(route)
             assert response.status_code == 200, (route, response.status_code)
             html = response.get_data(as_text=True)
-            assert 'onest.woff2' in html
-            assert 'design-tokens.css' in html
-            assert 'redesign.css' in html
+            assert 'onest-cb4d777c.woff2' in html
+            assert 'app.css?v=' in html
             assert 'https://fonts.googleapis.com' not in html
             assert 'X-Robots-Tag' in response.headers
             assert response.headers['X-Robots-Tag'] == 'noindex'
             assert "style-src 'self'" in response.headers['Content-Security-Policy']
-        for file in ('css/redesign.css', 'css/design-tokens.css', 'css/design-components.css',
-                     'fonts/onest.woff2', 'js/redesign.js'):
+        for file in ('css/app.css', 'fonts/onest-cb4d777c.woff2', 'js/redesign.js'):
             assert client.get('/static/' + file).status_code == 200, file
 
     def test_quiz_que_ainda_nao_foi_respondido_nao_revela_gabarito(self, client, app_module):
@@ -1970,7 +2038,7 @@ class TestRedesign2026:
         assert 'name="resposta"' in html
         assert 'name="attempt_id"' in html
         assert 'name="imagem_id"' in html
-        assert 'aria-valuenow="0"' in html
+        assert 'max="10" value="0"' in html
         assert 'quiz-feedback-card' not in html
         for desc in app_module.DESCRICOES.values():
             assert desc['descricao_clinica'] not in html

@@ -22,8 +22,8 @@ Estado: **versão visual com SVG de corte consolidada no ICDASQuiz** e incorpora
 - templates/_arvore_tratamento_widget.html — única composição HTML da árvore.
 - static/js/arvore_modelo.js — grafo do material e filtro das saídas transcritas.
 - static/js/arvore_tratamento.js — interação, desenho em corte e posicionamento das setas.
-- static/css/arvore_tratamento.css e static/css/landing.css — árvore e composição responsiva da home.
-- static/js/landing.js — apenas visibilidade progressiva e acordeão; questionário anterior foi removido.
+- `static/css/arvore_tratamento.css` e o bundle `static/css/app.css` — árvore e composição responsiva da home.
+- `static/js/redesign.js` — interações progressivas da landing; o questionário antigo foi removido.
 - tests.py e tools/test_arvore_modelo.cjs — testes de integração e do grafo.
 
 Não foi introduzida nenhuma migração, escrita de banco, chamada externa ou dependência JS nova.

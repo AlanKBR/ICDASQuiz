@@ -1,303 +1,107 @@
-{% extends "base.html" %}
-
-{% block title %}ICDAS - Página Inicial{% endblock %}
-
-{% block styles %}
-    <link rel="stylesheet" href="{{ versioned_url('css/landing.css') }}">
-    <link rel="stylesheet" href="{{ versioned_url('css/arvore_tratamento.css') }}">
-{% endblock %}
-
+{% extends 'base.html' %}
+{% block title %}ICDASQuiz · A escala ICDAS na fotografia clínica{% endblock %}
+{% block body_class %}landing-page{% endblock %}
+{% block main_class %}landing-body{% endblock %}
+{% block styles %}<link rel="stylesheet" href="{{ versioned_url('css/arvore_tratamento.css') }}">{% endblock %}
 {% block content %}
-    <section class="landing-hero reveal" data-reveal>
-        <div class="hero-grid">
-            <div class="hero-copy">
-                <p class="eyebrow">ICDAS Educacional</p>
-                <h1 class="hero-title">Classifique lesões cariosas com treino visual</h1>
-                <p class="hero-lead">
-                    Um fluxo direto para revisar critérios, observar imagens clínicas e praticar os códigos ICDAS de 0 a 6.
-                </p>
-                <div class="hero-cta">
-                    <a href="{{ url_for('quiz') }}" role="button" class="btn-primary no-underline">Começar treino</a>
-                    <a href="#arvore-de-tratamento" class="btn-secondary no-underline">Explorar árvore</a>
-                </div>
-                <dl class="hero-stats" aria-label="Resumo do acervo">
-                    <div>
-                        <dt>{{ total_imagens }}</dt>
-                        <dd>imagens no acervo</dd>
-                    </div>
-                </dl>
-            </div>
-
-            {% if imagens_destaque %}
-            <div class="hero-visual" role="region" aria-label="Amostras de imagens ICDAS">
-                {% for imagem in imagens_destaque[:4] %}
-                {% set desc = descricoes.get(imagem.icdas_code | string) %}
-                <figure class="hero-photo hero-photo-{{ loop.index }}">
-                    <img src="{{ url_for('static', filename=imagem.caminho) }}"
-                         alt="{{ imagem.nome }}"
-                         loading="{{ 'eager' if loop.first else 'lazy' }}"
-                         decoding="async">
-                    <figcaption>
-                        <strong>ICDAS {{ imagem.icdas_code }}</strong>
-                        {% if desc %}<span>{{ desc.titulo }}</span>{% endif %}
-                    </figcaption>
-                </figure>
-                {% endfor %}
-            </div>
-            {% endif %}
-        </div>
-    </section>
-
-    <section class="landing-flow reveal" data-reveal aria-label="Fluxo de estudo">
-        <article>
-            <span>01</span>
-            <strong>Prepare o campo</strong>
-            <p>Dente limpo, seco e bem iluminado.</p>
-        </article>
-        <article>
-            <span>02</span>
-            <strong>Compare sinais</strong>
-            <p>Observe opacidade, sombra, cavidade e dentina.</p>
-        </article>
-        <article>
-            <span>03</span>
-            <strong>Treine no quiz</strong>
-            <p>Responda, receba feedback e salve o resultado.</p>
-        </article>
-    </section>
-
-    <section id="arvore-de-tratamento" class="landing-treatment reveal" data-reveal aria-labelledby="tratamento-title">
-        <div class="landing-treatment-layout">
-            <header class="landing-treatment-intro">
-                <p class="eyebrow">Raciocínio clínico interativo</p>
-                <h2 id="tratamento-title">Explore a árvore <span>de tratamento.</span></h2>
-                <p>Escolha os achados e acompanhe o percurso visualmente. Você pode mudar qualquer resposta.</p>
-                <p class="landing-treatment-review">Material didático em revisão clínica</p>
-                <div class="landing-treatment-hint">
-                    <span class="landing-treatment-hint-mark" aria-hidden="true">
-                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                            <circle cx="6" cy="5" r="2"></circle>
-                            <circle cx="18" cy="10" r="2"></circle>
-                            <circle cx="6" cy="19" r="2"></circle>
-                            <path d="M6 7v10M8 5h3a7 7 0 0 1 7 3"></path>
-                        </svg>
-                    </span>
-                    <span>As opções cinzas também são clicáveis para alterar o caminho.</span>
-                </div>
-                <a href="{{ url_for('arvore_tratamento') }}" class="text-link landing-treatment-open">Abrir somente a árvore</a>
-            </header>
-            <div class="tree-lab tree-lab--embedded">
-                {% include "_arvore_tratamento_widget.html" %}
-            </div>
-        </div>
-    </section>
-
-    {% if imagens_destaque %}
-    <section class="image-strip reveal" data-reveal aria-labelledby="amostras-title">
-        <div class="section-head">
-            <h2 id="amostras-title" class="section-title">Mais exemplos visuais</h2>
-            <a href="{{ url_for('galeria') }}" class="text-link">Abrir galeria completa</a>
-        </div>
-        <div class="sample-grid">
-            {% for imagem in imagens_destaque %}
-            {% set desc = descricoes.get(imagem.icdas_code | string) %}
-            <figure class="sample-card">
-                <img src="{{ url_for('static', filename=imagem.caminho) }}"
-                     alt="{{ imagem.nome }}"
-                     loading="lazy"
-                     decoding="async">
-                <figcaption>
-                    <span class="sample-code">ICDAS {{ imagem.icdas_code }}</span>
-                    {% if desc %}<span>{{ desc.descricao_curta }}</span>{% endif %}
-                    {% if imagem.legenda_condicao %}
-                    <small>{{ imagem.legenda_condicao }}</small>
-                    {% endif %}
-                </figcaption>
-            </figure>
-            {% endfor %}
-        </div>
-    </section>
-    {% endif %}
-
-    <section class="wet-legend reveal" data-reveal aria-labelledby="legenda-molhado-title">
-        <div>
-            <p class="eyebrow">Legenda clínica</p>
-            <h2 id="legenda-molhado-title" class="section-title">Foto molhada pede confirmação com secagem</h2>
-        </div>
-        <p>
-            Em imagem feita com superfície molhada, alterações iniciais do esmalte podem ficar menos evidentes,
-            principalmente nos códigos ICDAS 1 e 2. Use a foto como referência visual, mas confirme a classificação
-            após limpeza, iluminação adequada e secagem por cerca de 5 segundos.
-        </p>
-    </section>
-
-    <section id="conteudos" class="landing-accordion reveal" data-reveal>
-        <div class="section-head">
-            <h2 class="section-title">Classificação e conteúdos rápidos</h2>
-            <div class="section-actions">
-                <button type="button" class="link-button" data-accordion-action="open-all">Abrir tudo</button>
-                <span class="text-muted" aria-hidden="true">•</span>
-                <button type="button" class="link-button" data-accordion-action="close-all">Fechar tudo</button>
-            </div>
-        </div>
-
-        <div class="acc-group" data-accordion>
-            <article class="acc-item">
-                <h3 class="acc-heading">
-                    <button
-                        type="button"
-                        class="acc-trigger"
-                        id="acc-btn-tabela"
-                        aria-expanded="false"
-                        aria-controls="acc-panel-tabela"
-                    >
-                        <span class="acc-title">Tabela ICDAS (códigos 0 a 6)</span>
-                        <span class="acc-icon" aria-hidden="true"></span>
-                    </button>
-                </h3>
-                <div
-                    class="acc-content"
-                    id="acc-panel-tabela"
-                    role="region"
-                    aria-labelledby="acc-btn-tabela"
-                >
-                    <div class="acc-inner">
-                        <div class="table-scroll" role="region" tabindex="0" aria-label="Tabela ICDAS (rolagem horizontal)">
-                            <table class="icdas-table">
-                                <thead>
-                                    <tr>
-                                        <th>Código</th>
-                                        <th>Descrição</th>
-                                        <th>Definição Clínica</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr>
-                                        <td>0</td>
-                                        <td>Superfície dental saudável</td>
-                                        <td>Nenhuma evidência de cárie após secagem prolongada com ar (5 segundos)</td>
-                                    </tr>
-                                    <tr>
-                                        <td>1</td>
-                                        <td>Primeira alteração visual no esmalte</td>
-                                        <td>Alteração visível apenas após secagem ou restrita a fóssulas e fissuras</td>
-                                    </tr>
-                                    <tr>
-                                        <td>2</td>
-                                        <td>Alteração visual distinta no esmalte</td>
-                                        <td>Opacidade branca ou descoloração visível sem secagem, mais extensa que fissuras e fóssulas</td>
-                                    </tr>
-                                    <tr>
-                                        <td>3</td>
-                                        <td>Descontinuidade localizada do esmalte</td>
-                                        <td>Perda de estrutura do esmalte sem dentina visível</td>
-                                    </tr>
-                                    <tr>
-                                        <td>4</td>
-                                        <td>Sombreamento de dentina subjacente</td>
-                                        <td>Sombreamento de dentina através do esmalte aparentemente intacto</td>
-                                    </tr>
-                                    <tr>
-                                        <td>5</td>
-                                        <td>Cavidade distinta com dentina visível</td>
-                                        <td>Cavitação em esmalte expondo a dentina</td>
-                                    </tr>
-                                    <tr>
-                                        <td>6</td>
-                                        <td>Cavidade extensa com dentina visível</td>
-                                        <td>Cavidade extensa com perda de estrutura dentária, com dentina claramente visível</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            </article>
-
-            <article class="acc-item">
-                <h3 class="acc-heading">
-                    <button
-                        type="button"
-                        class="acc-trigger"
-                        id="acc-btn-seco"
-                        aria-expanded="false"
-                        aria-controls="acc-panel-seco"
-                    >
-                        <span class="acc-title">Campo seco e boa iluminação (por quê?)</span>
-                        <span class="acc-icon" aria-hidden="true"></span>
-                    </button>
-                </h3>
-                <div
-                    class="acc-content"
-                    id="acc-panel-seco"
-                    role="region"
-                    aria-labelledby="acc-btn-seco"
-                >
-                    <div class="acc-inner">
-                        <p>
-                            A secagem evidencia alterações iniciais do esmalte (especialmente nos códigos 1 e 2).
-                            Sem campo seco e iluminação adequada, pequenas opacidades podem passar despercebidas.
-                        </p>
-                        <ul>
-                            <li>Secar por cerca de <strong>5 segundos</strong> antes de classificar</li>
-                            <li>Manter a superfície <strong>limpa</strong> e sem biofilme</li>
-                            <li>Evitar confundir manchas/extrínsecas com lesão</li>
-                        </ul>
-                    </div>
-                </div>
-            </article>
-
-            <article class="acc-item">
-                <h3 class="acc-heading">
-                    <button
-                        type="button"
-                        class="acc-trigger"
-                        id="acc-btn-diferencial"
-                        aria-expanded="false"
-                        aria-controls="acc-panel-diferencial"
-                    >
-                        <span class="acc-title">Diagnóstico diferencial (exemplos)</span>
-                        <span class="acc-icon" aria-hidden="true"></span>
-                    </button>
-                </h3>
-                <div
-                    class="acc-content"
-                    id="acc-panel-diferencial"
-                    role="region"
-                    aria-labelledby="acc-btn-diferencial"
-                >
-                    <div class="acc-inner">
-                        <p>
-                            Algumas alterações podem simular cárie. Sempre considere contexto clínico e distribuição da lesão.
-                        </p>
-                        <ul>
-                            <li><strong>Fluorose</strong>: costuma ter padrão mais difuso, simétrico e relacionado à formação do esmalte</li>
-                            <li><strong>Hipoplasia</strong>: defeito estrutural de desenvolvimento, com contorno e história compatíveis</li>
-                            <li><strong>Manchas extrínsecas</strong>: pigmentos superficiais podem reduzir após profilaxia</li>
-                            <li><strong>Erosão, abrasão ou desgaste</strong>: perda de estrutura sem padrão típico de lesão cariosa ativa</li>
-                        </ul>
-                    </div>
-                </div>
-            </article>
-        </div>
-    </section>
-
-    <section class="landing-end-cta reveal" data-reveal>
-        <div class="end-cta-card">
-            <h2 class="section-title">Pronto para treinar?</h2>
-            <p class="end-cta-text text-muted">Identifique a tentativa, responda as imagens e compare o desempenho no histórico.</p>
-            <a href="{{ url_for('quiz') }}" role="button" class="btn-primary no-underline">Começar treino</a>
-            <p class="end-cta-links">
-                <a href="{{ url_for('galeria') }}">Ver exemplos na galeria</a>
-                <span class="text-muted" aria-hidden="true">•</span>
-                <a href="{{ url_for('sobre') }}">Sobre o projeto</a>
-            </p>
-        </div>
-    </section>
+<section class="hero-wrap" aria-labelledby="hero-title">
+  <span class="blob a" aria-hidden="true"></span><span class="blob b" aria-hidden="true"></span>
+  <div class="hero-copy">
+    <span class="kick">International Caries Detection and Assessment System</span>
+    <h1 id="hero-title" class="hero-title"><span class="w">A escala</span> <i class="w">ICDAS</i> <span class="w">na fotografia</span> <span class="w">clínica.</span></h1>
+    <p class="hero-lead">Treino de classificação visual com fotografias clínicas, nos sete códigos do ICDAS.</p>
+    <a class="hero-link" href="{{ url_for('quiz') }}">Iniciar o quiz</a> <span class="hero-count">10 imagens</span>
+    <p class="hero-note"><span aria-hidden="true">◌</span> Fotos têm limite: nem sempre é possível saber se a superfície foi seca, condição necessária para distinguir ICDAS 1 e 2.</p>
+  </div>
+  {% if imagens_destaque|length >= 2 %}
+  <div class="hero-deck" data-mini-quiz aria-label="Experimente classificar duas fotografias">
+    <span class="hero-deck-back" aria-hidden="true"></span><span class="hero-deck-back back2" aria-hidden="true"></span>
+    <div class="hero-deck-front">
+      {% for imagem in imagens_destaque[:2] %}
+      <div data-demo-photo data-demo-code="{{ imagem.icdas_code }}" {% if not loop.first %}hidden{% endif %}>
+        <img src="{{ url_for('static', filename=imagem.caminho) }}" alt="Fotografia clínica pública para teste de classificação" width="500" height="500" {% if loop.first %}fetchpriority="high"{% else %}loading="lazy"{% endif %}>
+        <span class="question-chip">Qual código?</span>
+      </div>
+      {% endfor %}
+      <div class="hero-deck-lock" data-demo-lock role="status"><strong>Continue no quiz completo.</strong><span>10 imagens, com feedback em cada uma.</span><a class="go" href="{{ url_for('quiz') }}">Iniciar o quiz →</a></div>
+    </div>
+    <div class="quiz-codes" role="group" aria-label="Escolha o código ICDAS">
+      {% for code in range(7) %}<button type="button" class="quiz-code k" data-demo-code="{{ code }}" aria-label="Código {{ code }}">{{ code }}</button>{% endfor %}
+    </div>
+    <p class="hero-deck-feedback" aria-live="polite" data-demo-hint>Classifique esta imagem · 1 de 2</p>
+  </div>
+  {% endif %}
+</section>
+{% if imagens_destaque %}
+<div class="marquee" aria-hidden="true">
+  {% for direction in (0,1) %}
+  <div class="marquee-row {% if direction %}reverse{% endif %}">
+    {% for repeat in range(4) %}{% for imagem in imagens_destaque %}<img src="{{ url_for('static', filename=imagem.caminho) }}" alt="" loading="lazy" decoding="async" width="180" height="130">{% endfor %}{% endfor %}
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+<section class="landing-section" aria-labelledby="project-title">
+  <span class="kick">O projeto</span>
+  <div class="project-grid">
+    <div>
+      <h2 id="project-title" class="section-title">Apoiar o aprendizado do sistema <em>ICDAS.</em></h2>
+      <p class="section-lead">Ferramenta digital desenvolvida como Trabalho de Conclusão de Curso em Odontologia na Universidade Federal de Juiz de Fora, Campus Governador Valadares. Para estudantes e profissionais que desejam revisar critérios visuais de detecção e classificação de lesões cariosas.</p>
+      <p class="project-credits">Autor <strong>Alan Anjos Miranda</strong><span> · </span>Orientação <strong>Prof. Dr. Rodrigo Varella de Carvalho</strong></p>
+    </div>
+    <div class="project-number" aria-label="{{ total_imagens }} fotografias clínicas">{{ total_imagens }}<small>fotografias clínicas no acervo</small></div>
+  </div>
+</section>
+<section id="escala" class="landing-section" aria-labelledby="scale-title">
+  <span class="kick">A escala</span>
+  <h2 id="scale-title" class="section-title">Sete códigos, um critério <em>cada.</em></h2>
+  <div class="scale-table">
+  {% for code in range(7) %}
+  {% set d = descricoes.get(code|string) %}
+  {% set photo = imagens_destaque|selectattr('icdas_code','equalto',code)|first %}
+  <a class="scale-card" href="{{ url_for('galeria') }}?codigo={{ code }}" aria-label="Ver fotografias do código {{ code }} na galeria">
+    {% if photo %}<img src="{{ url_for('static', filename=photo.caminho) }}" alt="Fotografia de código {{ code }}" loading="lazy" decoding="async" width="170" height="132">{% endif %}
+    <div class="scale-card-body">
+      <span class="scale-code">{{ code }}</span>
+      {% if d %}<strong>{{ d.titulo }}</strong><p>{{ d.descricao_curta }}</p>{% endif %}
+      {% if code in (1,2) %}<span class="dry-pill">Depende da secagem</span>{% endif %}
+    </div>
+  </a>
+  {% endfor %}
+  </div>
+</section>
+<section class="landing-section" aria-labelledby="prep-title">
+  <span class="kick">Antes de classificar</span>
+  <h2 id="prep-title" class="section-title">Prepare o campo, depois <em>compare.</em></h2>
+  <div class="steps-grid">
+    <article class="step-card"><span class="step-num">01</span><h3>Prepare o campo</h3><p>Dente limpo, seco e bem iluminado.</p></article>
+    <article class="step-card"><span class="step-num">02</span><h3>Seque por cerca de 5 segundos</h3><p>A secagem evidencia alterações iniciais do esmalte, especialmente nos códigos 1 e 2.</p><div class="dry-timer" aria-label="5 segundos"><span>5 s</span></div></article>
+    <article class="step-card"><span class="step-num">03</span><h3>Compare sinais</h3><p>Observe opacidade, sombra, cavidade e dentina.</p></article>
+  </div>
+  <aside class="diff-card" aria-label="Diagnósticos diferenciais">
+    <h3>Pode parecer <em>cárie.</em></h3><p>Algumas alterações podem simular cárie. Sempre considere contexto clínico e distribuição da lesão.</p>
+    <div class="diff-grid">
+      <p><strong>Fluorose</strong> — costuma ter padrão mais difuso, simétrico e relacionado à formação do esmalte.</p>
+      <p><strong>Hipoplasia</strong> — defeito estrutural de desenvolvimento, com contorno e história compatíveis.</p>
+      <p><strong>Manchas extrínsecas</strong> — pigmentos superficiais podem reduzir após profilaxia.</p>
+      <p><strong>Erosão, abrasão ou desgaste</strong> — perda de estrutura sem padrão típico de lesão cariosa ativa.</p>
+    </div>
+  </aside>
+</section>
+<section id="arvore-de-tratamento" class="landing-section" aria-labelledby="tree-title">
+  <span class="kick">Árvore de tratamento</span>
+  <h2 id="tree-title" class="section-title">Da lesão à <em>conduta.</em></h2>
+  <div class="treatment-container">{% include '_arvore_tratamento_widget.html' %}</div>
+  <p class="references"><a href="{{ url_for('arvore_tratamento') }}">Abrir somente a árvore →</a></p>
+</section>
+<section class="landing-section references" aria-labelledby="ref-title">
+  <h2 id="ref-title" class="kick">Referências</h2>
+  <ol>
+    <li>Ismail AI, Sohn W, Tellez M, et al. <em>The International Caries Detection and Assessment System (ICDAS): an integrated system for measuring dental caries.</em> Community Dent Oral Epidemiol. 2007;35(3):170–178.</li>
+    <li>Pitts NB. <em>ICDAS — a foundation for innovation in caries management.</em> Dental Update. 2009;36(5):268–272.</li>
+    <li>Diniz MB, et al. <em>Validity of ICDAS clinical criteria for caries detection in occlusal surfaces in vitro.</em> Caries Res. 2009;43(5):405–409.</li>
+    <li>Meyer-Lueckel H, Paris S. <em>When and How to Intervene in the Caries Process.</em> Oper Dent. 2016;41(S7):S35–S47. doi:10.2341/15-022-O. Árvore transcrita de slides, ainda não validada clinicamente.</li>
+  </ol>
+</section>
 {% endblock %}
-
-{% block scripts %}
-    <script src="{{ versioned_url('js/landing.js') }}"></script>
-    <script src="{{ versioned_url('js/arvore_modelo.js') }}"></script>
-    <script src="{{ versioned_url('js/arvore_tratamento.js') }}"></script>
-{% endblock %}
+{% block scripts %}<script src="{{ versioned_url('js/arvore_modelo.js') }}" defer></script><script src="{{ versioned_url('js/arvore_tratamento.js') }}" defer></script>{% endblock %}

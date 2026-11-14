@@ -1,70 +1,43 @@
-{% extends "base.html" %}
-
-{% block title %}Galeria de Imagens — ICDAS{% endblock %}
-
-{% block description %}Galeria de imagens clínicas dos estágios ICDAS 0 a 6 com filtros e descrições clínicas resumidas.{% endblock %}
-
+{% extends 'base.html' %}
+{% block title %}Galeria · ICDASQuiz{% endblock %}
+{% block description %}Acervo de fotografias clínicas com exemplos dos códigos ICDAS de zero a seis.{% endblock %}
 {% block content %}
-<section class="gallery-hero">
-    <div>
-        <p class="gallery-kicker">Acervo visual</p>
-        <h1>Galeria ICDAS</h1>
-        <p>Use os filtros para comparar exemplos por código. Novas imagens podem ser adicionadas ao acervo sem mudar a estrutura da página.</p>
+<section class="page-heading">
+  <div><span class="kick">Acervo</span><h1 class="page-title">Galeria<i>.</i></h1></div>
+  <span class="meta"><span data-gallery-count>{{ imagens|length }}</span> fotografias</span>
+</section>
+<div class="gallery-filters" role="group" aria-label="Filtrar por código ICDAS">
+  <button class="gallery-filter" data-gallery-filter="todos" type="button" aria-pressed="true" aria-label="Todas as fotografias, {{ imagens|length }} fotos">Todas</button>
+  {% for c in range(7) %}<button class="gallery-filter" data-gallery-filter="{{ c }}" type="button" aria-pressed="false" aria-label="ICDAS {{ c }}, {{ contagem_codigos.get(c, 0) }} fotos">{{ c }}</button>{% endfor %}
+</div>
+<div class="gallery-grid" id="galeria">
+{% for imagem in imagens %}
+{% set d = descricoes.get(imagem.icdas_code|string) %}
+<button type="button" class="gallery-photo" data-gallery-card data-icdas="{{ imagem.icdas_code }}"
+        data-src="{{ url_for('static', filename=imagem.caminho) }}" data-title="{{ d.titulo if d else '' }}"
+        data-criterion="{{ d.descricao_curta if d else '' }}" data-clinical="{{ d.descricao_clinica if d else '' }}"
+        aria-label="Ampliar fotografia {{ loop.index }}, ICDAS {{ imagem.icdas_code }}">
+  <img src="{{ url_for('static', filename=imagem.caminho) }}" alt="Fotografia clínica, código {{ imagem.icdas_code }}" loading="lazy" decoding="async" width="240" height="240">
+  <span class="code">{{ imagem.icdas_code }}</span>
+</button>
+{% endfor %}
+</div>
+{% if not imagens %}<p class="dash-empty">Nenhuma fotografia disponível no acervo.</p>{% endif %}
+<dialog class="gallery-lightbox" id="gallery-lightbox" aria-label="Fotografia clínica ampliada">
+  <div class="gallery-lightbox-content">
+    <div class="gallery-lightbox-image"><img data-lightbox-photo alt="Fotografia clínica ampliada"></div>
+    <div class="gallery-lightbox-details">
+      <button class="xbtn" type="button" data-lightbox-close aria-label="Fechar visualização">×</button>
+      <span class="kick" data-lightbox-code></span>
+      <h2 data-lightbox-title></h2>
+      <p><strong>Critério: </strong><span data-lightbox-criterion></span></p>
+      <p data-lightbox-clinical></p>
+      <div class="gallery-lightbox-footer"><span class="meta" data-lightbox-pos></span><div class="gallery-lightbox-controls">
+        <button type="button" data-lightbox-prev aria-label="Fotografia anterior">‹</button>
+        <button type="button" data-lightbox-next aria-label="Próxima fotografia">›</button>
+      </div></div>
     </div>
-    <a href="{{ url_for('quiz') }}" role="button" class="btn-primary no-underline">Treinar com imagens</a>
-</section>
-
-<section class="gallery-disclaimer" aria-label="Observação sobre umidade">
-    <strong>Observação sobre umidade</strong>
-    <p>
-        Fotografias podem alterar a percepção clínica, especialmente em lesões iniciais. Para ICDAS 1 e 2,
-        avalie a superfície limpa, iluminada e seca antes de confirmar o diagnóstico.
-    </p>
-</section>
-
-<div class="filtros gallery-filters" role="group" aria-label="Filtrar imagens por código ICDAS">
-    <button data-icdas="todos" aria-current="true" class="btn-primary">
-        Todos <span>{{ imagens|length }}</span>
-    </button>
-    {% for i in range(7) %}
-    <button data-icdas="{{ i }}" class="btn-outline">
-        ICDAS {{ i }} <span>{{ contagem_codigos.get(i, 0) }}</span>
-    </button>
-    {% endfor %}
-</div>
-
-{% if imagens %}
-<div class="galeria" id="galeria">
-    {% for imagem in imagens %}
-    {% set desc = descricoes.get(imagem.icdas_code | string) %}
-    <article class="imagem-item gallery-card" data-icdas="{{ imagem.icdas_code }}">
-        <img src="{{ url_for('static', filename=imagem.caminho) }}" alt="{{ imagem.nome }}" loading="lazy" decoding="async">
-        <div class="imagem-info">
-            <div class="gallery-card-head">
-                <span>ICDAS {{ imagem.icdas_code }}</span>
-                {% if "Oclusal" in imagem.nome %}
-                <small>Oclusal</small>
-                {% elif "Livre" in imagem.nome %}
-                <small>Superfície livre</small>
-                {% endif %}
-            </div>
-            {% if desc %}
-            <strong>{{ desc.titulo }}</strong>
-            <p>{{ desc.descricao_curta }}</p>
-            {% endif %}
-            <small class="text-muted">{{ imagem.nome }}</small>
-        </div>
-    </article>
-    {% endfor %}
-</div>
-{% else %}
-<article class="empty-history">
-    <h1>Nenhuma imagem encontrada</h1>
-    <p>Adicione arquivos <code>.webp</code> em <code>static/imagens/</code> seguindo o padrão com o código ICDAS no nome.</p>
-</article>
-{% endif %}
+  </div>
+</dialog>
 {% endblock %}
-
-{% block scripts %}
-<script src="{{ versioned_url('js/galeria.js') }}"></script>
-{% endblock %}
+{% block scripts %}<script src="{{ versioned_url('js/galeria.js') }}" defer></script>{% endblock %}

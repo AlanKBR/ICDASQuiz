@@ -1,65 +1,46 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="{% block description %}Site educativo sobre o ICDAS — Sistema Internacional de Detecção e Avaliação de Cárie. Material teórico, galeria de imagens clínicas e quiz interativo.{% endblock %}">
-    <title>{% block title %}ICDAS — Sistema Internacional de Detecção e Avaliação de Cárie{% endblock %}</title>
-    <link rel="stylesheet" href="{{ versioned_url('css/tailwind.css') }}">
-    <link rel="stylesheet" href="{{ versioned_url('css/custom.css') }}">
-    <link rel="stylesheet" href="{{ versioned_url('css/ui.css') }}">
-    {% block styles %}{% endblock %}
-    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="theme-color" content="#f3f7f6">
+  <meta name="description" content="{% block description %}ICDASQuiz — treino de classificação visual em fotografias clínicas, com sete códigos de ICDAS.{% endblock %}">
+  <title>{% block title %}ICDAS Quiz — UFJF-GV{% endblock %}</title>
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
+  <link rel="preload" href="{{ versioned_url('fonts/onest.woff2') }}" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="{{ versioned_url('css/tailwind.css') }}">
+  <link rel="stylesheet" href="{{ versioned_url('css/custom.css') }}">
+  <link rel="stylesheet" href="{{ versioned_url('css/ui.css') }}">
+  <link rel="stylesheet" href="{{ versioned_url('css/design-tokens.css') }}">
+  <link rel="stylesheet" href="{{ versioned_url('css/design-components.css') }}">
+  <link rel="stylesheet" href="{{ versioned_url('css/redesign.css') }}">
+  {% block styles %}{% endblock %}
 </head>
-<body class="min-h-screen bg-teal-50 text-slate-900">
-    <div id="offline-bar" hidden role="alert" aria-live="assertive">
-        Sem conexão — verifique sua internet antes de enviar respostas.
-    </div>
-    <header role="banner" class="sticky top-0 z-50 border-b border-slate-200 bg-teal-50/90 backdrop-blur">
-        <nav class="icdas-container flex flex-wrap items-center justify-between gap-3 py-3">
-            <a href="{{ url_for('home') }}" class="flex items-center gap-2 no-underline" aria-label="Ir para a página inicial">
-                <img src="{{ url_for('static', filename='imagens/logo-ufjf-gv.webp') }}"
-                     alt="Logo UFJF-GV" class="logo-ufjf">
-                <span class="font-extrabold tracking-tight text-slate-900">ICDAS Educacional</span>
-            </a>
-
-            <ul class="m-0 flex list-none flex-wrap items-center gap-1 p-0 sm:gap-2">
-                <li>
-                    <a class="nav-link" href="{{ url_for('home') }}"{% if request.endpoint == 'home' %} aria-current="page"{% endif %}>Início</a>
-                </li>
-                <li>
-                    <a class="nav-link" href="{{ url_for('galeria') }}"{% if request.endpoint == 'galeria' %} aria-current="page"{% endif %}>Galeria</a>
-                </li>
-                <li>
-                    <a class="nav-link" href="{{ url_for('home') }}#arvore-de-tratamento">Tratamento</a>
-                </li>
-                <li>
-                    <a href="{{ url_for('quiz') }}"
-                       class="btn-primary px-3 py-1.5 text-sm no-underline"
-                       {% if request.endpoint in ('quiz', 'quiz_iniciar', 'quiz_finalizar', 'quiz_resetar', 'quiz_modo') %} aria-current="page"{% endif %}>
-                        Quiz ICDAS
-                    </a>
-                </li>
-                <li>
-                    <a class="nav-link" href="{{ url_for('sobre') }}"{% if request.endpoint == 'sobre' %} aria-current="page"{% endif %}>Sobre</a>
-                </li>
-            </ul>
-        </nav>
-    </header>
-
-    <main class="icdas-container py-8">
-        {% block content %}{% endblock %}
-    </main>
-
-    <footer class="icdas-container border-t border-slate-200 py-8 text-center text-sm text-slate-600">
-        <small class="leading-relaxed">
-            &copy; {{ now.year }} ICDAS Educacional &mdash;
-            Alan Anjos Miranda &mdash;
-            Orientação: Prof. Dr. Rodrigo Varella de Carvalho &mdash;
-            UFJF-GV
-        </small>
-    </footer>
-    {% block scripts %}{% endblock %}
-    <script src="{{ versioned_url('js/base.js') }}"></script>
+<body class="bx dx redesigned {% block body_class %}{% endblock %}">
+  <div id="offline-bar" hidden role="alert" aria-live="assertive">Sem conexão — verifique sua internet antes de enviar respostas.</div>
+  {% block header %}
+  <header class="site-header bar0" role="banner">
+    {% include '_brand.html' %}
+    <nav class="site-nav" aria-label="Navegação principal">
+      <a href="{{ url_for('home') }}" {% if request.endpoint == 'home' %}aria-current="page"{% endif %}>Início</a>
+      <a class="nav-anchor" href="{{ url_for('home') }}#escala">A escala</a>
+      <a class="nav-anchor" href="{{ url_for('home') }}#arvore-de-tratamento">Árvore de tratamento</a>
+      <a href="{{ url_for('galeria') }}" {% if request.endpoint == 'galeria' %}aria-current="page"{% endif %}>Galeria</a>
+      <a href="{{ url_for('scores') }}" {% if request.endpoint == 'scores' %}aria-current="page"{% endif %}>Placar</a>
+    </nav>
+  </header>
+  {% endblock %}
+  <main id="main" class="page-body {% block main_class %}{% endblock %}">{% block content %}{% endblock %}</main>
+  {% block footer %}
+  <footer class="site-footer">
+    <div class="footer-inner"><p><strong>ICDASQuiz</strong> · TCC Odontologia UFJF-GV</p>
+    <p>Alan Anjos Miranda · Orientação: Prof. Dr. Rodrigo Varella de Carvalho</p>
+    <a href="{{ url_for('sobre') }}">Sobre o projeto</a> <a href="{{ url_for('dashboard_login') }}">Professor</a></div>
+  </footer>
+  {% endblock %}
+  <script src="{{ versioned_url('js/base.js') }}" defer></script>
+  <script src="{{ versioned_url('js/redesign.js') }}" defer></script>
+  {% block scripts %}{% endblock %}
 </body>
 </html>

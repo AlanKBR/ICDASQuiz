@@ -1,133 +1,117 @@
-{% extends "base.html" %}
-{% from "_macros.html" import csrf %}
-
-{% block title %}Dashboard do professor — ICDAS{% endblock %}
-
+{% extends 'base.html' %}
+{% from '_macros.html' import csrf %}
+{% block title %}Dashboard do professor · ICDASQuiz{% endblock %}
+{% block header %}
+<header class="site-header professor-header" role="banner">
+  {% include '_brand.html' %}
+  <div class="professor-actions">
+    <a href="{{ url_for('dashboard_export') }}">Exportar CSV</a>
+    <form method="post" action="{{ url_for('dashboard_logout') }}">{{ csrf() }}<button type="submit">Sair</button></form>
+  </div>
+</header>
+{% endblock %}
+{% block main_class %}dashboard-shell{% endblock %}
 {% block content %}
-<section class="scores-hero dashboard-hero">
-    <div>
-        <p class="scores-kicker">Análise acadêmica</p>
-        <h1>Dashboard do professor</h1>
-        <p>Participantes declarados, tentativas, respostas individuais e desempenho por código ICDAS.</p>
-    </div>
-    <div class="dashboard-actions">
-        <a href="{{ url_for('dashboard_export') }}" class="btn-primary no-underline">Exportar CSV</a>
-        <form action="{{ url_for('dashboard_logout') }}" method="post" class="form-zero-margin">
-            {{ csrf() }}
-            <button type="submit" class="btn-outline">Sair</button>
-        </form>
-    </div>
+<section class="page-heading">
+  <div><span class="kick">Área do professor</span><h1 class="page-title">Dashboard<i>.</i></h1></div>
+  <div><nav class="period-chooser" aria-label="Período das métricas">
+    {% for item in [('30','30 dias'),('90','90 dias'),('tudo','Tudo')] %}
+    <a href="{{ url_for('dashboard', periodo=item[0]) }}" aria-current="{{ 'true' if report.period == item[0] else 'false' }}">{{ item[1] }}</a>{% endfor %}
+  </nav><p class="dashboard-period-caption">{{ ('Últimos ' + report.period + ' dias, comparados ao período anterior.') if report.period != 'tudo' else 'Dados desde o início.' }}</p></div>
 </section>
-
-<section class="dashboard-summary" aria-label="Resumo geral">
-    <article><strong>{{ analytics.summary.participants }}</strong><span>participantes declarados</span></article>
-    <article><strong>{{ analytics.summary.attempts }}</strong><span>tentativas</span></article>
-    <article><strong>{{ analytics.summary.answers }}</strong><span>respostas registradas</span></article>
-    <article><strong>{{ analytics.summary.mean_score if analytics.summary.mean_score is not none else '—' }}{% if analytics.summary.mean_score is not none %}%{% endif %}</strong><span>média concluída</span></article>
-    <article><strong>{{ analytics.summary.completion_rate if analytics.summary.completion_rate is not none else '—' }}{% if analytics.summary.completion_rate is not none %}%{% endif %}</strong><span>conclusão</span></article>
-    <article><strong>{% if analytics.summary.median_response_ms is not none %}{{ (analytics.summary.median_response_ms / 1000) | round(1) }} s{% else %}—{% endif %}</strong><span>tempo mediano</span></article>
+<section class="dashboard-stats" aria-label="Indicadores principais">
+{% for item in report.summary %}
+<article class="dashboard-stat">
+  <strong>{{ item.value if item.value is not none else '—' }}{% if item.value is not none and item.unit %}<small>{{ item.unit }}</small>{% endif %}</strong>
+  <span>{{ item.name|lower }}</span>
+  <em>{% if not item.compare %}desde o início{% elif item.delta is not none %}{{ '+' if item.delta > 0 else '' }}{{ item.delta }} {{ 'p.p.' if item.unit == '%' else item.unit if item.unit else '' }} vs. período anterior{% else %}sem período anterior{% endif %}</em>
+</article>
+{% endfor %}
 </section>
-
-<section class="dashboard-section">
-    <div class="section-head-lite"><h2>Desempenho por código ICDAS</h2><span>respostas individuais</span></div>
-    <div class="scores-table-wrap" role="region" tabindex="0" aria-label="Desempenho por código ICDAS">
-        <table class="scores-table">
-            <thead><tr><th>Código</th><th>Respostas</th><th>Acertos</th><th>Acurácia</th><th>Tempo médio</th></tr></thead>
-            <tbody>
-            {% for item in analytics.by_code %}
-                <tr>
-                    <td><strong>ICDAS {{ item.code }}</strong></td>
-                    <td>{{ item.total }}</td>
-                    <td>{{ item.correct }}</td>
-                    <td>{{ item.accuracy if item.accuracy is not none else '—' }}{% if item.accuracy is not none %}%{% endif %}</td>
-                    <td>{% if item.mean_ms is not none %}{{ (item.mean_ms / 1000) | round(1) }} s{% else %}—{% endif %}</td>
-                </tr>
-            {% endfor %}
-            </tbody>
-        </table>
+<div class="dashboard-grid">
+  <section class="dash-card" data-chart-region><h2>Atividade</h2><p class="subtitle">Tentativas iniciadas por {{ 'dia' if report.period == '30' else 'semana' }} · verde: concluídas, lilás: interrompidas</p>
+    <svg class="activity-svg" viewBox="0 0 700 180" role="img" aria-label="Atividade ao longo do período: tentativas concluídas e interrompidas">
+      {% set slot = 700 / (report.activity|length if report.activity|length else 1) %}
+      {% for item in report.activity %}
+        {% set h1 = item.complete / report.activity_max * 160 %}{% set h2 = item.incomplete / report.activity_max * 160 %}
+        <rect tabindex="0" class="activity-complete" x="{{ (loop.index0 * slot + slot*0.13)|round(2) }}" y="{{ (170 - h1)|round(2) }}" width="{{ (slot * 0.34)|round(2) }}" height="{{ h1|round(2) }}" rx="3" data-reading="{{ item.label }}: {{ item.complete }} concluídas, {{ item.incomplete }} interrompidas" aria-label="{{ item.label }}: {{ item.complete }} concluídas"/>
+        <rect tabindex="0" class="activity-interrupted" x="{{ (loop.index0 * slot + slot * 0.52)|round(2) }}" y="{{ (170 - h2)|round(2) }}" width="{{ (slot * 0.34)|round(2) }}" height="{{ h2|round(2) }}" rx="3" data-reading="{{ item.label }}: {{ item.complete }} concluídas, {{ item.incomplete }} interrompidas" aria-label="{{ item.label }}: {{ item.incomplete }} interrompidas"/>
+      {% endfor %}
+    </svg>
+    <div class="chart-activity-labels"><span>{{ report.activity[0].label if report.activity else '' }}</span><span>{{ report.activity[-1].label if report.activity else '' }}</span></div>
+    <p class="read" data-chart-readout>{{ report.attempts }} tentativas no período.</p>
+  </section>
+  <section class="dash-card" data-chart-region><h2>Horários de uso</h2><p class="subtitle">Início das tentativas por dia da semana e hora local</p>
+    {% set weekdays=['seg','ter','qua','qui','sex','sáb','dom'] %}
+    <div class="heat-scroll"><table class="heat-table" aria-label="Mapa de calor de uso por horário"><thead><tr><th></th>{% for hour in range(8,24,2) %}<th scope="col">{{ hour }}h</th>{% endfor %}</tr></thead><tbody>
+    {% for day in range(7) %}<tr><th scope="row">{{ weekdays[day] }}</th>{% for slot in range(8) %}
+      {% set v=report.heat[day][slot] %}{% set shade=1 + ((v / report.heat_max * 5)|int) if v else 1 %}
+      <td><button type="button" class="shade-{{ shade }}" data-reading="{{ weekdays[day] }}, {{ 8+slot*2 }}h–{{ 10+slot*2 }}h: {{ v }} tentativas" aria-label="{{ weekdays[day] }}, {{ 8+slot*2 }} horas, {{ v }} tentativas">{{ v if v else '' }}</button></td>
+    {% endfor %}</tr>{% endfor %}</tbody></table></div>
+    <p class="read" data-chart-readout>Horários na zona America/Sao_Paulo.</p>
+  </section>
+  <section class="dash-card"><h2>Acerto por código</h2><p class="subtitle">Com tempo médio e confusão mais frequente</p>
+    <div class="code-bars">
+      {% for c in report.codes %}
+      <div class="code-bar-row"><span class="digit">{{ c.code }}</span><progress max="100" value="{{ c.pct }}" aria-label="ICDAS {{ c.code }}: {{ c.pct }} por cento"></progress><strong>{{ c.pct }}%</strong><span class="minor">{{ c.sec|string+'s' if c.sec is not none else '—' }}</span><span class="minor">{{ ('com '+c.confused|string) if c.confused is not none else '—' }}</span></div>
+      {% endfor %}
     </div>
-</section>
-
-<section class="dashboard-section">
-    <div class="section-head-lite"><h2>Matriz de confusão</h2><span>linha = correto · coluna = respondido</span></div>
-    <div class="scores-table-wrap confusion-wrap" role="region" tabindex="0" aria-label="Matriz de confusão ICDAS">
-        <table class="scores-table confusion-table">
-            <thead>
-                <tr><th>Correto ↓ / resposta →</th>{% for code in range(7) %}<th>{{ code }}</th>{% endfor %}</tr>
-            </thead>
-            <tbody>
-            {% for row in analytics.confusion %}
-                {% set correct_code = loop.index0 %}
-                <tr><th>ICDAS {{ correct_code }}</th>{% for value in row %}<td class="{{ 'confusion-diagonal' if loop.index0 == correct_code else '' }}">{{ value }}</td>{% endfor %}</tr>
-            {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</section>
-
-<div class="dashboard-two-col">
-    <section class="dashboard-section">
-        <div class="section-head-lite"><h2>Imagens mais difíceis</h2><span>até 20</span></div>
-        {% if analytics.images %}
-        <div class="dashboard-list">
-            {% for item in analytics.images %}
-            <article>
-                <strong>{{ item.image_key.split('/')[-1] }}</strong>
-                <span>{{ item.accuracy }}% · {{ item.correct }}/{{ item.total }} acertos{% if item.mean_ms %} · {{ (item.mean_ms / 1000) | round(1) }} s{% endif %}</span>
-            </article>
-            {% endfor %}
-        </div>
-        {% else %}<p class="dashboard-empty">Ainda não há respostas individuais.</p>{% endif %}
-    </section>
-
-    <section class="dashboard-section">
-        <div class="section-head-lite"><h2>Modo e versão</h2><span>comparabilidade</span></div>
-        <div class="dashboard-list">
-            {% for item in analytics.modes %}
-            <article><strong>{{ item.mode | capitalize }}</strong><span>{{ item.attempts }} tentativas · média {{ item.mean }}%</span></article>
-            {% endfor %}
-            {% for version, count in analytics.versions %}
-            <article><strong>{{ version }}</strong><span>{{ count }} tentativas concluídas</span></article>
-            {% endfor %}
-        </div>
-    </section>
+  </section>
+  <section class="dash-card" data-chart-region><h2>Matriz de confusão</h2><p class="subtitle">Linha = código correto · coluna = resposta</p>
+    <div class="heat-scroll"><table class="confusion-table"><thead><tr><th></th>{% for i in range(7) %}<th scope="col">{{ i }}</th>{% endfor %}</tr></thead><tbody>
+    {% for i in range(7) %}<tr><th scope="row">{{ i }}</th>{% for j in range(7) %}
+      {% set pct=report.confusion_pct[i][j] %}{% set shade=1+((pct/100*5)|int) if pct else 1 %}
+      <td><button type="button" class="shade-{{ shade }} {% if i==j %}diag{% endif %}" data-reading="ICDAS {{ i }} respondido como {{ j }}: {{ report.confusion[i][j] }} vezes ({{ pct }}% das respostas para este código)." aria-label="Código {{ i }} respondido como {{ j }}, {{ report.confusion[i][j] }} vezes">{{ report.confusion[i][j] }}</button></td>
+    {% endfor %}</tr>{% endfor %}</tbody></table></div><p class="read" data-chart-readout>Selecione uma célula para ver a leitura.</p>
+  </section>
+  <section class="dash-card third"><h2>Distribuição de notas</h2><p class="subtitle">Acertos nas tentativas concluídas</p>
+    <svg class="mini-svg" viewBox="0 0 440 150" role="img" aria-label="Histograma de notas de zero a dez">
+      {% set mx = ([1] + report.histogram)|max %}
+      {% for value in report.histogram %}{% set ht=value/mx*125 %}<rect x="{{ loop.index0*40+5 }}" y="{{ (140-ht)|round(2) }}" width="30" height="{{ ht|round(2) }}" rx="3" class="mini-bar"><title>{{ loop.index0 }} acertos: {{ value }} tentativas</title></rect>{% endfor %}
+    </svg><div class="mini-chart-labels">{% for i in range(11) %}<span>{{ i }}</span>{% endfor %}</div><p class="read">{{ report.completed }} tentativas concluídas.</p>
+  </section>
+  <section class="dash-card third"><h2>Evolução por tentativa</h2><p class="subtitle">Acerto médio na 1ª, 2ª, 3ª e 4ª+ de cada aluno</p>
+    <svg class="mini-svg" viewBox="0 0 400 150" role="img" aria-label="Evolução da média das tentativas">
+      {% for e in report.evolution %}{% set ht=e.pct*1.2 %}<rect class="mini-bar" x="{{ loop.index0*100+13 }}" y="{{ 135-ht }}" width="70" height="{{ ht }}" rx="3"><title>{{ e.label }}: {{ e.pct }}%, n={{ e.n }}</title></rect>{% endfor %}
+    </svg><div class="mini-chart-labels">{% for e in report.evolution %}<span>{{ e.label }} · n={{ e.n }}</span>{% endfor %}</div>
+  </section>
+  <section class="dash-card third"><h2>Tempo e acerto</h2><p class="subtitle">Acerto conforme tempo gasto em cada foto</p>
+    <svg class="mini-svg" viewBox="0 0 400 150" role="img" aria-label="Acerto por tempo de resposta">
+      {% for e in report.time_accuracy %}{% set ht=e.pct*1.2 %}<rect class="mini-bar" x="{{ loop.index0*80+8 }}" y="{{ 135-ht }}" width="55" height="{{ ht }}" rx="3"><title>{{ e.pct }}%, n={{ e.n }}</title></rect>{% endfor %}
+    </svg><div class="mini-chart-labels"><span>até 4 s</span><span>4–8 s</span><span>8–12 s</span><span>12–20 s</span><span>20 s+</span></div>
+  </section>
+  <section class="dash-card third"><h2>Ao longo do quiz</h2><p class="subtitle">Acerto por posição da questão</p>
+    <svg class="mini-svg" viewBox="0 0 400 150" role="img" aria-label="Acerto por posição na tentativa">
+      {% for e in report.by_order %}{% set ht=e.pct*1.2 %}<rect class="mini-bar" x="{{ loop.index0*40+5 }}" y="{{ 135-ht }}" width="28" height="{{ ht }}" rx="3"><title>Questão {{ e.order }}: {{ e.pct }}%, n={{ e.n }}</title></rect>{% endfor %}
+    </svg><div class="mini-chart-labels">{% for e in report.by_order %}<span>{{ e.order }}</span>{% endfor %}</div>
+  </section>
+  <section class="dash-card third"><h2>Como as tentativas terminam</h2><p class="subtitle">{{ report.attempts }} tentativas no período</p>
+    {% set status_colors=['#1f8a71','#c1b3ef','#715ea5','#899591','#cdeee3','#eef4f2','#d8e0dd'] %}
+    <svg class="status-svg" viewBox="0 0 700 20" aria-label="Proporção de status das tentativas" role="img">
+      {% set ns=namespace(offset=0) %}{% for item in report.statuses %}{% if report.attempts %}{% set width=item[1]/report.attempts*700 %}{% else %}{% set width=0 %}{% endif %}
+      <rect x="{{ ns.offset }}" y="0" width="{{ width }}" height="20" fill="{{ status_colors[loop.index0] }}"><title>{{ item[0] }}: {{ item[1] }}</title></rect>{% set ns.offset=ns.offset+width %}{% endfor %}
+    </svg>
+    <div class="status-legend">{% for item in report.statuses %}<div class="status-legend-row"><span>{{ item[0] }}</span><strong>{{ item[1] }} · {{ (item[1]/report.attempts*100)|round|int if report.attempts else 0 }}%</strong></div>{% endfor %}</div>
+  </section>
+  <section class="dash-card third"><h2>Versões do acervo</h2><p class="subtitle">Cada tentativa guarda a versão das fotografias</p>
+    {% for v in report.versions %}<div class="status-legend-row"><span><code>{{ v.name[:17] }}</code><small class="version-dates">{{ v.first }}–{{ v.last }}</small></span><strong>{{ v.n }} · {{ v.pct|string+'%' if v.pct is not none else '—' }}</strong></div>{% else %}<p class="dash-empty">Nenhuma versão registrada.</p>{% endfor %}
+  </section>
+  <section class="dash-card"><div class="dash-card-top"><div><h2>Fotos</h2><p class="subtitle">Com pelo menos 3 respostas</p></div><div class="photo-toggle"><button type="button" data-photo-filter="hard" aria-pressed="true">Mais difíceis</button><button type="button" data-photo-filter="easy" aria-pressed="false">Mais fáceis</button></div></div>
+    <div data-photo-list>{% for item in report.photos %}<div class="photo-stats-row" data-pct="{{ item.pct }}">
+      <img src="{{ url_for('static', filename=item.image_key) }}" alt="Fotografia código {{ item.code }}" loading="lazy" decoding="async"><div class="details"><strong>ICDAS {{ item.code }}</strong><small>{{ item.n }} respostas · {{ item.sec|string + ' s' if item.sec is not none else '—' }} · erro comum: {{ item.wrong if item.wrong is not none else '—' }}</small></div><span class="score">{{ item.pct }}%</span>
+    </div>{% else %}<p class="dash-empty">Aguardando ao menos três respostas por fotografia.</p>{% endfor %}</div>
+  </section>
+  <section class="dash-card"><h2>Alunos</h2><p class="subtitle">Por atividade; selecione para ver o detalhe</p>
+    <div class="dash-table-wrap"><table class="dash-table"><thead><tr><th>Aluno</th><th>Melhor</th><th>Última</th><th>Evolução</th><th>Ativo em</th></tr></thead><tbody>
+    {% for a in report.students %}<tr><td><button type="button" data-show-student aria-controls="student-detail-{{ loop.index }}" aria-expanded="false">{{ a.name }}</button><small class="student-n">{{ a.n }} tentativas</small></td><td>{{ a.best }}%</td><td>{{ a.last }}%</td><td>{{ '+' if a.delta>0 else '' }}{{ a.delta }} p.p.</td><td>{{ a.date }}</td></tr>{% endfor %}
+    </tbody></table></div>
+    {% for a in report.students %}<div class="student-detail" id="student-detail-{{ loop.index }}" hidden><h3>{{ a.name }}</h3><p>{{ a.n }} tentativas · acerto por código:</p><div class="student-code-pills">{% for c in a.bycode %}<span><b>{{ loop.index0 }}</b>{{ c|string + '%' if c is not none else '—' }}</span>{% endfor %}</div><ul>{% for item in a.recent %}<li>{{ item.date }} · {{ item.status }} · {{ item.score }}</li>{% endfor %}</ul></div>{% endfor %}
+  </section>
+  <section class="dash-card wide"><h2>Tentativas recentes</h2><p class="subtitle">ID, aluno, status, resultado, duração, versão, início e identificador técnico truncado</p>
+    <div class="dash-table-wrap"><table class="dash-table"><thead><tr><th>ID</th><th>Aluno</th><th>Status</th><th>Resultado</th><th>Duração</th><th>Versão</th><th>Início</th><th>IP técnico</th></tr></thead><tbody>
+    {% for a in report.recent %}<tr><td>{{ a.id }}</td><td>{{ a.name }}</td><td>{{ a.status }}</td><td>{{ a.score }}</td><td>{{ a.duration|string + ' s' if a.duration is not none else '—' }}</td><td class="technical">{{ a.version }}</td><td>{{ a.when }}</td><td class="technical">{{ a.ip }}</td></tr>{% else %}<tr><td colspan="8">Nenhuma tentativa.</td></tr>{% endfor %}
+    </tbody></table></div>
+  </section>
 </div>
-
-<section class="dashboard-section">
-    <div class="section-head-lite"><h2>Evolução por nome declarado</h2><span>primeira → última tentativa concluída</span></div>
-    {% if analytics.evolution %}
-    <div class="scores-table-wrap" role="region" tabindex="0" aria-label="Evolução por nome declarado">
-        <table class="scores-table">
-            <thead><tr><th>Aluno</th><th>Tentativas</th><th>Primeira</th><th>Última</th><th>Δ</th></tr></thead>
-            <tbody>
-            {% for item in analytics.evolution %}
-                <tr><td><strong>{{ item.nome }}</strong></td><td>{{ item.attempts }}</td><td>{{ item.first }}%</td><td>{{ item.last }}%</td><td>{{ '+' if item.delta > 0 else '' }}{{ item.delta }} p.p.</td></tr>
-            {% endfor %}
-            </tbody>
-        </table>
-    </div>
-    {% else %}<p class="dashboard-empty">É preciso ter pelo menos duas tentativas concluídas com o mesmo nome declarado.</p>{% endif %}
-</section>
-
-<section class="dashboard-section">
-    <div class="section-head-lite"><h2>Tentativas recentes</h2><span>inclui resets e trocas</span></div>
-    <div class="scores-table-wrap" role="region" tabindex="0" aria-label="Tentativas recentes">
-        <table class="scores-table">
-            <thead><tr><th>ID</th><th>Aluno</th><th>Status</th><th>Modo</th><th>Versão</th><th>Resultado</th><th>IP técnico</th></tr></thead>
-            <tbody>
-            {% for item in analytics.recent %}
-                <tr>
-                    <td>{{ item.id }}</td>
-                    <td><strong>{{ item.nome }}</strong></td>
-                    <td>{{ item.status }}</td>
-                    <td>{{ item.mode }}</td>
-                    <td>{{ item.version }}</td>
-                    <td>{{ item.acertos }}/{{ item.total }}</td>
-                    <td><code>{{ item.ip_hash[:10] }}{% if item.ip_hash %}…{% endif %}</code></td>
-                </tr>
-            {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</section>
+<p class="score-privacy">Dados acadêmicos agregados. Endereços IP não são armazenados; o identificador técnico é um HMAC truncado.</p>
 {% endblock %}

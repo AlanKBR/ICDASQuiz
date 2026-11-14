@@ -1,14 +1,3 @@
-{% extends "base.html" %}
-
-{% block title %}Método não permitido — ICDAS{% endblock %}
-
-{% block content %}
-<div class="error-center">
-    <hgroup>
-        <h2>405</h2>
-        <p>Método não permitido.</p>
-    </hgroup>
-    <p>Esta ação não pode ser realizada da forma solicitada. Volte e tente novamente.</p>
-    <a href="{{ url_for('home') }}" role="button" class="btn-primary no-underline">Voltar ao início</a>
-</div>
-{% endblock %}
+{% extends 'base.html' %}
+{% block title %}405 · ICDASQuiz{% endblock %}
+{% block content %}<section class="error-redesign"><span class="kick">ICDASQuiz</span><h1>405<i>.</i></h1><h2>Ação não permitida</h2><p>Essa ação não pode ser realizada dessa forma.</p><a class="go" href="{{ url_for('home') }}">Voltar ao início →</a></section>{% endblock %}

@@ -613,3 +613,251 @@ def database_healthy(*, database_url: str | None = None, db_path: str | None = N
         return True
     except Exception:
         return False
+
+# ---------------------------------------------------------------------------
+# Read-only views for the 2026 responsive redesign. No schema changes.
+# ---------------------------------------------------------------------------
+
+def attempt_review_snapshot(*, attempt_id: int, participant_id: int,
+                            database_url: str | None = None, db_path: str | None = None) -> dict | None:
+    """Return only a completed attempt belonging to this browser's participant.
+
+    Never use a client-provided attempt ID without verifying ownership here.
+    """
+    if not attempt_id or not participant_id:
+        return None
+    with session_scope(database_url=database_url, db_path=db_path) as db:
+        attempt = db.scalar(
+            select(Attempt).options(selectinload(Attempt.answers), selectinload(Attempt.participant))
+            .where(Attempt.id == attempt_id, Attempt.participant_id == participant_id)
+        )
+        if attempt is None or attempt.status != "completed":
+            return None
+        return {
+            "id": attempt.id, "nome": attempt.participant.name,
+            "total": attempt.total, "acertos": attempt.acertos,
+            "answers": [
+                {"image_key": a.image_key, "correct_code": a.correct_code,
+                 "answered_code": a.answered_code, "correct": a.correct,
+                 "question_order": a.question_order}
+                for a in sorted(attempt.answers, key=lambda a: (a.question_order, a.id))
+            ],
+        }
+
+
+def dashboard_redesign_snapshot(*, period: str = "30", database_url: str | None = None,
+                                db_path: str | None = None, now: datetime | None = None) -> dict:
+    """Aggregate de-identified analytics for the professor's responsive dashboard.
+
+    All grouping uses Sao Paulo civil dates. This view performs no writes and
+    deliberately emits no raw IP address, only a truncated HMAC in recent rows.
+    """
+    from collections import Counter, defaultdict
+    from zoneinfo import ZoneInfo
+    from datetime import date
+
+    tz = ZoneInfo("America/Sao_Paulo")
+    current = now or utcnow()
+    if current.tzinfo is None:
+        current = current.replace(tzinfo=timezone.utc)
+    today = current.astimezone(tz).date()
+    period = str(period) if str(period) in ("30", "90", "tudo") else "30"
+    days = None if period == "tudo" else int(period)
+
+    def local(ts):
+        if ts is None:
+            return None
+        if ts.tzinfo is None:
+            ts = ts.replace(tzinfo=timezone.utc)
+        return ts.astimezone(tz)
+
+    def select_period(items, offset=0):
+        if days is None:
+            return list(items)
+        start = today - timedelta(days=days * (offset + 1) - 1)
+        end = today - timedelta(days=days * offset)
+        return [a for a in items if (dt := local(a.started_at)) and start <= dt.date() <= end]
+
+    with session_scope(database_url=database_url, db_path=db_path) as db:
+        attempts_all = list(db.scalars(select(Attempt).options(selectinload(Attempt.participant)).order_by(Attempt.started_at, Attempt.id)).all())
+        answers_all = list(db.scalars(select(Answer).order_by(Answer.id)).all())
+    attempts = select_period(attempts_all)
+    previous = select_period(attempts_all, 1) if days is not None else []
+    ids = {a.id for a in attempts}
+    answers = [a for a in answers_all if a.attempt_id in ids]
+    answer_by_attempt = defaultdict(list)
+    for a in answers:
+        answer_by_attempt[a.attempt_id].append(a)
+    completed = [a for a in attempts if a.status == "completed" and a.total > 0]
+
+    def metrics(items):
+        done = [a for a in items if a.status == "completed" and a.total > 0]
+        ids_ = {a.id for a in items}
+        resp = [a.response_time_ms for a in answers_all if a.attempt_id in ids_ and a.response_time_ms is not None]
+        return [len({a.participant_id for a in items}), len(items),
+                round(len(done) / len(items) * 100, 1) if items else None,
+                round(sum(a.acertos / a.total for a in done) / len(done) * 100, 1) if done else None,
+                round(median(resp) / 1000, 1) if resp else None,
+                len({a.ip_hash for a in items if a.ip_hash})]
+
+    values, prev_values = metrics(attempts), metrics(previous)
+    # Hash de IP não distingue dispositivos atrás da mesma rede; não atribua
+    # identidade individual a esse sinal técnico.
+    names = ("Participantes", "Tentativas", "Concluídas", "Acerto médio", "Tempo mediano por foto", "Origens de rede distintas")
+    summary = []
+    for i, (name, value) in enumerate(zip(names, values)):
+        prior = prev_values[i] if days is not None else None
+        delta = round(value - prior, 1) if value is not None and prior is not None else None
+        summary.append({"name": name, "value": value, "delta": delta,
+                        "unit": "%" if i in (2, 3) else ("s" if i == 4 else ""),
+                        "compare": days is not None})
+
+    # The time series is daily for 30 days, weekly for 90 days / all history.
+    buckets = defaultdict(lambda: [0, 0])
+    if period == "30":
+        keys = [today - timedelta(days=i) for i in range(29, -1, -1)]
+        for d in keys:
+            buckets[d]
+        label = lambda d: d.strftime("%d/%m")
+        group = lambda d: d
+    else:
+        first = min((local(a.started_at).date() for a in attempts), default=today)
+        if days:
+            first = today - timedelta(days=days - 1)
+        first = first - timedelta(days=first.weekday())
+        keys = []
+        d = first
+        while d <= today:
+            keys.append(d)
+            buckets[d]
+            d += timedelta(days=7)
+        label = lambda d: d.strftime("%d/%m")
+        group = lambda d: d - timedelta(days=d.weekday())
+    for a in attempts:
+        if a.started_at:
+            k = group(local(a.started_at).date())
+            buckets[k][0 if a.status == "completed" and a.total > 0 else 1] += 1
+    activity = [{"label": label(k), "complete": buckets[k][0], "incomplete": buckets[k][1]} for k in keys]
+    max_activity = max((sum(v) for v in buckets.values()), default=1) or 1
+
+    heat = [[0 for _ in range(8)] for _ in range(7)]
+    # 8-24 in two-hour buckets, starts at Monday.
+    for a in attempts:
+        t = local(a.started_at)
+        if t and 8 <= t.hour < 24:
+            heat[t.weekday()][(t.hour - 8) // 2] += 1
+    heat_max = max((v for row in heat for v in row), default=1) or 1
+
+    codes = []
+    confusion = [[0] * 7 for _ in range(7)]
+    for a in answers:
+        if 0 <= a.correct_code < 7 and 0 <= a.answered_code < 7:
+            confusion[a.correct_code][a.answered_code] += 1
+    for c in range(7):
+        rows = [a for a in answers if a.correct_code == c]
+        wrong = Counter(a.answered_code for a in rows if not a.correct)
+        times = [a.response_time_ms for a in rows if a.response_time_ms is not None]
+        codes.append({"code": c, "n": len(rows),
+                      "pct": round(sum(a.correct for a in rows) / len(rows) * 100) if rows else 0,
+                      "sec": round(sum(times) / len(times) / 1000, 1) if times else None,
+                      "confused": wrong.most_common(1)[0][0] if wrong else None,
+                      "confused_pct": round(wrong.most_common(1)[0][1] / sum(wrong.values()) * 100) if wrong else None})
+    confusion_pct = [[round(v / sum(row) * 100) if sum(row) else 0 for v in row] for row in confusion]
+
+    grades = Counter(min(10, max(0, a.acertos)) for a in completed)
+    histogram = [grades.get(i, 0) for i in range(11)]
+    per_person = defaultdict(list)
+    for a in completed:
+        per_person[a.participant.name_key].append(a)
+    evolution = []
+    for i in range(4):
+        subset = [a for group_ in per_person.values() for a in (group_[i:i+1] if i < 3 else group_[3:])]
+        evolution.append({"label": str(i + 1) + ("ª" if i < 3 else "+"),
+                          "n": len(subset),
+                          "pct": round(sum(a.acertos / a.total for a in subset) / len(subset) * 100) if subset else 0})
+    ranges = [(0, 4000), (4000, 8000), (8000, 12000), (12000, 20000), (20000, 10**12)]
+    time_accuracy = []
+    for lo, hi in ranges:
+        subset = [a for a in answers if a.response_time_ms is not None and lo <= a.response_time_ms < hi]
+        time_accuracy.append({"n": len(subset), "pct": round(sum(a.correct for a in subset) / len(subset) * 100) if subset else 0})
+    by_order = []
+    for i in range(1, 11):
+        subset = [a for a in answers if a.question_order == i]
+        by_order.append({"order": i, "n": len(subset), "pct": round(sum(a.correct for a in subset) / len(subset) * 100) if subset else 0})
+    statuses = [(name, sum(a.status == key for a in attempts)) for key, name in
+                (("completed", "Concluída"), ("reset", "Reiniciada"),
+                 ("student_change", "Troca de aluno"), ("expired", "Expirada"),
+                 ("mode_change", "Troca de modo"), ("empty", "Sem respostas"), ("active", "Em andamento"))]
+    versions = []
+    for ver in sorted({a.quiz_version for a in attempts}):
+        group_ = [a for a in attempts if a.quiz_version == ver]
+        done = [a for a in group_ if a.status == "completed" and a.total > 0]
+        versions.append({"name": ver, "n": len(group_),
+                         "first": min(local(a.started_at) for a in group_).strftime("%d/%m/%Y"),
+                         "last": max(local(a.started_at) for a in group_).strftime("%d/%m/%Y"),
+                         "pct": round(sum(a.acertos / a.total for a in done) / len(done) * 100) if done else None})
+    versions.sort(key=lambda v: v["n"], reverse=True)
+
+    photos = []
+    grouped = defaultdict(list)
+    for a in answers:
+        grouped[a.image_key].append(a)
+    for key, group_ in grouped.items():
+        if len(group_) < 3:
+            continue
+        wrong = Counter(a.answered_code for a in group_ if not a.correct)
+        times = [a.response_time_ms for a in group_ if a.response_time_ms is not None]
+        photos.append({"image_key": key, "code": group_[0].correct_code, "n": len(group_),
+                       "pct": round(sum(a.correct for a in group_) / len(group_) * 100),
+                       "sec": round(sum(times) / len(times) / 1000, 1) if times else None,
+                       "wrong": wrong.most_common(1)[0][0] if wrong else None})
+    photos.sort(key=lambda item: (item["pct"], -item["n"]))
+
+    students = []
+    grouped_students = defaultdict(list)
+    for a in attempts:
+        grouped_students[a.participant.name_key].append(a)
+    for key, group_ in grouped_students.items():
+        done = [a for a in group_ if a.total and a.status == "completed"]
+        if not done:
+            continue
+        group_.sort(key=lambda a: (a.started_at, a.id))
+        done.sort(key=lambda a: (a.started_at, a.id))
+        first = round(done[0].acertos / done[0].total * 100)
+        last = round(done[-1].acertos / done[-1].total * 100)
+        bycode = []
+        all_ans = [x for a in group_ for x in answer_by_attempt[a.id]]
+        for i in range(7):
+            valid = [x for x in all_ans if x.correct_code == i]
+            bycode.append(round(sum(x.correct for x in valid) / len(valid) * 100) if valid else None)
+        students.append({"name": group_[-1].participant.name, "n": len(group_),
+                         "best": max(round(a.acertos / a.total * 100) for a in done),
+                         "last": last, "delta": last - first,
+                         "date": local(group_[-1].started_at).strftime("%d/%m/%Y"),
+                         "_sort_date": local(group_[-1].started_at),
+                         "bycode": bycode,
+                         "recent": [{"date": local(a.started_at).strftime("%d/%m %H:%M"),
+                                     "status": a.status, "score": f"{a.acertos}/{a.total}" if a.total else "—"}
+                                    for a in reversed(group_[-4:])]})
+    # A apresentação usa dd/mm/aaaa, que não pode servir como chave de
+    # ordenação cronológica. Ordene pelo datetime verdadeiro, sem expô-lo.
+    students.sort(key=lambda s: s["_sort_date"], reverse=True)
+    for item in students:
+        del item["_sort_date"]
+
+    recent = []
+    for a in reversed(attempts[-30:]):
+        start, end = local(a.started_at), local(a.finished_at)
+        duration = round((a.finished_at - a.started_at).total_seconds()) if a.finished_at and a.started_at else None
+        recent.append({"id": a.id, "name": a.participant.name, "status": a.status,
+                       "score": f"{a.acertos}/{a.total}" if a.total else "—", "duration": duration,
+                       "version": a.quiz_version[:12], "when": start.strftime("%d/%m %H:%M") if start else "—",
+                       "ip": a.ip_hash[:10] if a.ip_hash else "—"})
+
+    return {"period": period, "days": days, "summary": summary, "activity": activity,
+            "activity_max": max_activity, "heat": heat, "heat_max": heat_max,
+            "codes": codes, "confusion": confusion, "confusion_pct": confusion_pct,
+            "histogram": histogram, "evolution": evolution, "time_accuracy": time_accuracy,
+            "by_order": by_order, "statuses": statuses, "versions": versions,
+            "photos": photos, "students": students, "recent": recent,
+            "completed": len(completed), "attempts": len(attempts)}

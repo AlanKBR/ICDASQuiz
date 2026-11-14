@@ -1,27 +1,9 @@
-{% extends "base.html" %}
-
-{% block title %}Árvore de tratamento — ICDAS Educacional{% endblock %}
-{% block description %}Explore visualmente os caminhos de tratamento para superfícies oclusais e proximais. Material acadêmico em revisão.{% endblock %}
-{% block styles %}
-<link rel="stylesheet" href="{{ versioned_url('css/arvore_tratamento.css') }}">
-{% endblock %}
-
+{% extends 'base.html' %}
+{% block title %}Árvore de tratamento · ICDASQuiz{% endblock %}
+{% block description %}Árvore acadêmica interativa de tratamento, em revisão clínica pelo orientador.{% endblock %}
+{% block styles %}<link rel="stylesheet" href="{{ versioned_url('css/arvore_tratamento.css') }}">{% endblock %}
 {% block content %}
-<div class="tree-lab">
-  <header class="tree-intro">
-    <div>
-      <div class="tree-crumb"><a href="{{ url_for('home') }}">Início</a><span aria-hidden="true">/</span> Tratamento</div>
-      <h1>Árvore de tratamento</h1>
-      <p>Escolha um caminho. Toque em qualquer alternativa para mudar.</p>
-    </div>
-    <span class="tree-review"><span class="tree-review-dot"></span> Em revisão</span>
-  </header>
-
-  {% include "_arvore_tratamento_widget.html" %}
-</div>
+<section class="page-heading"><div><span class="kick">Em revisão clínica</span><h1 class="page-title">Árvore de tratamento<i>.</i></h1><p class="section-lead">Escolha os achados e explore o percurso didático. A árvore não constitui indicação clínica.</p></div></section>
+<div class="treatment-container standalone-treatment">{% include '_arvore_tratamento_widget.html' %}</div>
 {% endblock %}
-
-{% block scripts %}
-<script src="{{ versioned_url('js/arvore_modelo.js') }}"></script>
-<script src="{{ versioned_url('js/arvore_tratamento.js') }}"></script>
-{% endblock %}
+{% block scripts %}<script src="{{ versioned_url('js/arvore_modelo.js') }}" defer></script><script src="{{ versioned_url('js/arvore_tratamento.js') }}" defer></script>{% endblock %}

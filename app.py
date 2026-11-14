@@ -25,6 +25,8 @@ from werkzeug.exceptions import SecurityError
 
 from database import (
     analytics_snapshot,
+    dashboard_redesign_snapshot,
+    attempt_review_snapshot,
     attempt_is_active,
     clear_legacy_ips,
     create_participant,
@@ -257,6 +259,8 @@ def _clear_quiz_progress():
     session["quiz_fila"] = None
     session["quiz_used_ids"] = []
     session["question_order"] = 0
+    session["quiz_outcomes"] = []
+    session.pop("last_completed_attempt_id", None)
     session.pop("quiz_total", None)
     session.pop("quiz_atual", None)
     session.pop("quiz_feedback", None)
@@ -407,7 +411,7 @@ def inject_globals():
         """Retorna URL do asset com query string de cache-busting."""
         return url_for("static", filename=filename) + "?v=" + _get_asset_hash(filename)
 
-    return {"now": _NOW, "versioned_url": versioned_url}
+    return {"now": _NOW, "versioned_url": versioned_url, "descriptions": DESCRICOES}
 
 
 # Pré-aquece o cache de hashes na inicialização do processo (--preload safe).
@@ -420,6 +424,8 @@ for _f in (
     "js/landing.js",
     "js/galeria.js",
     "js/quiz.js",
+    "css/redesign.css",
+    "js/redesign.js",
 ):
     _get_asset_hash(_f)
 
@@ -471,6 +477,40 @@ def set_security_headers(response):
 # Rotas
 # ---------------------------------------------------------------------------
 
+def _render_quiz(**context):
+    """Shared UI context; reveal answer details only after server correction."""
+    context.setdefault("quiz_nome", session.get("quiz_nome"))
+    context["descricoes"] = DESCRICOES
+    context["outcomes"] = session.get("quiz_outcomes") or []
+    context["review"] = None
+    context["review_example"] = {}
+    if context.get("quiz_completo"):
+        review = attempt_review_snapshot(
+            attempt_id=session.get("last_completed_attempt_id"),
+            participant_id=session.get("participant_id"),
+            **_db_options(),
+        )
+        if review is not None:
+            # Only already-answered images are included in the result screen.
+            context["review"] = review
+            known = {image["caminho"]: image for image in get_imagens()}
+            examples = {}
+            for item in review["answers"]:
+                other = next((image for image in known.values()
+                              if image["icdas_code"] == item["correct_code"]
+                              and image["caminho"] != item["image_key"]), None)
+                if other:
+                    examples[item["question_order"]] = other["caminho"]
+            context["review_example"] = examples
+    if context.get("respondido") and context.get("imagem") is not None:
+        code = context["imagem"]["icdas_code"]
+        context["example_photo"] = next(
+            (image["caminho"] for image in get_imagens()
+             if image["icdas_code"] == code and image["id"] != context["imagem"]["id"]),
+            None,
+        )
+    return render_template("quiz.html", **context)
+
 @app.route("/")
 def home():
     imagens = get_imagens()
@@ -520,8 +560,7 @@ def quiz():
     quiz_total = _quiz_total_for_view(imagens)
 
     if not imagens:
-        return render_template(
-            "quiz.html",
+        return _render_quiz(
             imagem=None,
             mensagem="Nenhuma imagem disponível para o quiz.",
             total_imagens=quiz_total,
@@ -536,8 +575,7 @@ def quiz():
     if not session.get("quiz_nome"):
         if request.method == "POST":
             return redirect(url_for("quiz"))
-        return render_template(
-            "quiz.html",
+        return _render_quiz(
             imagem=None,
             mensagem=None,
             total_imagens=quiz_total,
@@ -575,8 +613,7 @@ def quiz():
             return redirect(url_for("quiz"))
 
         if resposta < 0 or resposta > 6:
-            return render_template(
-                "quiz.html",
+            return _render_quiz(
                 imagem=imagem,
                 mensagem="Selecione uma opção antes de verificar.",
                 total_imagens=quiz_total,
@@ -602,6 +639,11 @@ def quiz():
             return redirect(url_for("quiz"))
 
         session["question_order"] = session.get("question_order", 0) + 1
+        outcomes = session.get("quiz_outcomes")
+        if not isinstance(outcomes, list):
+            outcomes = []
+        outcomes.append(bool(correto))
+        session["quiz_outcomes"] = outcomes[-QUIZ_QUESTIONS_PER_ATTEMPT:]
         session["score_total"] += 1
         usados = session.get("quiz_used_ids")
         if not isinstance(usados, list):
@@ -623,6 +665,7 @@ def quiz():
         # Fila vazia após limpar o atual → todas as imagens respondidas
         quiz_completo = session.get("quiz_fila") == []
         if quiz_completo:
+            session["last_completed_attempt_id"] = attempt_id
             _end_session_attempt("completed")
 
         # PRG — armazena feedback na sessão e redireciona;
@@ -632,6 +675,7 @@ def quiz():
             "correto": correto,
             "mensagem": mensagem,
             "descricao_key": str(imagem["icdas_code"]),
+            "answered_code": resposta,
             "quiz_completo": quiz_completo,
         }
         session.modified = True
@@ -645,8 +689,7 @@ def quiz():
             None,
         )
         if imagem is not None:
-            return render_template(
-                "quiz.html",
+            return _render_quiz(
                 imagem=imagem,
                 mensagem=feedback["mensagem"],
                 total_imagens=quiz_total,
@@ -657,6 +700,7 @@ def quiz():
                 score_total=session.get("score_total", 0),
                 modo_sequencial=modo_seq,
                 quiz_completo=feedback["quiz_completo"],
+                answered_code=feedback.get("answered_code"),
                 quiz_nome=session.get("quiz_nome"),
             )
 
@@ -665,8 +709,7 @@ def quiz():
     if session.get("quiz_fila") == [] and session.get("quiz_atual") is None:
         if session.get("attempt_id"):
             _end_session_attempt("completed")
-        return render_template(
-            "quiz.html",
+        return _render_quiz(
             imagem=None,
             mensagem=None,
             total_imagens=quiz_total,
@@ -692,8 +735,7 @@ def quiz():
         imagem = _quiz_pop(imagens)
         if imagem is None:
             _end_session_attempt("completed")
-            return render_template(
-                "quiz.html",
+            return _render_quiz(
                 imagem=None,
                 mensagem=None,
                 total_imagens=quiz_total,
@@ -710,8 +752,7 @@ def quiz():
         session.modified = True
 
     _mark_question_started(imagem["id"])
-    return render_template(
-        "quiz.html",
+    return _render_quiz(
         imagem=imagem,
         mensagem=None,
         total_imagens=quiz_total,
@@ -735,8 +776,7 @@ def quiz_iniciar():
     try:
         participant = create_participant(raw_name, **_db_options())
     except ValueError:
-        return render_template(
-            "quiz.html",
+        return _render_quiz(
             imagem=None,
             mensagem="Informe um nome válido para começar.",
             total_imagens=min(QUIZ_QUESTIONS_PER_ATTEMPT, len(get_imagens())),
@@ -755,6 +795,8 @@ def quiz_iniciar():
         _end_session_attempt("student_change")
     session["participant_id"] = participant.id
     session["quiz_nome"] = participant.name
+    # A experiência aprovada sempre começa com uma amostra aleatória.
+    session["quiz_modo"] = "aleatorio"
     _clear_quiz_progress()
     _start_session_attempt()
     return redirect(url_for("quiz"))
@@ -1022,8 +1064,12 @@ def dashboard_logout():
 def dashboard():
     if not _admin_authenticated():
         return redirect(url_for("dashboard_login"))
+    period = request.args.get("periodo", "30")
+    if period not in ("30", "90", "tudo"):
+        period = "30"
     analytics = analytics_snapshot(**_db_options())
-    return render_template("dashboard.html", analytics=analytics)
+    redesign = dashboard_redesign_snapshot(period=period, **_db_options())
+    return render_template("dashboard.html", analytics=analytics, report=redesign)
 
 
 @app.route("/dashboard/export.csv")

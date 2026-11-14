@@ -117,7 +117,7 @@ class TestRotasBasicas:
     def test_home_conteudo(self, client):
         resp = client.get("/")
         assert "ICDAS" in resp.data.decode("utf-8")
-        assert "Classificação" in resp.data.decode("utf-8")
+        assert "A escala" in resp.data.decode("utf-8")
 
     def test_galeria_status(self, client):
         resp = client.get("/galeria")
@@ -170,7 +170,7 @@ class TestRotasBasicas:
 
     def test_home_distingue_classificacao_de_tratamento(self, client):
         html = client.get("/").data.decode("utf-8")
-        assert "Classificação e conteúdos rápidos" in html
+        assert "Sete códigos, um critério" in html
         assert "Árvore de tratamento" in html or "árvore" in html
         assert 'id="arvore-de-tratamento"' in html
         assert html.count("data-treatment-tree") == 1
@@ -248,7 +248,7 @@ class TestQuizFluxo:
         total = min(app_module.QUIZ_QUESTIONS_PER_ATTEMPT, len(app_module.get_imagens()))
         resp = client.get("/quiz")
         html = resp.data.decode("utf-8")
-        assert f"0 / {total} respondidas" in html
+        assert f'aria-valuemax="{total}"' in html and 'aria-valuenow="0"' in html
         assert f'max="{total}"' in html
         assert "Fotografia clínica para classificação ICDAS" in html
         assert "alt=\"Imagem clínica ICDAS" not in html
@@ -280,7 +280,7 @@ class TestQuizFluxo:
         resp = client.post("/quiz", data=payload, follow_redirects=True)
         html = resp.data.decode("utf-8")
         assert "Incorreto" in html
-        assert "✗" in html
+        assert 'class="feedback-icon">×' in html
 
     def test_quiz_mesma_imagem_apos_resposta(self, client, app_module):
         """Bug crítico corrigido: imagem não deve mudar após POST."""
@@ -309,7 +309,9 @@ class TestQuizFluxo:
         payload["resposta"] = str(resposta_errada)
         resp = client.post("/quiz", data=payload, follow_redirects=True)
         html = resp.data.decode("utf-8")
-        assert "1 / 2" in html
+        with client.session_transaction() as sess:
+            assert sess["score_acertos"] == 1
+            assert sess["score_total"] == 2
 
     def test_quiz_botao_proxima_imagem(self, client, app_module):
         """Após feedback, GET /quiz deve mostrar nova pergunta."""
@@ -325,7 +327,7 @@ class TestQuizFluxo:
         # mostra nova questão
         resp = client.get("/quiz")
         html = resp.data.decode("utf-8")
-        assert "Verificar Resposta" in html  # Deve mostrar form de novo
+        assert 'id="quiz-answer-form"' in html and 'class="go quiz-submit"' in html
         assert "respondido" not in html or "Correto" not in html
 
 
@@ -338,8 +340,8 @@ class TestQuizIdentificacao:
         resp = client.get("/quiz")
         html = resp.data.decode("utf-8")
         assert resp.status_code == 200
-        assert "Nome do aluno" in html
-        assert "nome-inicio" in html
+        assert "Seu nome" in html
+        assert 'id="quiz-nome"' in html
         assert "identificador técnico" not in html
         assert "imagem_id" not in html
 
@@ -353,8 +355,9 @@ class TestQuizIdentificacao:
         )
         html = resp.data.decode("utf-8")
         assert resp.status_code == 200
-        assert "Maria Silva" in html
-        assert "Verificar Resposta" in html or "Nenhuma imagem" in html
+        with client.session_transaction() as sess:
+            assert sess["quiz_nome"] == "Maria Silva"
+        assert 'id="quiz-answer-form"' in html or "Nenhuma imagem" in html
 
     def test_quiz_nao_prefill_nome_por_ip_compartilhado(self, client, app_module):
         ip_hash = app_module._hash_ip("127.0.0.1")
@@ -375,7 +378,7 @@ class TestQuizIdentificacao:
         resp = client.get("/quiz")
         html = resp.data.decode("utf-8")
         assert 'value="João Souza"' not in html
-        assert 'value=""' in html
+        assert 'placeholder="Seu nome"' in html
 
 
 # ============================================================
@@ -421,7 +424,9 @@ class TestQuizEdgeCases:
         html = resp.data.decode("utf-8")
         assert resp.status_code == 200
         # Não deve ter incrementado o placar
-        assert "Selecione" in html or "0 / 0" in html
+        assert "Selecione" in html
+        with client.session_transaction() as sess:
+            assert sess["score_total"] == 0
 
     def test_quiz_post_resposta_fora_do_range(self, client, app_module):
         """Resposta > 6 deve ser tratada como inválida."""
@@ -434,9 +439,10 @@ class TestQuizEdgeCases:
         html = resp.data.decode("utf-8")
         assert resp.status_code == 200
         # Should show the form again with validation message, not the feedback
-        assert "Selecione" in html or "Verificar Resposta" in html
+        assert "Selecione" in html and 'id="quiz-answer-form"' in html
         # Score should NOT have been incremented
-        assert "0 / 0" in html
+        with client.session_transaction() as sess:
+            assert sess["score_total"] == 0
 
     def test_quiz_post_form_completamente_vazio(self, client):
         """POST sem nenhum dado não deve crashar."""
@@ -506,7 +512,7 @@ class TestModoSequencial:
         # Agora, GET /quiz deve mostrar conclusão
         resp = client.get("/quiz")
         html = resp.data.decode("utf-8")
-        assert "Parabéns" in html or "completou" in html
+        assert "Resultado de" in html and "Nenhum erro." in html
 
 
 class TestAmostraDaTentativa:
@@ -528,7 +534,7 @@ class TestAmostraDaTentativa:
         assert len(selecionadas) == app_module.QUIZ_QUESTIONS_PER_ATTEMPT
         assert len(set(selecionadas)) == len(selecionadas)
         assert set(selecionadas) <= {img["id"] for img in imagens}
-        assert "0 / 10 respondidas" in resp.data.decode("utf-8")
+        assert 'aria-valuenow="0"' in resp.data.decode("utf-8") and '1/10' in resp.data.decode("utf-8")
 
     def test_amostra_nao_repete_e_respeita_limite(self, app_module):
         imagens = [{"id": i, "icdas_code": i % 7} for i in range(30)]
@@ -616,7 +622,7 @@ class TestAmostraDaTentativa:
             sess["quiz_fila"] = None
         resp = client.get("/quiz")
         html = resp.data.decode("utf-8")
-        assert "0 / 10 respondidas" in html
+        assert 'aria-valuenow="0"' in html and '1/10' in html
         assert 'max="10"' in html
 
     def test_modo_aleatorio_conclui_exatamente_em_10_respostas(self, client, app_module):
@@ -633,7 +639,7 @@ class TestAmostraDaTentativa:
             client.post("/quiz", data=payload, follow_redirects=True)
 
         resp = client.get("/quiz")
-        assert "completou" in resp.data.decode("utf-8")
+        assert "Resultado de" in resp.data.decode("utf-8")
         db = sqlite3.connect(app_module.DB_PATH)
         status, total = db.execute(
             "SELECT status, total FROM attempts ORDER BY id DESC LIMIT 1"
@@ -693,7 +699,8 @@ class TestPlacarPersistencia:
         # Verifica placar zerado
         resp = client.get("/quiz")
         html = resp.data.decode("utf-8")
-        assert "0 / 0" in html
+        with client.session_transaction() as sess:
+            assert sess["score_total"] == 0
 
     def test_scores_mostra_historico(self, client, app_module):
         """Após finalizar, /scores deve listar a sessão."""
@@ -914,7 +921,7 @@ class TestGaleria:
         resp = client.get("/galeria")
         html = resp.data.decode("utf-8")
         # Deve ter pelo menos uma imagem
-        assert "imagem-item" in html
+        assert 'data-gallery-card' in html
 
     def test_galeria_filtros_presentes(self, client):
         resp = client.get("/galeria")
@@ -1735,7 +1742,7 @@ class TestModeloAcademico:
         client.post("/quiz/trocar-aluno")
         resp = client.get("/quiz")
         html = resp.data.decode("utf-8")
-        assert "Nome do aluno" in html
+        assert "Seu nome" in html
 
     def test_quiz_version_e_deterministica(self, app_module):
         assert app_module._quiz_version() == app_module._quiz_version()
@@ -1906,7 +1913,7 @@ class TestModeloAcademico:
         db.close()
         resp = client.get("/quiz")
         assert resp.status_code == 200
-        assert "Verificar Resposta" in resp.data.decode("utf-8")
+        assert 'id="quiz-answer-form"' in resp.data.decode("utf-8")
         with client.session_transaction() as sess:
             assert sess["quiz_nome"] == nome
             recovered_participant = sess["participant_id"]
@@ -1925,3 +1932,106 @@ class TestModeloAcademico:
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v", "--tb=short"])
+
+# ---------------------------------------------------------------------------
+# ICDASQuiz 2026 redesign: functional and access-control regression gates.
+# ---------------------------------------------------------------------------
+
+class TestRedesign2026:
+    def test_todas_as_telas_renderizam_e_assets_sao_locais(self, client):
+        routes = ("/", "/quiz", "/galeria", "/scores", "/sobre", "/arvore-de-tratamento", "/dashboard/login")
+        for route in routes:
+            response = client.get(route)
+            assert response.status_code == 200, (route, response.status_code)
+            html = response.get_data(as_text=True)
+            assert 'onest.woff2' in html
+            assert 'design-tokens.css' in html
+            assert 'redesign.css' in html
+            assert 'https://fonts.googleapis.com' not in html
+            assert 'X-Robots-Tag' in response.headers
+            assert response.headers['X-Robots-Tag'] == 'noindex'
+            assert "style-src 'self'" in response.headers['Content-Security-Policy']
+        for file in ('css/redesign.css', 'css/design-tokens.css', 'css/design-components.css',
+                     'fonts/onest.woff2', 'js/redesign.js'):
+            assert client.get('/static/' + file).status_code == 200, file
+
+    def test_quiz_que_ainda_nao_foi_respondido_nao_revela_gabarito(self, client, app_module):
+        response = client.get('/quiz')
+        assert response.status_code == 200
+        html = response.get_data(as_text=True)
+        assert 'id="quiz-answer-form"' in html
+        assert 'name="resposta"' in html
+        assert 'name="attempt_id"' in html
+        assert 'name="imagem_id"' in html
+        assert 'aria-valuenow="0"' in html
+        assert 'quiz-feedback-card' not in html
+        for desc in app_module.DESCRICOES.values():
+            assert desc['descricao_clinica'] not in html
+
+    def test_revisao_de_resultado_eh_autorizada_por_participante(self, client, app_module):
+        images = app_module.get_imagens()
+        for _ in range(10):
+            response = client.get('/quiz')
+            form = _payload_from_rendered_quiz(response.get_data(as_text=True))
+            photo = next(p for p in images if p['id'] == int(form['imagem_id']))
+            form['resposta'] = str(photo['icdas_code'])
+            response = client.post('/quiz', data=form, follow_redirects=True)
+            assert response.status_code == 200
+        result = client.get('/quiz')
+        html = result.get_data(as_text=True)
+        assert 'quiz-thumbnails' in html
+        assert html.count('data-review-index=') == 10
+        assert 'Nenhum erro.' in html
+        with client.session_transaction() as sess:
+            participant_id = sess['participant_id']
+            attempt_id = sess['last_completed_attempt_id']
+        correct = app_module.attempt_review_snapshot(
+            attempt_id=attempt_id, participant_id=participant_id, **app_module._db_options())
+        assert correct is not None
+        assert len(correct['answers']) == 10
+        assert all(item['correct'] for item in correct['answers'])
+        assert app_module.attempt_review_snapshot(
+            attempt_id=attempt_id, participant_id=participant_id + 1000,
+            **app_module._db_options()) is None
+        client.post('/quiz/trocar-aluno')
+        html = client.get('/quiz').get_data(as_text=True)
+        assert 'quiz-thumbnails' not in html
+        assert 'Seu nome' in html
+
+    def test_dashboard_periodo_e_valores_vem_do_banco(self, client, app_module):
+        image = app_module.get_imagens()[0]
+        form = _prepare_quiz_answer(client, app_module, image)
+        form['resposta'] = str((image['icdas_code'] + 1) % 7)
+        client.post('/quiz', data=form, follow_redirects=True)
+        client.post('/quiz/finalizar')
+        report = app_module.dashboard_redesign_snapshot(
+            period='30', **app_module._db_options())
+        assert report['summary'][1]['value'] == 1
+        assert report['completed'] == 1
+        assert report['codes'][image['icdas_code']]['n'] == 1
+        assert report['codes'][image['icdas_code']]['pct'] == 0
+        assert report['confusion'][image['icdas_code']][(image['icdas_code'] + 1) % 7] == 1
+        assert sum(sum(row) for row in report['confusion']) == 1
+        assert report['students'][0]['name'] == 'Aluno Teste'
+        assert sum(n for _, n in report['statuses']) == 1
+        assert client.get('/dashboard').status_code == 302
+        assert client.post('/dashboard/login', data={'password': 'test-admin'}).status_code == 302
+        for value in ('30','90','tudo'):
+            r = client.get(f'/dashboard?periodo={value}')
+            assert r.status_code == 200
+            html = r.get_data(as_text=True)
+            assert 'Matriz de confusão' in html
+            assert 'Tentativas recentes' in html
+            assert f'href="/dashboard?periodo={value}" aria-current="true"' in html
+            assert 'IP técnico' in html
+        assert 'href="/dashboard?periodo=30" aria-current="true"' in client.get(
+            '/dashboard?periodo=invalid').get_data(as_text=True)
+
+    def test_galeria_filtro_abre_categoria_via_url(self, client):
+        response = client.get('/galeria?codigo=4')
+        assert response.status_code == 200
+        html = response.get_data(as_text=True)
+        assert 'data-gallery-filter="4"' in html
+        assert 'data-gallery-card' in html
+        assert 'gallery-lightbox' in html
+        assert 'galeria.js' in html

@@ -281,6 +281,7 @@ class TestQuizFluxo:
         html = resp.data.decode("utf-8")
         assert "Incorreto" in html
         assert 'class="feedback-icon">×' in html
+        assert '<span>Você marcou <strong>ICDAS' in html
 
     def test_quiz_mesma_imagem_apos_resposta(self, client, app_module):
         """Bug crítico corrigido: imagem não deve mudar após POST."""
@@ -1938,6 +1939,12 @@ if __name__ == "__main__":
 # ---------------------------------------------------------------------------
 
 class TestRedesign2026:
+    def test_galeria_modal_fechado_eh_oculto_no_css(self, client):
+        stylesheet = client.get('/static/css/redesign.css').get_data(as_text=True)
+        assert '.gallery-lightbox:not([open]){display:none!important}' in stylesheet
+        assert '.gallery-lightbox[open]{display:flex' in stylesheet
+        assert '.hero-deck-back{pointer-events:none;z-index:0' in stylesheet
+
     def test_todas_as_telas_renderizam_e_assets_sao_locais(self, client):
         routes = ("/", "/quiz", "/galeria", "/scores", "/sobre", "/arvore-de-tratamento", "/dashboard/login")
         for route in routes:

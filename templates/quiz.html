@@ -102,7 +102,7 @@
           {% endif %}
           {% if not correto and answered_code is not none %}<p class="feedback-wrong">
             {% if example_photo %}<img src="{{ url_for('static', filename=example_photo) }}" alt="Outro exemplo do código {{ imagem.icdas_code }}" loading="lazy">{% endif %}
-            Você marcou <strong>ICDAS {{ answered_code }}</strong>{% if descriptions.get(answered_code|string) %}, {{ descriptions[answered_code|string].titulo }}{% endif %}.
+            <span>Você marcou <strong>ICDAS {{ answered_code }}</strong>{% if descriptions.get(answered_code|string) %}, {{ descriptions[answered_code|string].titulo }}{% endif %}.</span>
           </p>{% endif %}
         </article>
         {% endif %}

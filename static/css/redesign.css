@@ -198,3 +198,12 @@ body.quiz-active .quiz-main{flex:1;min-height:0;max-width:none;padding:0;display
 .hero-deck .quiz-code.is-wrong{background:var(--lil-s);border-color:var(--lil-d);color:var(--lil-d)}
 .hero-deck-front [data-demo-photo].is-correct{box-shadow:inset 0 0 0 4px var(--mint)}
 .hero-deck-front [data-demo-photo].is-wrong{box-shadow:inset 0 0 0 4px var(--lil)}
+/* Positioned decorative cards must never cover the interactive answer keys. */
+.hero-deck-back{pointer-events:none;z-index:0;bottom:155px}
+.hero-deck-front,.hero-deck .quiz-codes,.hero-deck-feedback{position:relative;z-index:1}
+/* Closed <dialog> is hidden by default in UA CSS; our flex declaration must
+   not override that state. An open modal fills the viewport consistently. */
+.gallery-lightbox:not([open]){display:none!important}
+.gallery-lightbox[open]{display:flex;width:100vw;height:100dvh;max-width:none;max-height:none;margin:0;border:0}
+.feedback-wrong>span{min-width:0;flex:1}
+@media(max-width:650px){.gallery-lightbox[open]{padding:0}}

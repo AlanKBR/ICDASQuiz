@@ -1,6 +1,15 @@
 /* Progressive enhancement for the approved responsive interface. */
 (() => {
  'use strict';
+ // The server shuffles every public image independently for each track.
+ // Set durations through CSSOM (allowed by the strict CSP); HTML style
+ // attributes are deliberately disallowed in production.
+ document.querySelectorAll('.marquee-row').forEach((row, index) => {
+   const count = Math.floor(row.querySelectorAll('img').length / 2);
+   if (!count) return;
+   row.style.setProperty('--marquee-duration', `${count * (index ? 6 : 5)}s`);
+   row.style.setProperty('--marquee-duration-mobile', `${count * (index ? 5 : 4)}s`);
+ });
  // Two-answer introduction: only public gallery examples are used.
  const demo = document.querySelector('[data-mini-quiz]');
  if (demo) {

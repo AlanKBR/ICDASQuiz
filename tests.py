@@ -2206,3 +2206,61 @@ class TestMicrointeractionPolish20261115:
         assert 'icdas-cta-ready' in css
         tree = client.get('/static/css/arvore_tratamento.css').get_data(as_text=True)
         assert '.tree-choices--code .tree-option{--code-diameter:44px}' in tree
+
+class TestCarouselEContagemReal20261115:
+    """O carrossel usa todo o acervo; o timer mede cinco segundos de fato."""
+
+    def test_carrossel_embaralha_acervo_completo_sem_mudar_ordem_original(self, app_module):
+        acervo = app_module.get_imagens()
+        origem = [imagem['id'] for imagem in acervo]
+        faixas = app_module._imagens_carrossel_home(acervo)
+        assert len(faixas) == 2
+        for faixa in faixas:
+            ids = [imagem['id'] for imagem in faixa]
+            assert len(ids) == len(set(ids)) == len(acervo)
+            assert set(ids) == set(origem)
+        assert [imagem['id'] for imagem in faixas[0]] != [imagem['id'] for imagem in faixas[1]]
+        assert [imagem['id'] for imagem in acervo] == origem
+        assert app_module._imagens_carrossel_home([]) == []
+
+    def test_template_carrossel_tem_duas_faixas_aleatorias_e_ciclos_sem_salto(self, client, app_module):
+        import re
+        acervo = app_module.get_imagens()
+        html = client.get('/').get_data(as_text=True)
+        faixas = re.findall(r'<div class="marquee-row [^"]*"[^>]*>(.*?)</div>', html, re.S)
+        assert len(faixas) == 2
+        escolhas = []
+        for faixa in faixas:
+            imagens = re.findall(r'<img src="([^"]+)" alt="" loading="lazy"', faixa)
+            assert len(imagens) == len(acervo) * 2
+            assert len(set(imagens[:len(acervo)])) == len(acervo)
+            assert imagens[:len(acervo)] == imagens[len(acervo):]
+            escolhas.append(imagens[:len(acervo)])
+        assert escolhas[0] != escolhas[1]
+        js = client.get('/static/js/redesign.js').get_data(as_text=True)
+        assert "row.style.setProperty('--marquee-duration'" in js
+        assert "row.style.setProperty('--marquee-duration-mobile'" in js
+        # Security headers disallow inline styles; use the external JS/CSSOM.
+        assert 'style="--marquee-duration:' not in html
+        css = client.get('/static/css/app.css').get_data(as_text=True)
+        assert 'translateX(calc(-50% - var(--marquee-gap)/2))' in css
+        assert 'animation-duration:var(--marquee-duration-mobile' in css
+
+    def test_timer_interativo_em_vez_de_rotacao_infinita(self, client):
+        html = client.get('/').get_data(as_text=True)
+        assert 'data-dry-timer' in html
+        assert 'data-dry-progress' in html
+        assert 'data-dry-value' in html
+        assert 'data-dry-hint' in html
+        assert 'data-dry-status' in html
+        assert 'js/dry-timer.js' in html
+        js = client.get('/static/js/dry-timer.js').get_data(as_text=True)
+        assert 'const duration = 5000' in js
+        assert 'performance.now()' in js
+        assert 'requestAnimationFrame(tick)' in js
+        assert 'visibilitychange' in js
+        assert "button.addEventListener('click', start)" in js
+        assert 'Cinco segundos concluídos' in js
+        css = client.get('/static/css/app.css').get_data(as_text=True)
+        assert 'dry-timer-progress' in css
+        assert 'dry-timer-turn' not in css

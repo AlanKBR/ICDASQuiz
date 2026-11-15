@@ -55,10 +55,12 @@ a{color:inherit}
 .hero-deck-feedback{font-size:13px;color:var(--ink3);min-height:36px;margin:12px 0 0}
 .hero-deck-lock{display:none;position:absolute;inset:0;background:#192521dd;border-radius:28px;align-items:center;justify-content:center;flex-direction:column;gap:16px;padding:20px;text-align:center;color:#fff;z-index:4}
 .hero-deck-lock.is-on{display:flex}.hero-deck-lock .go{background:var(--mint);color:var(--ink)}
-.marquee{display:flex;flex-direction:column;gap:12px;overflow:hidden;margin:0 auto 70px;-webkit-mask-image:linear-gradient(90deg,transparent,#000 7%,#000 93%,transparent);mask-image:linear-gradient(90deg,transparent,#000 7%,#000 93%,transparent)}
-.marquee-row{display:flex;width:max-content;gap:12px;animation:marquee 65s linear infinite}.marquee-row.reverse{animation-direction:reverse;animation-duration:75s}
+.marquee{--marquee-gap:12px;display:flex;flex-direction:column;gap:12px;overflow:hidden;margin:0 auto 70px;-webkit-mask-image:linear-gradient(90deg,transparent,#000 7%,#000 93%,transparent);mask-image:linear-gradient(90deg,transparent,#000 7%,#000 93%,transparent)}
+.marquee-row{display:flex;width:max-content;gap:var(--marquee-gap);animation:marquee var(--marquee-duration,140s) linear infinite;will-change:transform}.marquee-row.reverse{animation-direction:reverse}
 .marquee img{width:180px;height:130px;object-fit:cover;border-radius:18px;flex:none}
-@keyframes marquee{to{transform:translateX(-50%)}}
+/* Track consists of two identical sequences. The half-gap correction keeps
+   the next frame pixel-identical when the animation restarts. */
+@keyframes marquee{to{transform:translateX(calc(-50% - var(--marquee-gap)/2))}}
 .landing-section{max-width:1380px;margin:0 auto;padding:65px 48px 80px}
 .landing-section .section-title{font-weight:600;font-size:clamp(36px,4.2vw,68px);line-height:1.08;letter-spacing:-.045em;max-width:850px;margin:8px 0 20px}
 .landing-section .section-lead{max-width:680px;font-size:18px;color:var(--ink2);line-height:1.6}
@@ -174,7 +176,14 @@ body.quiz-active .quiz-main{flex:1;min-height:0;max-width:none;padding:0;display
 @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}.redesigned *, .redesigned *::before,.redesigned *::after{animation-duration:.001ms!important;transition-duration:.001ms!important}.marquee-row{animation:none}}
 .project-credits{font-size:13px;color:var(--ink3);margin-top:24px}.project-credits strong{color:var(--ink);font-weight:600}.landing-section em{color:var(--acc);font-style:normal}
 .diff-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 22px;margin-top:22px}.diff-grid p{font-size:13px;margin:0}.diff-grid strong{color:#fff}
-.dry-timer{width:48px;height:48px;border:3px solid var(--mint);border-radius:50%;display:flex;align-items:center;justify-content:center;margin-top:10px;font-size:13px;font-weight:700}
+.dry-timer-control{display:flex;align-items:center;gap:12px;margin-top:16px;flex-wrap:wrap}
+.dry-timer{width:62px;height:62px;border:0;border-radius:50%;background:var(--sunken);color:var(--ink);display:grid;place-items:center;position:relative;isolation:isolate;font-size:15px;font-weight:700;flex:none;cursor:pointer;transition:background 150ms cubic-bezier(.2,0,0,1)}
+.dry-timer:hover{background:#d8eee5}.dry-timer:focus-visible{outline:3px solid var(--acc-d);outline-offset:3px}
+.dry-timer svg{position:absolute;width:100%;height:100%;inset:0;transform:rotate(-90deg);pointer-events:none;overflow:visible}
+.dry-timer circle{fill:none;stroke-width:4}.dry-timer-track{stroke:#d0e2da}.dry-timer-progress{stroke:var(--acc-d);stroke-linecap:round}
+.dry-timer [data-dry-value]{position:relative;z-index:1;font-variant-numeric:tabular-nums}
+.dry-timer[data-state="running"]{background:#e5f6ee}.dry-timer[data-state="complete"]{background:var(--mint);color:var(--ink)}
+.dry-timer-hint{font-size:12px;line-height:1.4;color:var(--ink2);max-width:146px}
 .hero-deck-front [data-demo-photo][hidden]{display:none}
 @media (max-width:650px){.diff-grid{grid-template-columns:1fr}.project-number{font-size:90px}}
 .score-tabs{display:none}
@@ -257,14 +266,12 @@ dialog::backdrop{overscroll-behavior:contain;overflow:hidden}
   .hero-wrap .blob.a{animation:hero-blob-float 16s ease-in-out infinite alternate}
   .hero-wrap .blob.b{animation:hero-blob-float 19s ease-in-out infinite alternate-reverse}
   .hero-deck-lock .go{animation:hero-cta-pulse 2.8s ease-in-out infinite}
-  .dry-timer::before{animation:dry-timer-turn 5s linear infinite}
 }
 @keyframes hero-word-in{from{opacity:0;transform:translateY(13px)}to{opacity:1;transform:translateY(0)}}
 @keyframes hero-blob-float{from{transform:translate3d(-7px,0,0)}to{transform:translate3d(13px,17px,0)}}
 @keyframes hero-cta-pulse{50%{box-shadow:0 0 0 8px #6ce4c230}}
-.dry-timer{position:relative;isolation:isolate}
-.dry-timer::before{content:'';position:absolute;inset:-3px;border-radius:50%;background:conic-gradient(var(--acc-d) 0 25%,transparent 25% 100%);-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 5px),#000 calc(100% - 4px));mask:radial-gradient(farthest-side,transparent calc(100% - 5px),#000 calc(100% - 4px));pointer-events:none}
-@keyframes dry-timer-turn{to{transform:rotate(360deg)}}
+/* Five seconds are measured in JavaScript, not simulated by an endless CSS
+   rotation. Reduced-motion users get the same usable timer without flourish. */
 @media(max-width:650px){
   .gallery-lightbox-details>.xbtn{position:fixed;top:calc(14px + env(safe-area-inset-top));right:16px;z-index:120;background:var(--canvas);color:var(--ink)}
   .gallery-lightbox-details .gallery-clinical-description{display:none}
@@ -372,3 +379,6 @@ dialog::backdrop{overscroll-behavior:contain;overflow:hidden}
 }
 @keyframes icdas-cta-ready{0%{transform:translateY(5px);opacity:.85}100%{transform:none;opacity:1}}
 @keyframes icdas-progress-current{0%{opacity:.25;transform:scaleX(.68)}100%{opacity:1;transform:none}}
+@media (max-width:650px){
+  .marquee-row{animation-duration:var(--marquee-duration-mobile,var(--marquee-duration,140s))}
+}

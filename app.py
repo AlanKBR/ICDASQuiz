@@ -363,6 +363,22 @@ def _imagens_destaque_home(imagens, limite=7):
     return selecionadas
 
 
+def _imagens_carrossel_home(imagens):
+    """Duas permutações independentes do acervo público para as faixas.
+
+    Todos os arquivos aparecem uma vez por faixa antes de repetir o ciclo.
+    A duplicação necessária para o loop contínuo é feita só no template.
+    O embaralhamento é novo a cada request, não altera o cache nem o quiz.
+    """
+    if not imagens:
+        return []
+    primeira = random.sample(imagens, len(imagens))
+    segunda = random.sample(imagens, len(imagens))
+    if len(imagens) > 1 and [item["id"] for item in primeira] == [item["id"] for item in segunda]:
+        segunda = segunda[1:] + segunda[:1]
+    return [primeira, segunda]
+
+
 def _legenda_condicao_imagem(nome):
     """Deriva legenda simples de condição clínica pelo nome do arquivo."""
     nome_normalizado = nome.lower()
@@ -513,6 +529,7 @@ def home():
         "index.html",
         descricoes=DESCRICOES,
         imagens_destaque=_imagens_destaque_home(imagens),
+        carrossel_imagens=_imagens_carrossel_home(imagens),
         fotos_escala=imagens,
         total_imagens=len(imagens),
     )

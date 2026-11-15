@@ -300,3 +300,8 @@
 .tree-result-source{margin:0;color:#315f61;font-size:11px;line-height:1.35}
 @media(max-width:650px){.tree-visual-guide{grid-template-columns:1fr;gap:10px;padding:14px}.tree-cut-illustration{width:172px}.tree-cut-readout{min-height:0}.tree-crumb-hint{margin-top:7px}}
 @media(prefers-reduced-motion:reduce){.tree-cut-extent{transition:none}}
+/* Narrow touch devices wrap clinical code choices instead of shrinking the
+   seven circles below a comfortable 44px target. This only changes UI layout. */
+@media (max-width:650px){
+  .tree-choices--code .tree-option{--code-diameter:44px}
+}

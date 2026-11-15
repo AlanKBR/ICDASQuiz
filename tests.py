@@ -2154,3 +2154,55 @@ class TestHandoffFinish2026:
         assert 'Math.hypot' in js
         assert 'wheel' in js
         assert 'pinch-ready' in js
+
+class TestMicrointeractionPolish20261115:
+    """Contract tests for the handoff's answer-feedback and touch states."""
+
+    def test_miniquiz_expoe_badge_legivel_e_placar(self, client):
+        html = client.get('/').get_data(as_text=True)
+        assert 'data-mini-quiz' in html
+        assert 'data-demo-result-badge hidden aria-hidden="true"' in html
+        assert 'data-demo-score' in html
+        assert 'aria-live="polite" aria-atomic="true" data-demo-hint' in html
+        assert html.count('data-demo-code="') >= 9  # 2 public photos + 7 keys
+        assert html.count('class="quiz-code k" data-demo-code') == 7
+        assert 'hero-deck-back' in html and 'hero-deck-back back2' in html
+
+    def test_miniquiz_corretas_erradas_e_avanco_protegidos(self, client):
+        js = client.get('/static/js/redesign.js').get_data(as_text=True)
+        # Select only the code buttons; photo data attributes also contain a code.
+        assert ".demo-codes button[data-demo-code]" in js
+        assert "const isAnswer = item.dataset.demoCode === correct" in js
+        assert "item.classList.toggle('is-correct', isAnswer)" in js
+        assert "item.classList.toggle('is-wrong', isChoice && !isRight)" in js
+        assert "item.classList.toggle('is-dim', !isAnswer && !isChoice)" in js
+        assert "current >= cards.length || checking" in js
+        assert "lock?.querySelector('.go')?.focus" in js
+
+    def test_geometria_animacao_e_navegacao_movel(self, client):
+        css = client.get('/static/css/app.css').get_data(as_text=True)
+        assert '.quiz-codes:not(.demo-codes){padding:11px 8px 5px' in css
+        assert 'icdas-answer-pop' in css and 'icdas-answer-shake' in css
+        assert 'icdas-feedback-enter' in css and 'icdas-badge-enter' in css
+        assert 'prefers-reduced-motion:no-preference' in css
+        assert '.polish-reveal' in css
+        assert '.site-header .site-nav a.nav-anchor{display:none}' in css
+        assert '.site-header .site-nav a:first-child{display:none}' in css
+        assert '.site-header .site-nav a{display:inline-flex;align-items:center;min-height:44px}' in css
+
+    def test_feedback_longo_e_acessivel_em_celulares_pequenos(self, client):
+        """A long ICDAS explanation must scroll, not be clipped or unreachable."""
+        html = client.get('/quiz').get_data(as_text=True)
+        assert 'class="quiz-response-scroll" tabindex="0"' in html
+        assert 'aria-label="Opções de classificação ICDAS"' in html
+        css = client.get('/static/css/app.css').get_data(as_text=True)
+        assert '.quiz-workspace.has-feedback .quiz-response-scroll{scrollbar-width:thin' in css
+        assert 'min-height:44px' in css
+
+    def test_acoes_contextuais_e_alvos_da_arvore(self, client):
+        quiz_js = client.get('/static/js/quiz.js').get_data(as_text=True)
+        assert "button.classList.toggle('is-ready', Boolean(active))" in quiz_js
+        css = client.get('/static/css/app.css').get_data(as_text=True)
+        assert 'icdas-cta-ready' in css
+        tree = client.get('/static/css/arvore_tratamento.css').get_data(as_text=True)
+        assert '.tree-choices--code .tree-option{--code-diameter:44px}' in tree

@@ -272,3 +272,103 @@ dialog::backdrop{overscroll-behavior:contain;overflow:hidden}
   .gallery-lightbox-details{overflow-y:auto;max-height:37dvh;gap:7px;padding:20px 16px calc(15px + env(safe-area-inset-bottom))}
   .gallery-lightbox-footer{min-height:48px}
 }
+
+/* Visual polish 2026-11-15: feedback and geometry shared by both quiz modes.
+   The correct answer is visually primary; the chosen wrong code remains clear. */
+.quiz-codes:not(.demo-codes){padding:11px 8px 5px;margin:-3px -8px -3px;width:calc(100% + 16px)}
+.quiz-code.k{transform-origin:center;isolation:isolate;border-width:1.5px;font-variant-numeric:tabular-nums}
+@media(hover:hover) and (pointer:fine){
+  .quiz-radio:not(:checked)+.quiz-code.k:hover,
+  .hero-deck .quiz-code.k:not(:disabled):hover{border-color:var(--ink);transform:translateY(-2px)}
+}
+.hero-deck .quiz-codes.demo-codes{padding:9px 7px 7px;margin:12px -7px 0;width:calc(100% + 14px);gap:6px}
+.hero-deck .quiz-code.k{min-height:44px;position:relative;transition:background 190ms var(--ease, ease),border-color 190ms var(--ease, ease),color 190ms var(--ease, ease),opacity 190ms var(--ease, ease),transform 190ms var(--ease, ease)}
+.hero-deck .quiz-code.k.is-correct{background:var(--mint);border-color:var(--acc-d);color:var(--ink);opacity:1;box-shadow:0 0 0 1px var(--acc-d);transform:scale(1.06)}
+.hero-deck .quiz-code.k.is-wrong{background:var(--lil-s);border-color:var(--lil-d);color:var(--lil-d);opacity:1;box-shadow:inset 0 0 0 1px var(--lil-d)}
+.hero-deck .quiz-code.k.is-dim{opacity:.35;transform:none}
+.hero-deck .quiz-code.k:focus-visible{outline:3px solid var(--acc-d);outline-offset:3px}
+.hero-deck .quiz-code.k:disabled{cursor:default}
+.hero-deck-front{transition:opacity 220ms var(--ease, ease),transform 220ms var(--ease, ease),box-shadow 190ms var(--ease, ease)}
+.hero-deck-front.is-correct{box-shadow:0 0 0 3px var(--mint),0 20px 55px #1925213b}
+.hero-deck-front.is-wrong{box-shadow:0 0 0 3px var(--lil-d),0 20px 55px #1925213b}
+.hero-deck-front.is-changing{opacity:.24;transform:translateX(9px) rotate(1deg)}
+.hero-deck-front[data-feedback] .question-chip{opacity:0;transform:translateY(-5px);pointer-events:none}
+.hero-deck-front .question-chip{transition:opacity 140ms,transform 140ms}
+.demo-result-badge{position:absolute;top:18px;left:18px;z-index:3;min-height:38px;display:inline-flex;align-items:center;gap:7px;padding:7px 14px;border-radius:999px;font-size:14px;font-weight:700;box-shadow:0 6px 20px #19252122}
+.demo-result-badge.is-correct{background:var(--mint);color:var(--ink)}
+.demo-result-badge.is-wrong{background:#fff;color:var(--lil-d)}
+.hero-deck-front.is-locked img{filter:blur(6px) saturate(.75);transform:scale(1.04)}
+.hero-deck-front.is-locked .demo-result-badge{display:none}
+.hero-deck-front img{transition:filter 320ms ease,transform 320ms ease}
+.hero-deck-footer{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;min-height:41px;margin-top:10px}
+.hero-deck-footer .hero-deck-feedback{flex:1;min-width:0;margin:0;min-height:0;line-height:1.55}
+.hero-deck-score{flex:none;font-variant-numeric:tabular-nums;font-size:12px;font-weight:650;color:var(--acc-d);background:var(--sunken);padding:5px 9px;border-radius:999px;white-space:nowrap}
+.quiz-response-panel .quiz-code.k.ok{background:var(--mint);border-color:var(--acc-d);color:var(--ink);opacity:1;box-shadow:inset 0 0 0 1px var(--acc-d)}
+.quiz-response-panel .quiz-code.k.no{background:var(--lil-s);border-color:var(--lil-d);color:var(--lil-d);opacity:1;box-shadow:inset 0 0 0 1px var(--lil-d)}
+.quiz-response-panel .quiz-code.k.dim{opacity:.42;transform:none}
+@media(prefers-reduced-motion:no-preference){
+  .hero-deck .quiz-code.k.is-correct,.quiz-response-panel .quiz-code.k.ok{animation:icdas-answer-pop 400ms cubic-bezier(.2,0,0,1) both}
+  .hero-deck .quiz-code.k.is-wrong,.quiz-response-panel .quiz-code.k.no{animation:icdas-answer-shake 320ms cubic-bezier(.2,0,0,1) both}
+  .demo-result-badge:not([hidden]){animation:icdas-badge-enter 360ms cubic-bezier(.2,0,0,1) both}
+  .quiz-feedback-card{animation:icdas-feedback-enter 250ms cubic-bezier(.2,0,0,1) both}
+  .quiz-image-panel{animation:icdas-image-enter 260ms cubic-bezier(.2,0,0,1) both}
+  .streak{animation:icdas-badge-enter 360ms cubic-bezier(.2,0,0,1) both}
+}
+@keyframes icdas-answer-pop{0%{transform:scale(1)}45%{transform:scale(1.15)}80%{transform:scale(1.03)}100%{transform:scale(1.06)}}
+@keyframes icdas-answer-shake{0%,100%{transform:translateX(0)}24%{transform:translateX(-3px)}48%{transform:translateX(3px)}72%{transform:translateX(-1px)}}
+@keyframes icdas-badge-enter{0%{opacity:0;transform:scale(.78) translateY(5px)}75%{transform:scale(1.05)}100%{opacity:1;transform:none}}
+@keyframes icdas-feedback-enter{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes icdas-image-enter{from{opacity:.84;transform:scale(.99)}to{opacity:1;transform:none}}
+@media(max-width:650px){
+  .hero-deck-footer{gap:7px}
+  .hero-deck-score{font-size:11px;padding:5px 7px}
+  .hero-deck .quiz-codes.demo-codes{padding-inline:7px;margin-inline:-7px;width:calc(100% + 14px)}
+}
+/* Real photographic layers, like the approved stacked-card prototype. */
+.hero-deck-back{overflow:hidden;background:var(--sunken)}
+.hero-deck-back img{width:100%;height:100%;object-fit:cover;display:block;opacity:.76;filter:saturate(.83) blur(.5px)}
+
+/* Touch comfort and consistent focus areas without enlarging visible icons. */
+.site-header .site-brand,.site-header .site-nav a{display:inline-flex;align-items:center;min-height:44px}
+.site-footer .footer-inner a{display:inline-flex;align-items:center;min-height:44px}
+.scale-gallery-link{display:inline-flex;align-items:center;min-height:44px;margin-top:4px}
+.gallery-filter{min-height:44px}
+.score-tabs button{min-height:44px}
+.tree-reset{min-height:44px}
+.tree-academic-details summary{min-height:44px;display:flex;align-items:center}
+.professor-actions a,.professor-actions button{display:inline-flex;min-height:44px;align-items:center}
+.period-chooser a{display:inline-flex;align-items:center;min-height:44px}
+.photo-toggle button{min-height:44px}
+.change-student-form .subtle-link{min-height:44px}
+@media(hover:hover) and (pointer:fine){
+  .scale-gallery-link:hover{color:var(--acc);text-decoration-thickness:2px}
+  .review-thumb:hover{filter:brightness(.95)}
+}
+/* Scroll reveal uses compositor-only opacity/transform: no layout shift. */
+@media(prefers-reduced-motion:no-preference){
+  .polish-reveal{opacity:0;transform:translateY(15px);transition:opacity 460ms cubic-bezier(.2,0,0,1),transform 460ms cubic-bezier(.2,0,0,1)}
+  .polish-reveal.is-visible{opacity:1;transform:none}
+  .scale-card.polish-reveal:nth-child(2),.step-card.polish-reveal:nth-child(2){transition-delay:65ms}
+  .scale-card.polish-reveal:nth-child(3),.step-card.polish-reveal:nth-child(3){transition-delay:115ms}
+  .scale-card.polish-reveal:nth-child(4){transition-delay:165ms}
+  .scale-card.polish-reveal:nth-child(n + 5){transition-delay:200ms}
+}
+/* Mobile navigation visibility wins over the shared 44px touch-target rule. */
+@media(max-width:900px){.site-header .site-nav a.nav-anchor{display:none}}
+@media(max-width:650px){.site-header .site-nav a:first-child{display:none}}
+/* Short, narrow phones may need to scroll a long clinical explanation.
+   Keep the next action visible and expose the remaining text to both touch
+   and keyboard users instead of truncating it. */
+@media (max-width:380px) and (max-height:690px){
+  .quiz-workspace.has-feedback .quiz-response-scroll{scrollbar-width:thin;scrollbar-color:#8ab9aa transparent;padding-right:3px}
+  .quiz-workspace.has-feedback .quiz-response-scroll::-webkit-scrollbar{display:block;width:3px}
+  .quiz-workspace.has-feedback .quiz-response-scroll::-webkit-scrollbar-thumb{background:#8ab9aa;border-radius:3px}
+}
+/* Draw attention to the next action only when it becomes available. */
+@media(prefers-reduced-motion:no-preference){
+  .quiz-submit.is-ready{animation:icdas-cta-ready 290ms cubic-bezier(.2,0,0,1) both}
+  .quiz-segments .cur{animation:icdas-progress-current 600ms cubic-bezier(.2,0,0,1) both}
+  .review-detail:not([hidden]){animation:icdas-feedback-enter 260ms cubic-bezier(.2,0,0,1) both}
+}
+@keyframes icdas-cta-ready{0%{transform:translateY(5px);opacity:.85}100%{transform:none;opacity:1}}
+@keyframes icdas-progress-current{0%{opacity:.25;transform:scaleX(.68)}100%{opacity:1;transform:none}}

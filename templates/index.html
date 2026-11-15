@@ -15,7 +15,8 @@
   </div>
   {% if imagens_destaque|length >= 2 %}
   <div class="hero-deck" role="region" data-mini-quiz aria-label="Experimente classificar duas fotografias">
-    <span class="hero-deck-back" aria-hidden="true"></span><span class="hero-deck-back back2" aria-hidden="true"></span>
+    <span class="hero-deck-back" aria-hidden="true"><img src="{{ url_for('static', filename=imagens_destaque[1].caminho) }}" width="500" height="500" alt="" decoding="async"></span>
+    <span class="hero-deck-back back2" aria-hidden="true"><img src="{{ url_for('static', filename=imagens_destaque[0].caminho) }}" width="500" height="500" alt="" decoding="async"></span>
     <div class="hero-deck-front">
       {% for imagem in imagens_destaque[:2] %}
       <div data-demo-photo data-demo-code="{{ imagem.icdas_code }}" {% if not loop.first %}hidden{% endif %}>
@@ -23,12 +24,16 @@
         <span class="question-chip">Qual código?</span>
       </div>
       {% endfor %}
+      <span class="demo-result-badge" data-demo-result-badge hidden aria-hidden="true"></span>
       <div class="hero-deck-lock" data-demo-lock role="status"><strong>Continue no quiz completo.</strong><span>10 imagens, com feedback em cada uma.</span><a class="go" href="{{ url_for('quiz') }}">Iniciar o quiz →</a></div>
     </div>
-    <div class="quiz-codes" role="group" aria-label="Escolha o código ICDAS">
-      {% for code in range(7) %}<button type="button" class="quiz-code k" data-demo-code="{{ code }}" aria-label="Código {{ code }}">{{ code }}</button>{% endfor %}
+    <div class="quiz-codes demo-codes" role="group" aria-label="Escolha o código ICDAS">
+      {% for code in range(7) %}<button type="button" class="quiz-code k" data-demo-code="{{ code }}" aria-label="ICDAS {{ code }}" aria-pressed="false">{{ code }}</button>{% endfor %}
     </div>
-    <p class="hero-deck-feedback" aria-live="polite" data-demo-hint>Classifique esta imagem · 1 de 2</p>
+    <div class="hero-deck-footer">
+      <p class="hero-deck-feedback" aria-live="polite" aria-atomic="true" data-demo-hint>Classifique esta imagem · 1 de 2</p>
+      <span class="hero-deck-score" data-demo-score aria-label="Nenhuma resposta até agora" hidden></span>
+    </div>
   </div>
   {% endif %}
 </section>

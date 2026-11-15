@@ -54,7 +54,6 @@
   if (viewer) {
     const open = document.querySelector('[data-photo-open]');
     const close = viewer.querySelector('[data-photo-close]');
-    const img = viewer.querySelector('img');
     // HTML Invoker Commands run natively when available. A tiny local fallback
     // preserves older browsers without downloading a general-purpose polyfill.
     if (!('commandForElement' in HTMLButtonElement.prototype)) {
@@ -62,18 +61,12 @@
       close?.addEventListener('click', () => viewer.close());
     }
     viewer.addEventListener('close', () => {
-      img.classList.remove('zoomed');
-      img.style.transform = '';
       open?.focus();
     });
     // Native closedby="any" handles light dismissal in capable browsers.
     if (!('closedBy' in HTMLDialogElement.prototype)) {
       viewer.addEventListener('click', event => { if (event.target === viewer) viewer.close(); });
     }
-    img.addEventListener('click', () => {
-      img.classList.toggle('zoomed');
-      img.style.transform = img.classList.contains('zoomed') ? 'scale(1.9)' : '';
-    });
   }
 
   const thumbs = [...document.querySelectorAll('[data-review-index]')];

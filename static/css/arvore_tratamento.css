@@ -276,3 +276,27 @@
 @media (prefers-reduced-motion: reduce) {
   .tree-option { transition: none; }
 }
+/* Visual guidance augments the verified graph; it does not determine treatment. */
+.tree-visual-guide{display:grid;grid-template-columns:minmax(190px,260px) minmax(0,1fr);gap:24px;align-items:center;padding:18px 24px;border-bottom:1px solid #e4ebe9;background:#fff}
+.tree-cut-figure{margin:0;min-width:0;display:flex;flex-direction:column;align-items:center}
+.tree-cut-figure figcaption{font-size:11px;color:#52605f;text-align:center;line-height:1.4;margin:0 0 6px}
+.tree-cut-illustration{width:min(100%,220px);height:auto;overflow:visible}
+.tree-cut-enamel{fill:#f7fcfa;stroke:#91b5a9;stroke-width:1.8}
+.tree-cut-dentin{fill:#d8ede5;stroke:#80ac9e;stroke-width:1.4}
+.tree-cut-pulp{fill:#a9d4c5;stroke:#78a998;stroke-width:1.1}
+.tree-cut-extent{fill:#23866f;fill-opacity:.58;stroke:#16715d;stroke-width:1.4;transition:fill-opacity 120ms}
+.tree-cut-extent.is-preview{fill:#9885ca;fill-opacity:.24;stroke:#745bac;stroke-dasharray:3 3}
+.tree-cut-labels{font:9px Onest,sans-serif;fill:#315f61}
+.tree-cut-labels path{fill:none;stroke:#79a598;stroke-width:1}
+.tree-cut-readout{font-size:11px;color:#52605f;text-align:center;line-height:1.4;margin:4px 0 0;min-height:30px}
+.tree-crumb-nav{min-width:0}.tree-crumb-caption{display:block;color:#0d6752;font-size:12px;font-weight:700;margin-bottom:8px}
+.tree-crumb-list{display:flex;flex-wrap:wrap;gap:7px;list-style:none;padding:0;margin:0}
+.tree-crumb-list li{margin:0;padding:0}
+.tree-crumb-button{min-height:44px;max-width:100%;display:inline-flex;align-items:center;gap:8px;padding:9px 14px;border:1px solid #cbded8;border-radius:999px;background:#eef7f3;font-size:12px;color:#174c40;text-align:left}
+.tree-crumb-button:hover,.tree-crumb-button:focus-visible{border-color:#0d6752;background:#d7f2e7;outline-offset:2px}
+.tree-crumb-button span:last-child{font-size:18px;line-height:1;color:#315f61}
+.tree-crumb-empty{font-size:13px;color:#52605f}
+.tree-crumb-hint{font-size:11px;color:#52605f;margin:9px 0 0}
+.tree-result-source{margin:0;color:#315f61;font-size:11px;line-height:1.35}
+@media(max-width:650px){.tree-visual-guide{grid-template-columns:1fr;gap:10px;padding:14px}.tree-cut-illustration{width:172px}.tree-cut-readout{min-height:0}.tree-crumb-hint{margin-top:7px}}
+@media(prefers-reduced-motion:reduce){.tree-cut-extent{transition:none}}

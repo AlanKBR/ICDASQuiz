@@ -237,3 +237,38 @@ dialog::backdrop{overscroll-behavior:contain;overflow:hidden}
 }
 /* Secondary credits on the About page must meet WCAG AA on the sunken surface. */
 .about-people small{color:#52605f}
+/* Approved 2026 handoff — image modal, visual motion and scale examples. */
+.scale-card-photo{position:relative;display:block;cursor:zoom-in;border:0;background:var(--sunken);padding:0;width:100%;min-height:132px;overflow:hidden}
+.scale-card-photo img{width:100%;height:132px;object-fit:cover;transition:transform .2s cubic-bezier(.2,0,0,1)}
+.scale-card-photo:hover img{transform:scale(1.05)}
+.scale-photo-icon{position:absolute;bottom:10px;right:10px;display:grid;place-items:center;background:#fff;color:var(--ink);width:32px;height:32px;border-radius:50%;font-size:22px;box-shadow:0 2px 7px #19252120}
+.scale-gallery-link{display:inline-block;margin-top:12px;color:var(--acc-d);text-decoration:underline;text-underline-offset:3px;font-size:12px;font-weight:600}
+.scale-gallery-link:focus-visible{outline:3px solid var(--acc-d);outline-offset:3px}
+.scale-card-body{flex:1}
+.gallery-lightbox-image.pinch-ready,.photo-viewer-canvas.pinch-ready{touch-action:none;overscroll-behavior:contain;cursor:zoom-in;position:relative}
+.gallery-lightbox-image.pinch-ready.is-zoomed,.photo-viewer-canvas.pinch-ready.is-zoomed{cursor:grab}
+.gallery-lightbox-image.pinch-ready img,.photo-viewer-canvas.pinch-ready img{touch-action:none;pointer-events:none;user-select:none;-webkit-user-select:none;-webkit-user-drag:none;transform-origin:center center;will-change:transform}
+.scale-lightbox:not([open]){display:none!important}
+@media(prefers-reduced-motion:no-preference){
+  .landing-page .hero-title .w{display:inline-block;animation:hero-word-in .65s cubic-bezier(.2,0,0,1) backwards}
+  .landing-page .hero-title .w:nth-child(2){animation-delay:.1s}
+  .landing-page .hero-title .w:nth-child(3){animation-delay:.2s}
+  .landing-page .hero-title .w:nth-child(4){animation-delay:.3s}
+  .hero-wrap .blob.a{animation:hero-blob-float 16s ease-in-out infinite alternate}
+  .hero-wrap .blob.b{animation:hero-blob-float 19s ease-in-out infinite alternate-reverse}
+  .hero-deck-lock .go{animation:hero-cta-pulse 2.8s ease-in-out infinite}
+  .dry-timer::before{animation:dry-timer-turn 5s linear infinite}
+}
+@keyframes hero-word-in{from{opacity:0;transform:translateY(13px)}to{opacity:1;transform:translateY(0)}}
+@keyframes hero-blob-float{from{transform:translate3d(-7px,0,0)}to{transform:translate3d(13px,17px,0)}}
+@keyframes hero-cta-pulse{50%{box-shadow:0 0 0 8px #6ce4c230}}
+.dry-timer{position:relative;isolation:isolate}
+.dry-timer::before{content:'';position:absolute;inset:-3px;border-radius:50%;background:conic-gradient(var(--acc-d) 0 25%,transparent 25% 100%);-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 5px),#000 calc(100% - 4px));mask:radial-gradient(farthest-side,transparent calc(100% - 5px),#000 calc(100% - 4px));pointer-events:none}
+@keyframes dry-timer-turn{to{transform:rotate(360deg)}}
+@media(max-width:650px){
+  .gallery-lightbox-details>.xbtn{position:fixed;top:calc(14px + env(safe-area-inset-top));right:16px;z-index:120;background:var(--canvas);color:var(--ink)}
+  .gallery-lightbox-details .gallery-clinical-description{display:none}
+  .gallery-lightbox-details .dry-pill{align-self:flex-start;margin:0;font-size:11px}
+  .gallery-lightbox-details{overflow-y:auto;max-height:37dvh;gap:7px;padding:20px 16px calc(15px + env(safe-area-inset-bottom))}
+  .gallery-lightbox-footer{min-height:48px}
+}

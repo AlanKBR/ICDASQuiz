@@ -60,16 +60,39 @@
   {% for code in range(7) %}
   {% set d = descricoes.get(code|string) %}
   {% set photo = imagens_destaque|selectattr('icdas_code','equalto',code)|first %}
-  <a class="scale-card" href="{{ url_for('galeria') }}?codigo={{ code }}" aria-label="Ver fotografias do código {{ code }} na galeria">
-    {% if photo %}<img src="{{ url_for('static', filename=photo.caminho) }}" alt="Fotografia de código {{ code }}" loading="lazy" decoding="async" width="170" height="132">{% endif %}
+  <article class="scale-card">
+    {% if photo %}<button type="button" class="scale-card-photo" data-scale-open="{{ code }}" data-scale-name="{{ d.titulo if d else '' }}" data-scale-short="{{ d.descricao_curta if d else '' }}" data-scale-long="{{ d.descricao_clinica if d else '' }}" aria-label="Ampliar fotografias do código ICDAS {{ code }}"><img src="{{ url_for('static', filename=photo.caminho) }}" alt="Fotografia de código {{ code }}" loading="lazy" decoding="async" width="170" height="132"><span aria-hidden="true" class="scale-photo-icon">⌕</span></button>{% endif %}
     <div class="scale-card-body">
       <span class="scale-code">{{ code }}</span>
       {% if d %}<strong>{{ d.titulo }}</strong><p>{{ d.descricao_curta }}</p>{% endif %}
       {% if code in (1,2) %}<span class="dry-pill">Depende da secagem</span>{% endif %}
+      <a class="scale-gallery-link" href="{{ url_for('galeria') }}?codigo={{ code }}">Ver na galeria →</a>
     </div>
-  </a>
+  </article>
   {% endfor %}
   </div>
+  <div hidden data-scale-photos>
+  {% for imagem in fotos_escala %}
+  <span data-scale-photo data-code="{{ imagem.icdas_code }}" data-src="{{ url_for('static', filename=imagem.caminho) }}"></span>
+  {% endfor %}
+  </div>
+  <dialog class="gallery-lightbox scale-lightbox" id="scale-lightbox" aria-label="Exemplos clínicos por código ICDAS" closedby="any">
+    <div class="gallery-lightbox-content">
+      <div class="gallery-lightbox-image" data-pinch-zoom role="group" tabindex="0" aria-label="Fotografia ampliada: use dois dedos ou as teclas mais e menos para ampliar"><img data-scale-image alt="Fotografia clínica ampliada"></div>
+      <div class="gallery-lightbox-details">
+        <button class="xbtn" type="button" data-scale-close commandfor="scale-lightbox" command="close" aria-label="Fechar fotografias" autofocus>×</button>
+        <span class="kick" data-scale-title></span>
+        <h2 data-scale-description></h2>
+        <p><strong>Critério: </strong><span data-scale-criterion></span></p>
+        <p class="gallery-clinical-description" data-scale-clinical></p>
+        <span class="dry-pill" data-scale-dry hidden>Depende da secagem</span>
+        <div class="gallery-lightbox-footer"><span class="meta" data-scale-counter></span><div class="gallery-lightbox-controls">
+          <button type="button" data-scale-prev aria-label="Exemplo anterior">‹</button>
+          <button type="button" data-scale-next aria-label="Próximo exemplo">›</button>
+        </div></div>
+      </div>
+    </div>
+  </dialog>
 </section>
 <section class="landing-section" aria-labelledby="prep-title">
   <span class="kick">Antes de classificar</span>
@@ -105,4 +128,4 @@
   </ol>
 </section>
 {% endblock %}
-{% block scripts %}<script src="{{ versioned_url('js/arvore_modelo.js') }}" defer></script><script src="{{ versioned_url('js/arvore_tratamento.js') }}" defer></script><script src="{{ versioned_url('js/redesign.js') }}" defer></script>{% endblock %}
+{% block scripts %}<script src="{{ versioned_url('js/arvore_modelo.js') }}" defer></script><script src="{{ versioned_url('js/arvore_tratamento.js') }}" defer></script><script src="{{ versioned_url('js/redesign.js') }}" defer></script><script src="{{ versioned_url('js/scale.js') }}" defer></script><script src="{{ versioned_url('js/image-zoom.js') }}" defer></script>{% endblock %}

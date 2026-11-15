@@ -513,6 +513,7 @@ def home():
         "index.html",
         descricoes=DESCRICOES,
         imagens_destaque=_imagens_destaque_home(imagens),
+        fotos_escala=imagens,
         total_imagens=len(imagens),
     )
 

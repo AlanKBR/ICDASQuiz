@@ -2110,3 +2110,47 @@ class TestRedesign2026:
         assert 'data-gallery-card' in html
         assert 'gallery-lightbox' in html
         assert 'galeria.js' in html
+
+class TestHandoffFinish2026:
+    """Regression gates for approved visual details and progressive mobile zoom."""
+
+    def test_landing_exemplos_abrem_dialog_por_codigo(self, client, app_module):
+        html = client.get('/').get_data(as_text=True)
+        assert html.count('data-scale-open="') == 7
+        assert html.count('data-scale-photo ') == len(app_module.get_imagens())
+        assert 'id="scale-lightbox"' in html
+        assert 'closedby="any"' in html
+        assert 'data-scale-prev' in html and 'data-scale-next' in html
+        assert 'data-pinch-zoom' in html
+        assert 'js/scale.js' in html and 'js/image-zoom.js' in html
+        assert 'href="/galeria?codigo=0"' in html
+        assert 'data-treatment-tree' in html
+
+    def test_arvore_guia_visual_e_breadcrumbs_sem_nova_regra(self, client):
+        for route in ('/', '/arvore-de-tratamento'):
+            html = client.get(route).get_data(as_text=True)
+            assert 'data-tree-cut-extent' in html
+            assert 'data-tree-cut-readout' in html
+            assert 'data-tree-crumbs' in html
+            assert 'Representação de corte transversal de um dente' in html
+            assert 'em revisão clínica' in html
+        controller = client.get('/static/js/arvore_tratamento.js').get_data(as_text=True)
+        for required in ('showCut(', 'updateGuide(', 'data-crumb-field', 'pointerover', 'focusin'):
+            assert required in controller
+        assert 'Meyer-Lueckel & Paris, 2016' in controller
+
+    def test_zoom_e_motion_pref_progressive(self, client):
+        css = client.get('/static/css/app.css').get_data(as_text=True)
+        assert '@keyframes hero-word-in' in css
+        assert '@keyframes hero-blob-float' in css
+        assert 'prefers-reduced-motion:reduce' in css
+        assert 'data-pinch-zoom' in client.get('/galeria').get_data(as_text=True)
+        assert 'js/image-zoom.js' in client.get('/galeria').get_data(as_text=True)
+        quiz = client.get('/quiz').get_data(as_text=True)
+        assert 'data-pinch-zoom' in quiz
+        assert 'js/image-zoom.js' in quiz
+        js = client.get('/static/js/image-zoom.js').get_data(as_text=True)
+        assert 'pointermove' in js
+        assert 'Math.hypot' in js
+        assert 'wheel' in js
+        assert 'pinch-ready' in js

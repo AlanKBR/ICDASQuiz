@@ -117,11 +117,11 @@
   </section>
   <dialog id="quiz-viewer" class="photo-viewer" aria-label="Foto ampliada" closedby="any">
     <button type="button" class="xbtn" data-photo-close commandfor="quiz-viewer" command="close" aria-label="Fechar imagem ampliada" autofocus>×</button>
-    <div class="photo-viewer-canvas"><img src="{{ url_for('static', filename=imagem.caminho) }}" alt="Fotografia clínica ampliada"></div>
+    <div class="photo-viewer-canvas" data-pinch-zoom role="group" tabindex="0" aria-label="Fotografia ampliada: use dois dedos ou as teclas mais e menos para ampliar"><img src="{{ url_for('static', filename=imagem.caminho) }}" alt="Fotografia clínica ampliada"></div>
     <p>Use dois dedos para ampliar</p>
   </dialog>
 {% else %}
   <section class="empty-state"><h1>Nenhuma imagem disponível</h1><p>{{ mensagem or 'O acervo está temporariamente indisponível.' }}</p><a href="{{ url_for('home') }}" class="go">Início</a></section>
 {% endif %}
 {% endblock %}
-{% block scripts %}<script src="{{ versioned_url('js/quiz.js') }}" defer></script>{% endblock %}
+{% block scripts %}<script src="{{ versioned_url('js/quiz.js') }}" defer></script><script src="{{ versioned_url('js/image-zoom.js') }}" defer></script>{% endblock %}

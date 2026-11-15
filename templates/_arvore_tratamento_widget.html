@@ -5,6 +5,29 @@
     <span class="tree-toolbar-label">Selecione os achados</span>
     <button type="button" class="tree-reset" data-tree-reset>Recomeçar <span aria-hidden="true">↺</span></button>
   </div>
+  <div class="tree-visual-guide">
+    <figure class="tree-cut-figure">
+      <figcaption>Representação de corte transversal de um dente</figcaption>
+      <svg class="tree-cut-illustration" viewBox="0 0 176 104" role="img" aria-label="Corte esquemático com esmalte externo, dentina intermediária e polpa central; a área marcada indica profundidade, sem finalidade diagnóstica">
+        <g transform="translate(28 8)">
+          <path class="tree-cut-enamel" d="M17 13 C25 6 34 9 42 15 C48 19 55 11 62 10 C74 6 87 12 96 22 C106 32 105 52 97 64 C89 77 70 80 55 77 C38 78 22 71 15 58 C10 46 10 27 17 13 Z"/>
+          <path class="tree-cut-dentin" d="M28 24 C38 19 43 27 51 28 C60 20 72 18 82 25 C93 32 94 51 84 60 C74 69 43 71 33 61 C23 51 23 34 28 24 Z"/>
+          <path class="tree-cut-pulp" d="M45 42 C48 36 56 35 62 38 C67 41 68 52 62 58 C55 62 48 59 44 55 C41 51 41 46 45 42 Z"/>
+          <path class="tree-cut-extent" data-tree-cut-extent hidden/>
+        </g>
+        <g class="tree-cut-labels" aria-hidden="true">
+          <path d="M48 21 L16 10 M61 51 L15 87 M86 62 L116 96"/>
+          <text x="2" y="8">Esmalte</text><text x="1" y="99">Dentina</text><text x="119" y="101">Polpa</text>
+        </g>
+      </svg>
+      <p class="tree-cut-readout" data-tree-cut-readout aria-live="polite">Selecione uma profundidade para visualizar.</p>
+    </figure>
+    <nav class="tree-crumb-nav" aria-label="Percurso selecionado">
+      <span class="tree-crumb-caption">Seu percurso</span>
+      <ol class="tree-crumb-list" data-tree-crumbs></ol>
+      <p class="tree-crumb-hint">Toque em uma escolha para alterá-la.</p>
+    </nav>
+  </div>
   <div class="tree-stage" data-tree-stage>
     <div class="tree-board" data-tree-board>
       <svg class="tree-lines" data-tree-lines aria-hidden="true" focusable="false"></svg>

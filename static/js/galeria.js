@@ -27,6 +27,7 @@
     set('[data-lightbox-title]', card.dataset.title);
     set('[data-lightbox-criterion]', card.dataset.criterion);
     set('[data-lightbox-clinical]', card.dataset.clinical);
+    modal.querySelector('[data-lightbox-dry]').hidden = !['1', '2'].includes(card.dataset.icdas);
     set('[data-lightbox-pos]', `${index + 1} de ${visible.length}`);
   };
   cards.forEach(card => card.addEventListener('click', () => {

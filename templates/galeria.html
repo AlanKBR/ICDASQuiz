@@ -25,13 +25,14 @@
 {% if not imagens %}<p class="dash-empty">Nenhuma fotografia disponível no acervo.</p>{% endif %}
 <dialog class="gallery-lightbox" id="gallery-lightbox" aria-label="Fotografia clínica ampliada" closedby="any">
   <div class="gallery-lightbox-content">
-    <div class="gallery-lightbox-image"><img data-lightbox-photo alt="Fotografia clínica ampliada"></div>
+    <div class="gallery-lightbox-image" data-pinch-zoom role="group" tabindex="0" aria-label="Fotografia ampliada: use dois dedos ou as teclas mais e menos para ampliar"><img data-lightbox-photo alt="Fotografia clínica ampliada"></div>
     <div class="gallery-lightbox-details">
       <button class="xbtn" type="button" data-lightbox-close aria-label="Fechar visualização">×</button>
       <span class="kick" data-lightbox-code></span>
       <h2 data-lightbox-title></h2>
       <p><strong>Critério: </strong><span data-lightbox-criterion></span></p>
-      <p data-lightbox-clinical></p>
+      <p class="gallery-clinical-description" data-lightbox-clinical></p>
+      <span class="dry-pill" data-lightbox-dry hidden>Depende da secagem</span>
       <div class="gallery-lightbox-footer"><span class="meta" data-lightbox-pos></span><div class="gallery-lightbox-controls">
         <button type="button" data-lightbox-prev aria-label="Fotografia anterior">‹</button>
         <button type="button" data-lightbox-next aria-label="Próxima fotografia">›</button>
@@ -40,4 +41,4 @@
   </div>
 </dialog>
 {% endblock %}
-{% block scripts %}<script src="{{ versioned_url('js/galeria.js') }}" defer></script>{% endblock %}
+{% block scripts %}<script src="{{ versioned_url('js/galeria.js') }}" defer></script><script src="{{ versioned_url('js/image-zoom.js') }}" defer></script>{% endblock %}

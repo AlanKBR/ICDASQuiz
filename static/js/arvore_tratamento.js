@@ -12,6 +12,9 @@
   var board = root.querySelector("[data-tree-board]");
   var content = root.querySelector("[data-tree-content]");
   var svg = root.querySelector("[data-tree-lines]");
+  var crumbs = root.querySelector("[data-tree-crumbs]");
+  var cutExtent = root.querySelector("[data-tree-cut-extent]");
+  var cutReadout = root.querySelector("[data-tree-cut-readout]");
   if (!board || !content || !svg) return;
 
   var SVG_NS = "http://www.w3.org/2000/svg";
@@ -155,7 +158,47 @@
       words.appendChild(el("strong", "", name));
     });
     card.appendChild(words);
+    card.appendChild(el("p", "tree-result-source", "Meyer-Lueckel & Paris, 2016 · em revisão clínica"));
     return card;
+  }
+
+  function showCut(field, value, isPreview) {
+    if (!cutExtent || !cutReadout) return;
+    var paths = field === "rx" ? RX_EXTENT_PATHS : field === "depth" ? OCCLUSAL_EXTENT_PATHS : null;
+    var extent = paths && Object.prototype.hasOwnProperty.call(paths, value) ? paths[value] : null;
+    cutExtent.hidden = !extent;
+    cutExtent.setAttribute("d", extent || "");
+    cutExtent.classList.toggle("is-preview", Boolean(isPreview));
+    if (paths && model.fields[field].options[value]) {
+      cutReadout.textContent = (isPreview ? "Prévia: " : "Selecionado: ") + model.fields[field].options[value];
+    } else {
+      cutReadout.textContent = "Selecione uma profundidade para visualizar.";
+    }
+  }
+
+  function updateGuide(evaluated) {
+    if (crumbs) {
+      var selected = evaluated.fields.filter(function (entry) { return entry.selected !== null; });
+      var items = selected.map(function (entry) {
+        var item = el("li");
+        var button = el("button", "tree-crumb-button");
+        button.type = "button";
+        button.dataset.crumbField = entry.field;
+        button.setAttribute("aria-label", "Alterar " + model.fields[entry.field].label + ": " + model.fields[entry.field].options[entry.selected]);
+        button.appendChild(el("span", "", model.fields[entry.field].label + ": " + model.fields[entry.field].options[entry.selected]));
+        var remove = el("span", "", "×");
+        remove.setAttribute("aria-hidden", "true");
+        button.appendChild(remove);
+        item.appendChild(button);
+        return item;
+      });
+      if (!items.length) items.push(el("li", "tree-crumb-empty", "Nenhuma escolha ainda."));
+      crumbs.replaceChildren.apply(crumbs, items);
+    }
+    var depth = evaluated.fields.find(function (entry) {
+      return (entry.field === "rx" || entry.field === "depth") && entry.selected !== null;
+    });
+    showCut(depth && depth.field, depth && depth.selected, false);
   }
 
   function point(element, side, origin) {
@@ -233,6 +276,7 @@
     var nodes = evaluated.fields.map(level);
     if (evaluated.status === "result") nodes.push(outcome(evaluated));
     content.replaceChildren.apply(content, nodes);
+    updateGuide(evaluated);
     // Desenhar neste mesmo ciclo evita o frame inicial sem conectores.
     drawLines();
 
@@ -263,6 +307,39 @@
       state[field] = value;
       render(true);
     }
+  });
+
+  // Hover/focus only changes the schematic preview. Graph choices and any
+  // clinical result change exclusively after activating an option.
+  function previewOption(event) {
+    var option = event.target.closest("button[data-field][data-value]");
+    if (!option || !content.contains(option)) return;
+    var field = option.dataset.field;
+    if (field !== "rx" && field !== "depth") return;
+    showCut(field, option.dataset.value, true);
+  }
+  function restoreCut() {
+    var evaluated = model.evaluate(state);
+    var depth = evaluated.fields.find(function (entry) {
+      return (entry.field === "rx" || entry.field === "depth") && entry.selected !== null;
+    });
+    showCut(depth && depth.field, depth && depth.selected, false);
+  }
+  content.addEventListener("pointerover", previewOption);
+  content.addEventListener("focusin", previewOption);
+  content.addEventListener("pointerout", restoreCut);
+  content.addEventListener("focusout", restoreCut);
+
+  if (crumbs) crumbs.addEventListener("click", function (event) {
+    var button = event.target.closest("button[data-crumb-field]");
+    if (!button || !crumbs.contains(button)) return;
+    var field = button.dataset.crumbField;
+    if (!Object.prototype.hasOwnProperty.call(dependents, field)) return;
+    state[field] = null;
+    dependents[field].forEach(function (descendant) { state[descendant] = null; });
+    render(false);
+    var question = content.querySelector(".tree-level.is-current .tree-question");
+    if (question) question.focus({ preventScroll: true });
   });
 
   var reset = root.querySelector("[data-tree-reset]");

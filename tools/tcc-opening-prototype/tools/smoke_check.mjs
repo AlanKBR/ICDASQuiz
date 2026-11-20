@@ -13,7 +13,15 @@ const gltf=JSON.parse(read('public/assets/molar/scene.gltf').toString());
 const fragment=(s,label)=>assert.ok(src.includes(s),'Missing '+label);
 const noFragment=(s,label)=>assert.ok(!src.includes(s),'Regression '+label);
 
-assert.match(html,/V0\.10\.1/);
+assert.match(html,/V0\.10\.2/);
+assert.match(html,/src="\/assets\/monitor_quiz_reference\.png"/);
+assert.match(html,/id="previewQuiz"/);
+fragment("loadAsync('./assets/molar/scene.gltf')",'relative glTF URL');
+fragment("location.search).get('presentation') === '1'",'stage-only presentation mode');
+fragment("event.data.action==='next'",'iframe next control');
+fragment("event.data.action==='reset'",'iframe reset control');
+fragment("notifyPresentationPhase('finished')",'integration completion event');
+fragment("if(stageMode==='quizHold' && !quizNeedsFinalRender)return;",'skip invisible quiz WebGL');
 fragment("const TITLE_LETTERS = Array.from('ICDASQuiz')",'title');
 fragment('glyphs[i]=Math.floor(Math.random()*TITLE_LETTERS.length)','nine ASCII glyphs');
 fragment("else if(stageMode==='asciiReady') beginMesh(performance.now())",'two advances');
@@ -32,6 +40,10 @@ noFragment('updateAsciiVisibility','rejected ASCII grid');
 for(const id of ['perfTelemetry','renderScale','perfFps','perfP95','perfCpu','perfDraws','perfTriangles','perfTextures']){
  assert.ok(html.includes('id="'+id+'"'),'missing performance UI '+id);
 }
+assert.match(html,/value="0.75"/);
+const builtHtml=read('dist/index.html').toString('utf8');
+assert.match(builtHtml,/src="\.\/assets\/index-/);
+assert.match(builtHtml,/href="\.\/assets\/index-/);
 const glyphs=Array.from('ICDASQuiz');
 assert.equal(glyphs.length,9);
 assert.equal(gltf.meshes.length,1);

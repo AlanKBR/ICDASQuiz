@@ -7,6 +7,11 @@ import { MeshSurfaceSampler } from 'three/addons/math/MeshSurfaceSampler.js';
 
 const $ = id => document.getElementById(id);
 const stage = $('stage');
+const presentationMode = new URLSearchParams(location.search).get('presentation') === '1';
+if (presentationMode) {
+  document.body.classList.add('presentation-mode');
+  stage.classList.add('hide-annotations');
+}
 const canvas = $('modelCanvas');
 const monitorBlank = $('monitorBlank');
 const monitorQuiz = $('monitorQuiz');
@@ -90,6 +95,7 @@ let pauseOffset = 0;
 let transitionLength = +durationInput.value;
 let sceneProgress = 0;
 let lastFrame = performance.now();
+let quizNeedsFinalRender = false;
 let density = +densityInput.value;
 const perfInput=$('perfTelemetry');
 const perfSamples=new Float32Array(180);
@@ -577,7 +583,7 @@ function samplePoints() {
 }
 async function loadTooth(){
  try {
-  const gltf=await new GLTFLoader().loadAsync('/assets/molar/scene.gltf');
+  const gltf=await new GLTFLoader().loadAsync('./assets/molar/scene.gltf');
   const loaded=gltf.scene;
   const b=new THREE.Box3().setFromObject(loaded);
   const size=b.getSize(new THREE.Vector3());
@@ -637,6 +643,7 @@ function reset(){
   sharedReveal.value=0;
   sharedPhotoFade.value=0;
   sharedWarmth.value=0;
+  quizNeedsFinalRender=false;
   pivot.position.set(0,0,0);
   pivot.scale.setScalar(1);
   pivot.quaternion.copy(waitingQuaternionAt(performance.now()));
@@ -654,6 +661,13 @@ function reset(){
   $('timelineFill').style.width='0%';
   setText('timeReadout','Aguardando 1º avanço');
   setText('status','Título pronto · próximo slide');
+  notifyPresentationPhase('title');
+}
+function notifyPresentationPhase(phase){
+  // The agent's slide deck can embed this build on the same origin and drive
+  // it using postMessage. A standalone window remains fully interactive.
+  if(!presentationMode || window.parent===window)return;
+  window.parent.postMessage({source:'icdasquiz-opening',event:'phase',phase},location.origin);
 }
 function beginTitle(){
   if(!modelReady || stageMode!=='title')return;
@@ -663,6 +677,7 @@ function beginTitle(){
   setText('stagePhase','SLIDE 1 → 2 · FORMAÇÃO');
   setText('status','Formando dente ASCII');
   $('play').disabled=true;
+  notifyPresentationPhase('forming');
 }
 function beginMesh(now){
   if(!modelReady || stageMode!=='asciiReady')return;
@@ -679,6 +694,7 @@ function beginMesh(now){
   $('play').disabled=true;
   setText('status','Animação 3D em andamento');
   setText('stagePhase','SLIDE 2 → INTRODUÇÃO');
+  notifyPresentationPhase('mesh');
 }
 function advanceSlide(){
   if(!modelReady)return;
@@ -719,6 +735,7 @@ video.addEventListener('ended',()=>{
   setText('status','Fim da abertura');
   $('timelineFill').style.width='100%';
   setText('timeReadout','Concluído');
+  notifyPresentationPhase('finished');
 });
 function updatePhase(p){
   // A tooth stays centred while ASCII progressively becomes a fully solid
@@ -851,6 +868,7 @@ function animate(now){
     setText('timeReadout','Título → ASCII · '+(Math.min(elapsed,TITLE_TOTAL_MS)/1000).toFixed(1)+' s');
     if(elapsed>=TITLE_TOTAL_MS){
       stageMode='asciiReady';
+      notifyPresentationPhase('asciiReady');
       stage.classList.add('is-advanceable');
       if(asciiPoints) asciiPoints.material.uniforms.uTitleProgress.value=1;
       $('titleAura').style.opacity='0';
@@ -879,6 +897,7 @@ function animate(now){
     updatePhase(sceneProgress);
     if(sceneProgress>=1){
       stageMode='quizHold';
+      quizNeedsFinalRender=true;
       quizStartedAt=now;
       stage.classList.add('quiz-active');
       updateQuizInteraction(0);
@@ -901,9 +920,11 @@ function animate(now){
   // invisible WebGL draws while the browser decodes the video, or while a
   // static slide is being shown.
   if(stageMode==='video'||stageMode==='finished'||stageMode==='quizStill'||document.hidden)return;
+  if(stageMode==='quizHold' && !quizNeedsFinalRender)return;
   if(asciiPoints) asciiPoints.material.uniforms.uTime.value=now*.001;
   const start=performance.now();
   renderer.render(scene,camera);
+  if(stageMode==='quizHold')quizNeedsFinalRender=false;
   recordPerf(now,frameMs,performance.now()-start);
 }
 requestAnimationFrame(animate);
@@ -961,6 +982,13 @@ try {
 } catch { /* file-mode/private browsers may disable storage */ }
 refreshMorphControls();
 $('play').addEventListener('click',advanceSlide);
+window.addEventListener('message',event=>{
+  if(!presentationMode || event.source!==window.parent || event.origin!==location.origin)return;
+  if(event.data?.source!=='icdasquiz-presentation-controller')return;
+  if(event.data.action==='next')advanceSlide();
+  else if(event.data.action==='reset')reset();
+  else if(event.data.action==='getState')notifyPresentationPhase(stageMode);
+});
 $('stage').addEventListener('click',()=>{
   if(stageMode==='title'||stageMode==='asciiReady')advanceSlide();
 });

@@ -74,3 +74,15 @@
   .morph-comparator { grid-column: 1 / -1; }
   .morph-options { grid-template-columns: repeat(2,minmax(0,1fr)); }
 }
+/* Standalone stage-only mode for iframe integration with the real TCC deck.
+   Keeps a fixed 16:9 stage and letterboxes without browser scroll or UI. */
+body.presentation-mode { overflow:hidden; background:#000; }
+body.presentation-mode .app { padding:0; max-width:none; min-height:100vh; }
+body.presentation-mode .header,
+body.presentation-mode .controls-row,
+body.presentation-mode .timeline,
+body.presentation-mode .inspector { display:none !important; }
+body.presentation-mode .workspace { display:flex; align-items:center; justify-content:center; width:100vw; height:100vh; padding:0; gap:0; }
+body.presentation-mode .player-frame { width:100vw; height:100vh; display:flex; align-items:center; justify-content:center; }
+body.presentation-mode .stage { flex:none; width:min(100vw, 177.77778vh); height:min(100vh, 56.25vw); aspect-ratio:16/9; margin:0; border:0; border-radius:0; box-shadow:none; }
+body.presentation-mode .stage-corner { display:none; }

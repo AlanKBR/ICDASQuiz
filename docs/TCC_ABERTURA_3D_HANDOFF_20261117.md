@@ -1,12 +1,14 @@
 # ICDASQuiz — Handoff da abertura animada 3D (17/11/2026)
 
-## Estado consolidado — 20/11/2026, V0.10.1
+## Estado consolidado — 20/11/2026, V0.10.2 (offline-ready)
 
 **Baseline visual aprovado pelo usuário:** V0.10. **Snapshot operacional otimizado:** V0.10.1, mantendo exatamente o roteiro e a interação, com redução de assets, cache de amostragem, compressão HTTP e painel opcional de telemetria. A fidelidade perceptiva das texturas 2K ainda requer inspeção no Legion. Relatório de performance com evidências, riscos, reversão e próximos gates: [TCC_ABERTURA_PERFORMANCE_20261120.md](TCC_ABERTURA_PERFORMANCE_20261120.md).
 
 **Sequência efetiva atual:** título com breathing de Quiz; primeiro avanço manual = título → Dobra espacial → molar ASCII (4,25s, só nove letras); espera no molar girando; segundo avanço manual = dente ASCII → PBR/oclusão → cor creme e fotografia no monitor (5s) → quiz demonstrativo 3 errado / 4 certo (7s) → vídeo/aceno/slide (4s). **20,25s ativos mais as esperas manuais.** Quatro opções do primeiro morph continuam disponíveis, a 04 Dobra espacial permanece preferida. A seleção simulada não representa diagnóstico clínico.
 
 **Acesso privado ativo:** http://100.71.144.115:54173/ (Tailscale), servindo `tools/tcc-opening-prototype/dist` por `tools/preview_server.py`; gzip e Range para vídeo. Código da prévia isolado, mídia pessoal privada ignorada no Git. Sem deploy de produção e sem `git push`.
+
+**Browser Stack e offline:** o Chromium compartilhado do Zezin foi utilizado para medir FPS por fase (resultados e ressalvas no relatório de performance). A V0.10.2 adiciona paths relativos para operar em subpasta, `?presentation=1` em 16:9 sem controles, comandos `postMessage` de avanço/reset e sinalização de fim para integração pelo agente, além de pacote ZIP reproduzível por `tools/package_offline.py`. O modo offline usa Python 3 local em 127.0.0.1, sem depender de Zezin ou internet. A cena/roteiro são os mesmos da V0.10 aprovada.
 
 **Importante:** a seção a seguir, datada inicialmente de 17/11, preserva histórico das decisões. Não confundir suas durações/estados antigos com este resumo atual.
 

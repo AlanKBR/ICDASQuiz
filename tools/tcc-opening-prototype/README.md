@@ -68,6 +68,21 @@ node tools/bench_sampling.mjs
 
 Revisão e números detalhados: `../../docs/TCC_ABERTURA_PERFORMANCE_20261120.md`.
 
+## Pacote offline para o agente da apresentação
+
+O comando abaixo gera um ZIP portátil contendo a versão de execução estática, texturas, vídeo e imagens usados, código-fonte, instruções de integração, servidor local Python (biblioteca padrão) e documentação. Os arquivos pessoais entram **somente no ZIP local privado**, não no Git:
+
+```bash
+cd /srv/repos/owned/ICDASQuiz/tools/tcc-opening-prototype
+npm run build
+npm run test:smoke
+python3 tools/package_offline.py
+```
+
+Saída ignorada pelo Git: `assets/ICDASQuiz_TCC_Abertura_V0.10.2_OFFLINE.zip`. Extrair e executar `start-linux.sh` (CachyOS/Legion) ou `start-windows.cmd` com Python 3. O modo de apresentação integral, sem painel, é `?presentation=1`, e o contrato de integração via iframe de mesma origem encontra-se em `INTEGRATION_AGENT.md`.
+
+Medida real no browser stack do Zezin: formação título/ASCII cerca de 53 FPS e passagem ASCII→malha cerca de 50 FPS em 1×; em 0,75×, cerca de 59,3 e 56 FPS, respectivamente, no ambiente de teste. **Não usar isso como benchmark do Legion**: as características do Cloak/Chromium diferem da RTX 5080. Modo 0,75× é alternativa de emergência, não padrão. Mais detalhes em `docs/TCC_ABERTURA_PERFORMANCE_20261120.md`.
+
 ## Recursos
 
 - ZIP de origem: `assets/maxillary_first_molar.zip` (recebido do usuário)

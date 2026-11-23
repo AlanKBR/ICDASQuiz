@@ -2307,6 +2307,12 @@ class TestApresentacaoTCC:
         assert client.get('/tcc/../app.py').status_code == 404
         assert client.get('/tcc/nao-existe.png').status_code == 404
 
+    def test_tcc_cache_do_navegador(self, client):
+        assert client.get('/tcc/').headers['Cache-Control'] == 'no-cache'
+        assert client.get('/tcc/sw.js').headers['Cache-Control'] == 'no-cache'
+        assert 'max-age' in client.get('/tcc/fonts/fonts.css').headers['Cache-Control']
+        assert client.get('/').headers['Cache-Control'] == 'no-store'
+
     def test_csp_do_site_continua_estrita(self, client):
         resp = client.get('/')
         assert "'unsafe-inline'" not in resp.headers['Content-Security-Policy']

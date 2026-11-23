@@ -2290,6 +2290,18 @@ class TestApresentacaoTCC:
         assert "frame-ancestors 'self'" in csp
         assert resp.headers['X-Frame-Options'] == 'SAMEORIGIN'
 
+    def test_tcc_tem_fullscreen_nativo_sem_notas(self, client):
+        html = client.get('/tcc/').get_data(as_text=True)
+        assert 'id="start-fullscreen"' in html
+        assert 'id="start-windowed"' in html
+        assert 'document.documentElement.requestFullscreen' in html
+        assert 'document.exitFullscreen()' in html
+        assert "document.addEventListener('fullscreenchange'" in html
+        assert 'aria-pressed="false"' in html
+        assert 'id="bnotes"' not in html
+        assert 'id="notes"' not in html
+        assert 'notes.hidden' not in html
+
     def test_tcc_serve_arquivos_e_bloqueia_traversal(self, client):
         assert client.get('/tcc/fonts/fonts.css').status_code == 200
         assert client.get('/tcc/../app.py').status_code == 404

@@ -1378,6 +1378,16 @@ class TestManipulacaoDeSessao:
 class TestRateLimiting:
     """Verifica que o rate limiting bloqueia requisições excessivas."""
 
+    def test_aovivo_registro_permite_600_posts_por_ip(self, rate_client):
+        """A sala pode registrar até 600 POSTs/min pelo mesmo IP; 601º é bloqueado."""
+        headers = {"CF-Connecting-IP": "198.51.100.77"}
+        for _ in range(600):
+            resp = rate_client.post("/aovivo", data={"nome": ""}, headers=headers)
+            assert resp.status_code == 400  # Nome inválido, mas sem limitação de tráfego.
+
+        resp = rate_client.post("/aovivo", data={"nome": ""}, headers=headers)
+        assert resp.status_code == 429
+
     def test_quiz_post_rate_limit(self, rate_client, app_module):
         """61 POSTs em /quiz disparam 429."""
         imagens = app_module.get_imagens()

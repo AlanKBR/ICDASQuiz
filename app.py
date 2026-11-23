@@ -1093,7 +1093,7 @@ def quiz_trocar_aluno():
 # ---------------------------------------------------------------------------
 
 @app.route("/aovivo", methods=["GET", "POST"])
-@limiter.limit("60 per minute", methods=["POST"])
+@limiter.limit("600 per minute", methods=["POST"])
 def aovivo():
     session.permanent = True
     if request.method == "GET":

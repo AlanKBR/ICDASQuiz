@@ -29,6 +29,7 @@
   </header>
   {% endblock %}
   <main id="main" class="page-body {% block main_class %}{% endblock %}">{% block content %}{% endblock %}</main>
+  {% if aovivo_convite %}<a class="live-pill" href="{{ url_for('aovivo') }}"><span class="live-dot" aria-hidden="true"></span>Quiz ao vivo <strong>Começar →</strong></a>{% endif %}
   {% block footer %}
   <footer class="site-footer">
     <div class="footer-inner"><p><strong>ICDASQuiz</strong> · TCC Odontologia UFJF-GV</p>

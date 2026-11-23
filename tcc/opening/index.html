@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#0b1220">
+  <link rel="stylesheet" href="../fonts/fonts.css">
+  <title>ICDASQuiz · Abertura 3D — Protótipo</title>
+  <script type="module" crossorigin src="./assets/index-C9FmiMTh.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-C8BQEKNi.css">
+</head>
+<body>
+<div class="app">
+  <header class="header">
+    <div class="brand"><span class="brand-mark">◇</span><span>ICDAS<span class="accent">Quiz</span></span><span class="crumb">/ abertura 3D</span></div>
+    <div class="status-wrap"><span class="status-led" id="led"></span><span id="status">Carregando modelo...</span></div>
+  </header>
+
+  <main class="workspace">
+    <section class="player-frame">
+      <div class="stage" id="stage" aria-label="Prévia da abertura em 16 por 9">
+        <div class="ambient" id="ambient"></div>
+        <div class="title-aura" id="titleAura" aria-hidden="true"></div>
+        <div class="title-rule" aria-hidden="true"></div>
+        <div class="title-kicker" aria-hidden="true">Trabalho de Conclusão de Curso<i></i>Odontologia<i></i>UFJF-GV</div>
+        <div class="title-vignette" aria-hidden="true"></div>
+        <div class="lights-bloom" aria-hidden="true"></div>
+        <img class="stage-bg" id="monitorBlank" alt="Monitor em fundo branco" src="./assets/monitor_blank.png">
+        <img class="stage-bg" id="monitorQuiz" alt="Monitor com quiz ICDAS" src="./assets/monitor_quiz_reference.png">
+        <canvas class="model-canvas" id="modelCanvas"></canvas>
+        <div class="quiz-click-ui" id="quizClickUi" aria-hidden="true">
+          <div class="quiz-hover" id="quizHover"></div>
+          <div class="quiz-wrong" id="quizWrong">3</div>
+          <div class="quiz-selected" id="quizSelected">
+            <svg viewBox="0 0 24 24" width="60%" height="60%" aria-hidden="true"><path d="M5 12.5 10 17.5 19 7" stroke="#fff" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <div class="quiz-mouse" id="quizMouse">
+            <svg viewBox="0 0 28 36" width="28" height="36" aria-hidden="true">
+              <path d="M2 1L2 29L8.9 22.4L14.5 34.5L20 32L14.5 20.6L24.7 20Z" fill="#fff" stroke="#17272c" stroke-width="2.1" stroke-linejoin="round"/>
+            </svg>
+          </div>
+        </div>
+        <video class="intro-video" id="introVideo" src="./assets/intro_video_4s.mp4?v=05" playsinline preload="auto" muted></video>
+        <img class="intro-final" id="introFinal" src="./assets/first_slide_original.png" alt="Slide de abertura do TCC">
+        <div class="stage-corner stage-top">PROTÓTIPO · TCC / 2026</div>
+        <div class="stage-corner stage-bottom" id="stagePhase">SLIDE 1 · ICDASQUIZ</div>
+        <div id="loading" class="loading">Preparando geometria e texturas...</div>
+      </div>
+      <div class="controls-row">
+        <div class="button-set">
+          <button class="primary" id="play" disabled>Próximo: formar dente <span>▶</span></button>
+          <button class="ghost" id="reset" disabled>Reiniciar</button>
+          <button class="ghost" id="pause" disabled>Pausar</button>
+          <button class="ghost" id="previewClip">Ver vídeo aprovado</button>
+        </div>
+        <div class="time-readout" id="timeReadout">Espera · 00:00</div>
+      </div>
+      <div class="timeline" id="timeline">
+        <div class="timeline-fill" id="timelineFill"></div>
+        <div class="timeline-steps"><span>TÍTULO</span><span>ASCII</span><span>MESH</span><span>QUIZ</span><span>VÍDEO</span><span>SLIDE</span></div>
+      </div>
+    </section>
+
+    <aside class="inspector">
+      <div class="eyebrow">DIREÇÃO DE ARTE <span class="version">V0.10.2</span></div>
+      <h1>Do nome à anatomia.</h1>
+      <p class="blurb">A Dobra espacial faz mini letras saírem das letras grandes, com aparência mais suave. O dente ASCII agora usa exclusivamente I, C, D, A, S, Q, u, i e z.</p>
+      <div class="detail morph-comparator" aria-labelledby="morphTitle">
+        <div class="detail-title" id="morphTitle">Transformação do título <span class="output">4 versões</span></div>
+        <div class="morph-options" role="group" aria-label="Estilos de transformação">
+          <button type="button" class="morph-option" data-morph-variant="0" aria-pressed="false"><span class="morph-number">01</span><span><strong>Magnética</strong><small>Desdobramento e atração suave · V0.8</small></span></button>
+          <button type="button" class="morph-option" data-morph-variant="1" aria-pressed="false"><span class="morph-number">02</span><span><strong>Órbita</strong><small>Letras percorrem espirais antes de formar o molar</small></span></button>
+          <button type="button" class="morph-option" data-morph-variant="2" aria-pressed="false"><span class="morph-number">03</span><span><strong>Cascata</strong><small>As letras se soltam em sequência, da esquerda para a direita</small></span></button>
+          <button type="button" class="morph-option is-selected" data-morph-variant="3" aria-pressed="true"><span class="morph-number">04</span><span><strong>Dobra espacial · refinada</strong><small>Mini letras surgem da letra-mãe, translúcidas, antes de ganhar volume</small></span></button>
+        </div>
+        <div class="fold-adjustments" id="foldAdjustments">
+          <label class="detail-title" for="foldGhostAlpha">Opacidade das mini letras <span class="output" id="foldGhostVal">24%</span></label>
+          <input id="foldGhostAlpha" type="range" min="0.12" max="0.50" step="0.02" value="0.24">
+          <div class="range-ticks"><span>mais discretas</span><span>mais visíveis</span></div>
+          <p class="hint">Ajusta a transparência durante a emissão; o dente final permanece sólido.</p>
+        </div>
+        <button type="button" class="morph-preview primary" id="previewMorph" disabled>Testar transformação selecionada ▶</button>
+        <button type="button" class="morph-favorite" id="markPreferred">Marcar como preferida</button>
+        <div id="morphFeedback" class="morph-feedback" aria-live="polite">Escolha uma opção e teste quantas vezes quiser. O segundo avanço permanece manual.</div>
+      </div>
+      <div class="intro-spec">Comparação justa: <strong>4,25 s</strong> em todas as versões. Primeiro avanço termina no ASCII; o segundo inicia a apresentação.</div>
+      <p class="hint">Use <strong>Próximo</strong>, <strong>→</strong>, <strong>Espaço</strong> ou <strong>Page Down</strong> para simular a apresentação.</p>
+      <div class="detail">
+        <div class="detail-title">Transição 3D <span class="output" id="durationVal">5 s</span></div>
+        <input id="duration" type="range" min="2" max="8" step="0.5" value="5">
+        <div class="range-ticks"><span>2 s · rápida</span><span>8 s · lenta</span></div>
+      </div>
+      <div class="detail">
+        <div class="detail-title">Densidade ASCII <span class="output" id="densityVal">1800</span></div>
+        <input id="density" type="range" min="600" max="4200" step="200" value="1800">
+        <div class="range-ticks"><span>leve</span><span>densa</span></div>
+      </div>
+      <div class="detail">
+        <div class="detail-title">Tamanho dos caracteres <span class="output" id="glyphSizeVal">32 px</span></div>
+        <input id="glyphSize" type="range" min="14" max="48" step="2" value="32">
+        <div class="range-ticks"><span>menores</span><span>maiores</span></div>
+      </div>
+      <div class="detail">
+        <div class="detail-title">Orientação oclusal (graus)</div>
+        <div class="axis-controls">
+          <label>X<input type="number" id="rotX" value="-90" min="-180" max="180" step="5"></label>
+          <label>Y<input type="number" id="rotY" value="0" min="-180" max="180" step="5"></label>
+          <label>Z<input type="number" id="rotZ" value="0" min="-180" max="180" step="5"></label>
+        </div>
+        <p class="hint">Agora a vista oclusal é a referência inicial; ajuste os eixos se desejar outra rotação.</p>
+      </div>
+      <div class="detail">
+        <div class="detail-title">Alinhamento com a fotografia</div>
+        <div class="axis-controls">
+          <label>X<input type="number" id="alignX" value="0" min="-2" max="2" step=".05"></label>
+          <label>Y<input type="number" id="alignY" value=".58" min="-2" max="2" step=".05"></label>
+          <label>Escala<input type="number" id="alignScale" value=".78" min=".1" max="2" step=".02"></label>
+        </div>
+        <p class="hint">Os valores posicionam as duas representações juntas, com a mesma transformação.</p>
+      </div>
+      <div class="detail">
+        <div class="detail-title">Cor 3D → fotografia <span class="output" id="warmStrengthVal">60%</span></div>
+        <input id="warmStrength" type="range" min="0" max="0.85" step="0.05" value="0.60">
+        <div class="range-ticks"><span>branco original</span><span>esmalte creme</span></div>
+        <p class="hint">Aquece apenas o modelo nos instantes finais, preservando brilho e anatomia. A imagem clínica não é alterada.</p>
+      </div>
+      <div class="detail">
+        <div class="detail-title">Inspecionar sobreposição <span class="output" id="scrubValue">0%</span></div>
+        <input type="range" min="0" max="100" step="1" value="0" id="scrub">
+        <label class="toggle-line"><input id="debugOverlap" type="checkbox"> Mostrar ASCII + malha simultaneamente</label>
+      </div>
+      <div class="detail detail-toggle">
+        <div class="detail-title">Tempo na tela do quiz <span class="output" id="quizHoldVal">7 s</span></div>
+        <input id="quizHold" type="range" min="5.5" max="10" step=".5" value="7">
+        <div class="range-ticks"><span>5,5 s</span><span>10 s</span></div>
+        <p class="hint">Simulação visual: pausa, cursor sobre outros códigos, tentativa no 3 com erro e tremor, depois clique no 4 com confirmação. Não é gabarito clínico da imagem.</p>
+        <button type="button" class="ghost quiz-preview" id="previewQuiz" disabled>Testar 3D → foto e quiz ▶</button>
+        <label class="toggle-line"><input id="autoplay" type="checkbox" checked> Continuar para o vídeo de 4 segundos</label>
+        <label class="toggle-line"><input id="showAnnotations" type="checkbox" checked> Exibir informações de protótipo</label>
+      </div>
+      <div class="detail perf-panel">
+        <div class="detail-title">Desempenho no navegador</div>
+        <label class="toggle-line"><input id="perfTelemetry" type="checkbox"> Medir FPS e renderização durante a prévia</label>
+        <div class="perf-metrics" id="perfMetrics" hidden aria-live="off">
+          <div><strong id="perfFps">—</strong><small>FPS médio</small></div>
+          <div><strong id="perfP95">—</strong><small>Quadro p95</small></div>
+          <div><strong id="perfCpu">—</strong><small>CPU do render</small></div>
+          <div><strong id="perfDraws">—</strong><small>Draw calls</small></div>
+          <div><strong id="perfTriangles">—</strong><small>Triângulos</small></div>
+          <div><strong id="perfTextures">—</strong><small>Texturas GPU</small></div>
+        </div>
+        <label class="perf-quality" for="renderScale">Resolução interna
+          <select id="renderScale">
+            <option value="1.7" selected>Alta · 1,7× (original)</option>
+            <option value="1.35">Equilibrada · 1,35×</option>
+            <option value="1">Econômica · 1×</option>
+            <option value="0.75">Emergência · 0,75×</option>
+          </select>
+        </label>
+        <p class="hint">Valores medidos no Legion ao ativar. O p95 inclui a duração entre quadros; CPU do render não é tempo de GPU. Compare as opções sem alterar a animação.</p>
+      </div>
+      <button class="export" id="copySettings">Copiar parâmetros do protótipo</button>
+      <div class="license">Modelo: <a href="https://sketchfab.com/3d-models/maxillary-first-molar-e719a474ef7e4bd7abec508f85f1e984" target="_blank" rel="noopener">Maxillary First Molar — University of Dundee</a> · <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>.</div>
+    </aside>
+  </main>
+</div>
+</body>
+</html>

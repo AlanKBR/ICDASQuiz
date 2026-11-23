@@ -12,13 +12,16 @@
 {% if pedir_nome %}
   <section class="quiz-start-stage">
     <span class="blob a"></span><span class="blob b"></span>
-    <form class="quiz-start-form lift" method="post" action="{{ url_for('quiz_iniciar') }}">
+    <form class="quiz-start-form lift" method="post" action="{{ form_action or url_for('quiz_iniciar') }}">
       {{ csrf() }}
       <h1 class="sr-only">Quiz ICDAS</h1>
+      {% if aovivo %}<p class="kick">Quiz ao vivo</p>{% endif %}
       {% if mensagem %}<p role="alert" class="form-alert">{{ mensagem }}</p>{% endif %}
       <label class="sr-only" for="quiz-nome">Seu nome</label>
       <input id="quiz-nome" name="nome" class="quiz-name" placeholder="Seu nome" autocomplete="name" maxlength="100" required autofocus>
       <button class="go quiz-start-button" type="submit">Começar <span aria-hidden="true">→</span></button>
+      {% if aovivo %}<p class="live-note">O tempo começa quando você tocar em Começar.</p>
+      <a class="subtle-link live-explore" href="{{ url_for('aovivo_explorar') }}">Explorar o site antes</a>{% endif %}
     </form>
   </section>
 {% elif quiz_completo and not (imagem and respondido) %}
@@ -28,8 +31,9 @@
       <span class="kick">Resultado de {{ first_name }}</span>
       <h1 class="result-numeric" aria-label="{{ score_acertos }} acertos de {{ score_total }}">{{ score_acertos }}<small>/{{ score_total }}</small></h1>
       <p class="result-line">{% if wrong == 0 %}Nenhum erro.{% else %}{{ wrong }} {{ 'imagem para revisar.' if wrong == 1 else 'imagens para revisar.' }}{% endif %}</p>
+      {% if aovivo_resultado %}<p class="result-line live-time">{% if aovivo_segundos is not none %}Seu tempo: <strong>{{ ('%.1f' % aovivo_segundos)|replace('.', ',') }} s</strong>. {% endif %}Agora é só olhar o telão. Depois, explore o site à vontade.</p>{% endif %}
       <div class="result-actions">
-        <form method="post" action="{{ url_for('quiz_resetar') }}">{{ csrf() }}<button type="submit" class="go">De novo <span aria-hidden="true">→</span></button></form>
+        {% if not aovivo_resultado %}<form method="post" action="{{ url_for('quiz_resetar') }}">{{ csrf() }}<button type="submit" class="go">De novo <span aria-hidden="true">→</span></button></form>{% endif %}
         <a class="ghost" href="{{ url_for('home') }}">Início</a>
         <a class="ghost" href="{{ url_for('scores') }}">Placar</a>
       </div>

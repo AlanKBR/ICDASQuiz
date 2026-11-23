@@ -2264,3 +2264,163 @@ class TestCarouselEContagemReal20261115:
         css = client.get('/static/css/app.css').get_data(as_text=True)
         assert 'dry-timer-progress' in css
         assert 'dry-timer-turn' not in css
+
+class TestApresentacaoTCC:
+    def test_tcc_redireciona_para_barra(self, client):
+        resp = client.get('/tcc')
+        assert resp.status_code == 301
+        assert resp.headers['Location'].endswith('/tcc/')
+
+    def test_tcc_serve_deck_com_csp_propria(self, client):
+        resp = client.get('/tcc/')
+        assert resp.status_code == 200
+        assert 'id="stage"' in resp.get_data(as_text=True)
+        csp = resp.headers['Content-Security-Policy']
+        assert "script-src 'self' 'unsafe-inline'" in csp
+        assert "frame-ancestors 'self'" in csp
+        assert resp.headers['X-Frame-Options'] == 'SAMEORIGIN'
+
+    def test_tcc_serve_arquivos_e_bloqueia_traversal(self, client):
+        assert client.get('/tcc/fonts/fonts.css').status_code == 200
+        assert client.get('/tcc/../app.py').status_code == 404
+        assert client.get('/tcc/nao-existe.png').status_code == 404
+
+    def test_csp_do_site_continua_estrita(self, client):
+        resp = client.get('/')
+        assert "'unsafe-inline'" not in resp.headers['Content-Security-Policy']
+        assert resp.headers['X-Frame-Options'] == 'DENY'
+
+
+class TestQuizAoVivo:
+    def _jogar(self, app_module, nome, acertar):
+        """Entra pelo QR e responde todas as questões; `acertar(i)` decide cada uma."""
+        imagens = {img["id"]: img for img in app_module.get_imagens()}
+        with app_module.app.test_client() as c:
+            assert c.post('/aovivo', data={'nome': nome}).status_code == 302
+            for i in range(app_module.QUIZ_QUESTIONS_PER_ATTEMPT):
+                c.get('/quiz')
+                with c.session_transaction() as sess:
+                    pronto = 'quiz_atual' in sess
+                if not pronto:
+                    c.get('/quiz')
+                with c.session_transaction() as sess:
+                    atual, attempt_id = sess['quiz_atual'], sess['attempt_id']
+                codigo = imagens[atual]['icdas_code']
+                resposta = codigo if acertar(i) else (codigo + 1) % 7
+                c.post('/quiz', data={'imagem_id': atual, 'attempt_id': attempt_id, 'resposta': resposta})
+            c.get('/quiz')
+
+    def _painel(self, client):
+        resp = client.get('/aovivo/painel?desde=0')
+        assert resp.status_code == 200
+        assert resp.headers['Access-Control-Allow-Origin'] == '*'
+        return resp.get_json()
+
+    def test_entrada_mostra_formulario_ao_vivo(self, client):
+        html = client.get('/aovivo').get_data(as_text=True)
+        assert 'Quiz ao vivo' in html
+        assert 'action="/aovivo"' in html
+
+    def test_quem_entra_aparece_jogando(self, client, app_module):
+        with app_module.app.test_client() as c:
+            c.post('/aovivo', data={'nome': 'Rodrigo'})
+        dados = self._painel(client)
+        assert [(p['nome'], p['status'], p['acertos']) for p in dados['jogadores']] == [('Rodrigo', 'jogando', None)]
+        assert dados['top'] == []
+
+    def test_top3_por_acertos_e_desempate_por_tempo(self, client, app_module):
+        import database
+        self._jogar(app_module, 'Ana', lambda i: True)
+        self._jogar(app_module, 'Bia', lambda i: i < 8)
+        self._jogar(app_module, 'Caio', lambda i: True)
+        self._jogar(app_module, 'Duda', lambda i: i < 5)
+        # Fixa os tempos: Caio empata com Ana em acertos, mas foi mais rápido.
+        tempos = {'Ana': 90, 'Bia': 40, 'Caio': 75, 'Duda': 30}
+        with database.session_scope(db_path=app_module.DB_PATH) as db:
+            for attempt, participant in db.execute(
+                database.select(database.Attempt, database.Participant)
+                .join(database.Participant)
+            ).all():
+                attempt.finished_at = attempt.started_at + timedelta(seconds=tempos[participant.name])
+            db.commit()
+        dados = self._painel(client)
+        assert all(p['status'] == 'terminou' for p in dados['jogadores'])
+        assert [(p['nome'], p['acertos'], p['segundos']) for p in dados['top']] == [
+            ('Caio', 10, 75.0), ('Ana', 10, 90.0), ('Bia', 8, 40.0)]
+
+    def test_so_primeira_tentativa_conta(self, client, app_module):
+        imagens = {img["id"]: img for img in app_module.get_imagens()}
+        with app_module.app.test_client() as c:
+            c.post('/aovivo', data={'nome': 'Leo'})
+            for rodada in range(2):
+                for _ in range(app_module.QUIZ_QUESTIONS_PER_ATTEMPT):
+                    c.get('/quiz')
+                    with c.session_transaction() as sess:
+                        pronto = 'quiz_atual' in sess
+                    if not pronto:
+                        c.get('/quiz')
+                    with c.session_transaction() as sess:
+                        atual, attempt_id = sess['quiz_atual'], sess['attempt_id']
+                    codigo = imagens[atual]['icdas_code']
+                    c.post('/quiz', data={'imagem_id': atual, 'attempt_id': attempt_id,
+                                          'resposta': codigo if rodada else (codigo + 1) % 7})
+                c.get('/quiz')
+                c.post('/quiz/resetar')
+        dados = self._painel(client)
+        assert len(dados['jogadores']) == 1
+        assert dados['top'][0]['acertos'] == 0
+
+    def test_quiz_normal_nao_entra_no_painel(self, client):
+        client.post('/quiz/iniciar', data={'nome': 'Fulano'})
+        client.get('/quiz')
+        assert self._painel(client)['jogadores'] == []
+
+    def test_nome_repetido_de_outra_pessoa_e_recusado(self, client, app_module):
+        with app_module.app.test_client() as a:
+            assert a.post('/aovivo', data={'nome': 'Ana Souza'}).status_code == 302
+        with app_module.app.test_client() as b:
+            resp = b.post('/aovivo', data={'nome': 'ana souza'})
+            assert resp.status_code == 409
+            assert 'Acrescente o sobrenome' in resp.get_data(as_text=True)
+        assert len(self._painel(client)['jogadores']) == 1
+
+    def test_mesmo_aparelho_continua_sem_nova_tentativa(self, client, app_module):
+        with app_module.app.test_client() as c:
+            c.post('/aovivo', data={'nome': 'Bruno'})
+            assert c.get('/aovivo').status_code == 302
+            assert c.post('/aovivo', data={'nome': 'Bruno'}).status_code == 302
+        dados = self._painel(client)
+        assert [p['nome'] for p in dados['jogadores']] == ['Bruno']
+        assert isinstance(dados['agora'], int)
+
+    def test_resultado_ao_vivo_mostra_tempo_e_esconde_de_novo(self, client, app_module):
+        imagens = {img["id"]: img for img in app_module.get_imagens()}
+        with app_module.app.test_client() as c:
+            c.post('/aovivo', data={'nome': 'Carla'})
+            for _ in range(app_module.QUIZ_QUESTIONS_PER_ATTEMPT):
+                c.get('/quiz')
+                with c.session_transaction() as sess:
+                    pronto = 'quiz_atual' in sess
+                if not pronto:
+                    c.get('/quiz')
+                with c.session_transaction() as sess:
+                    atual, attempt_id = sess['quiz_atual'], sess['attempt_id']
+                c.post('/quiz', data={'imagem_id': atual, 'attempt_id': attempt_id,
+                                      'resposta': imagens[atual]['icdas_code']})
+            c.get('/quiz')
+            html = c.get('/quiz').get_data(as_text=True)
+        assert 'Seu tempo:' in html
+        assert 'olhar o telão' in html
+        assert 'De novo' not in html
+
+    def test_explorar_antes_mostra_convite_sem_comecar_o_tempo(self, client, app_module):
+        with app_module.app.test_client() as c:
+            assert 'Explorar o site antes' in c.get('/aovivo').get_data(as_text=True)
+            assert c.get('/aovivo/explorar').status_code == 302
+            assert 'live-pill' in c.get('/galeria').get_data(as_text=True)
+            assert c.get('/quiz').headers['Location'].endswith('/aovivo')
+            assert 'live-pill' not in c.get('/aovivo').get_data(as_text=True)
+            assert c.get('/aovivo/painel?desde=0').get_json()['jogadores'] == []
+            c.post('/aovivo', data={'nome': 'Explorador'})
+            assert 'live-pill' not in c.get('/galeria').get_data(as_text=True)
+        assert [p['nome'] for p in self._painel(client)['jogadores']] == ['Explorador']

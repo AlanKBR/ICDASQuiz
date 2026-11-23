@@ -10,11 +10,12 @@ import random
 import re
 import sys
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from dotenv import load_dotenv
 from flask import (
+    has_request_context,
     Flask, jsonify, make_response, render_template, request,
     redirect, url_for, session, send_from_directory,
 )
@@ -24,6 +25,10 @@ from flask_wtf.csrf import CSRFProtect
 from werkzeug.exceptions import SecurityError
 
 from database import (
+    LIVE_MODE,
+    live_attempt_seconds,
+    live_name_owner,
+    live_snapshot,
     analytics_snapshot,
     dashboard_redesign_snapshot,
     attempt_review_snapshot,
@@ -101,9 +106,20 @@ def _client_ip():
     return (request.remote_addr or "").strip()
 
 
+def _limiter_key():
+    """No quiz ao vivo várias pessoas dividem o IP da sala; separa por participante."""
+    ip = _client_ip()
+    try:
+        if session.get("quiz_modo") == "aovivo" and session.get("participant_id"):
+            return f"{ip}:p{int(session['participant_id'])}"
+    except (TypeError, ValueError, RuntimeError):
+        pass
+    return ip
+
+
 limiter = Limiter(
     app=app,
-    key_func=_client_ip,
+    key_func=_limiter_key,
     storage_uri="memory://",
     default_limits=["200 per minute"],
 )
@@ -427,7 +443,10 @@ def inject_globals():
         """Retorna URL do asset com query string de cache-busting."""
         return url_for("static", filename=filename) + "?v=" + _get_asset_hash(filename)
 
-    return {"now": _NOW, "versioned_url": versioned_url, "descriptions": DESCRICOES}
+    convite = (has_request_context() and bool(session.get("aovivo_convite"))
+               and request.endpoint not in ("aovivo", "quiz"))
+    return {"now": _NOW, "versioned_url": versioned_url, "descriptions": DESCRICOES,
+            "aovivo_convite": convite}
 
 
 # Pré-aquece o cache de hashes na inicialização do processo (--preload safe).
@@ -458,13 +477,32 @@ _CSP = (
     "form-action 'self';"
 )
 
+# Apresentação da defesa do TCC (/tcc): deck estático com scripts e estilos
+# inline e a abertura 3D num iframe da mesma origem.
+TCC_DIR = Path(__file__).parent / "tcc"
+_CSP_TCC = (
+    "default-src 'self'; "
+    "style-src 'self' 'unsafe-inline'; "
+    "font-src 'self' data:; "
+    "script-src 'self' 'unsafe-inline'; "
+    "img-src 'self' data: blob:; "
+    "media-src 'self' blob:; "
+    "connect-src 'self' data: blob:; "
+    "worker-src 'self' blob:; "
+    "frame-src 'self'; "
+    "frame-ancestors 'self'; "
+    "base-uri 'self'; "
+    "form-action 'none';"
+)
+
 
 @app.after_request
 def set_security_headers(response):
-    response.headers["Content-Security-Policy"] = _CSP
+    is_tcc = request.path == "/tcc" or request.path.startswith("/tcc/")
+    response.headers["Content-Security-Policy"] = _CSP_TCC if is_tcc else _CSP
     response.headers["X-Robots-Tag"] = "noindex"
     response.headers["X-Content-Type-Options"] = "nosniff"
-    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-Frame-Options"] = "SAMEORIGIN" if is_tcc else "DENY"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     response.headers["Permissions-Policy"] = (
         "camera=(), microphone=(), geolocation=(), payment=()"
@@ -495,6 +533,11 @@ def _render_quiz(**context):
     context["outcomes"] = session.get("quiz_outcomes") or []
     context["review"] = None
     context["review_example"] = {}
+    context["aovivo_resultado"] = session.get("quiz_modo") == LIVE_MODE
+    context["aovivo_segundos"] = None
+    if context.get("quiz_completo") and context["aovivo_resultado"]:
+        context["aovivo_segundos"] = live_attempt_seconds(
+            session.get("last_completed_attempt_id"), **_db_options())
     if context.get("quiz_completo"):
         review = attempt_review_snapshot(
             attempt_id=session.get("last_completed_attempt_id"),
@@ -562,6 +605,9 @@ def arvore_tratamento():
 @app.route("/quiz", methods=["GET", "POST"])
 @limiter.limit("60 per minute", methods=["POST"])
 def quiz():
+    # Quem veio pelo QR e está explorando: qualquer "Iniciar o quiz" leva ao quiz ao vivo.
+    if session.get("aovivo_convite") and session.get("quiz_modo") != LIVE_MODE:
+        return redirect(url_for("aovivo"))
     imagens = get_imagens()
 
     session.permanent = True
@@ -1041,6 +1087,91 @@ def quiz_trocar_aluno():
     return redirect(url_for("quiz"))
 
 
+# ---------------------------------------------------------------------------
+# Quiz ao vivo (apresentação do TCC): QR -> nome -> quiz normal; o slide lê
+# /aovivo/painel e mostra quem entrou, quem terminou e o top 3.
+# ---------------------------------------------------------------------------
+
+@app.route("/aovivo", methods=["GET", "POST"])
+@limiter.limit("60 per minute", methods=["POST"])
+def aovivo():
+    session.permanent = True
+    if request.method == "GET":
+        # Recarregou ou escaneou de novo no meio do quiz: continua de onde parou.
+        if session.get("quiz_modo") == LIVE_MODE and attempt_is_active(session.get("attempt_id"), **_db_options()):
+            return redirect(url_for("quiz"))
+        return _render_quiz(
+            imagem=None, mensagem=None,
+            total_imagens=min(QUIZ_QUESTIONS_PER_ATTEMPT, len(get_imagens())),
+            correto=None, descricao_codigo=None, respondido=False,
+            score_acertos=0, score_total=0, modo_sequencial=False,
+            pedir_nome=True, nome_sugerido="", quiz_nome=None,
+            form_action=url_for("aovivo"), aovivo=True,
+        )
+    nome = request.form.get("nome", "")
+    dono = live_name_owner(nome, since=datetime.now(timezone.utc) - timedelta(hours=6), **_db_options()) if nome.strip() else None
+    if dono is not None:
+        if dono == session.get("participant_id") and session.get("quiz_modo") == LIVE_MODE:
+            # Mesma pessoa, mesmo aparelho: não abre outra tentativa.
+            return redirect(url_for("quiz"))
+        return _render_quiz(
+            imagem=None, mensagem="Esse nome já está na sala. Acrescente o sobrenome.",
+            total_imagens=min(QUIZ_QUESTIONS_PER_ATTEMPT, len(get_imagens())),
+            correto=None, descricao_codigo=None, respondido=False,
+            score_acertos=0, score_total=0, modo_sequencial=False,
+            pedir_nome=True, nome_sugerido="", quiz_nome=None,
+            form_action=url_for("aovivo"), aovivo=True,
+        ), 409
+    try:
+        participant = create_participant(nome, **_db_options())
+    except ValueError:
+        return _render_quiz(
+            imagem=None, mensagem="Informe um nome válido para começar.",
+            total_imagens=min(QUIZ_QUESTIONS_PER_ATTEMPT, len(get_imagens())),
+            correto=None, descricao_codigo=None, respondido=False,
+            score_acertos=0, score_total=0, modo_sequencial=False,
+            pedir_nome=True, nome_sugerido="", quiz_nome=None,
+            form_action=url_for("aovivo"), aovivo=True,
+        ), 400
+    if session.get("attempt_id"):
+        _end_session_attempt("student_change")
+    session["participant_id"] = participant.id
+    session["quiz_nome"] = participant.name
+    session["quiz_modo"] = LIVE_MODE
+    session.pop("aovivo_convite", None)
+    _clear_quiz_progress()
+    _start_session_attempt()
+    return redirect(url_for("quiz"))
+
+
+@app.get("/aovivo/explorar")
+def aovivo_explorar():
+    """Deixa a pessoa navegar antes; o tempo só começa quando ela coloca o nome."""
+    session.permanent = True
+    session["aovivo_convite"] = True
+    return redirect(url_for("home"))
+
+
+@app.get("/aovivo/painel")
+@limiter.limit("120 per minute")
+def aovivo_painel():
+    """Estado do quiz ao vivo para o slide. Só nomes, acertos e tempo."""
+    agora = datetime.now(timezone.utc)
+    desde_ms = _safe_int(request.args.get("desde"), 0)
+    limite = agora - timedelta(hours=6)
+    try:
+        desde = datetime.fromtimestamp(desde_ms / 1000, tz=timezone.utc)
+    except (OverflowError, OSError, ValueError):
+        desde = limite
+    desde = max(desde, limite)
+    dados = live_snapshot(since=desde, **_db_options())
+    # Relógio do servidor: o slide calcula "desde" por ele, não pelo relógio do notebook.
+    dados["agora"] = int(agora.timestamp() * 1000)
+    resp = jsonify(dados)
+    resp.headers["Access-Control-Allow-Origin"] = "*"
+    return resp
+
+
 @app.route("/scores")
 @limiter.limit("30 per minute")
 def scores():
@@ -1156,6 +1287,17 @@ def health():
     db_ok = database_healthy(**_db_options())
     status = "ok" if db_ok else "degraded"
     return jsonify({"status": status, "db": db_ok}), 200 if db_ok else 503
+
+
+@app.route("/tcc")
+def tcc_redirect():
+    return redirect("/tcc/", code=301)
+
+
+@app.route("/tcc/")
+@app.route("/tcc/<path:arquivo>")
+def tcc(arquivo="index.html"):
+    return send_from_directory(TCC_DIR, arquivo)
 
 
 @app.route("/robots.txt")

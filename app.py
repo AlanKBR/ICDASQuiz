@@ -10,7 +10,7 @@ import random
 import re
 import sys
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -24,6 +24,8 @@ from flask_wtf.csrf import CSRFProtect
 from werkzeug.exceptions import SecurityError
 
 from database import (
+    LIVE_MODE,
+    live_snapshot,
     analytics_snapshot,
     dashboard_redesign_snapshot,
     attempt_review_snapshot,
@@ -101,9 +103,20 @@ def _client_ip():
     return (request.remote_addr or "").strip()
 
 
+def _limiter_key():
+    """No quiz ao vivo várias pessoas dividem o IP da sala; separa por participante."""
+    ip = _client_ip()
+    try:
+        if session.get("quiz_modo") == "aovivo" and session.get("participant_id"):
+            return f"{ip}:p{int(session['participant_id'])}"
+    except (TypeError, ValueError, RuntimeError):
+        pass
+    return ip
+
+
 limiter = Limiter(
     app=app,
-    key_func=_client_ip,
+    key_func=_limiter_key,
     storage_uri="memory://",
     default_limits=["200 per minute"],
 )
@@ -1041,6 +1054,62 @@ def quiz_trocar_aluno():
         session.pop(key, None)
     session.modified = True
     return redirect(url_for("quiz"))
+
+
+# ---------------------------------------------------------------------------
+# Quiz ao vivo (apresentação do TCC): QR -> nome -> quiz normal; o slide lê
+# /aovivo/painel e mostra quem entrou, quem terminou e o top 3.
+# ---------------------------------------------------------------------------
+
+@app.route("/aovivo", methods=["GET", "POST"])
+@limiter.limit("60 per minute", methods=["POST"])
+def aovivo():
+    session.permanent = True
+    if request.method == "GET":
+        return _render_quiz(
+            imagem=None, mensagem=None,
+            total_imagens=min(QUIZ_QUESTIONS_PER_ATTEMPT, len(get_imagens())),
+            correto=None, descricao_codigo=None, respondido=False,
+            score_acertos=0, score_total=0, modo_sequencial=False,
+            pedir_nome=True, nome_sugerido="", quiz_nome=None,
+            form_action=url_for("aovivo"), aovivo=True,
+        )
+    try:
+        participant = create_participant(request.form.get("nome", ""), **_db_options())
+    except ValueError:
+        return _render_quiz(
+            imagem=None, mensagem="Informe um nome válido para começar.",
+            total_imagens=min(QUIZ_QUESTIONS_PER_ATTEMPT, len(get_imagens())),
+            correto=None, descricao_codigo=None, respondido=False,
+            score_acertos=0, score_total=0, modo_sequencial=False,
+            pedir_nome=True, nome_sugerido="", quiz_nome=None,
+            form_action=url_for("aovivo"), aovivo=True,
+        ), 400
+    if session.get("attempt_id"):
+        _end_session_attempt("student_change")
+    session["participant_id"] = participant.id
+    session["quiz_nome"] = participant.name
+    session["quiz_modo"] = LIVE_MODE
+    _clear_quiz_progress()
+    _start_session_attempt()
+    return redirect(url_for("quiz"))
+
+
+@app.get("/aovivo/painel")
+@limiter.limit("120 per minute")
+def aovivo_painel():
+    """Estado do quiz ao vivo para o slide. Só nomes, acertos e tempo."""
+    agora = datetime.now(timezone.utc)
+    desde_ms = _safe_int(request.args.get("desde"), 0)
+    limite = agora - timedelta(hours=6)
+    try:
+        desde = datetime.fromtimestamp(desde_ms / 1000, tz=timezone.utc)
+    except (OverflowError, OSError, ValueError):
+        desde = limite
+    desde = max(desde, limite)
+    resp = jsonify(live_snapshot(since=desde, **_db_options()))
+    resp.headers["Access-Control-Allow-Origin"] = "*"
+    return resp
 
 
 @app.route("/scores")

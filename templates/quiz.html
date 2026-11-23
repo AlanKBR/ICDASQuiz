@@ -12,9 +12,10 @@
 {% if pedir_nome %}
   <section class="quiz-start-stage">
     <span class="blob a"></span><span class="blob b"></span>
-    <form class="quiz-start-form lift" method="post" action="{{ url_for('quiz_iniciar') }}">
+    <form class="quiz-start-form lift" method="post" action="{{ form_action or url_for('quiz_iniciar') }}">
       {{ csrf() }}
       <h1 class="sr-only">Quiz ICDAS</h1>
+      {% if aovivo %}<p class="kick">Quiz ao vivo</p>{% endif %}
       {% if mensagem %}<p role="alert" class="form-alert">{{ mensagem }}</p>{% endif %}
       <label class="sr-only" for="quiz-nome">Seu nome</label>
       <input id="quiz-nome" name="nome" class="quiz-name" placeholder="Seu nome" autocomplete="name" maxlength="100" required autofocus>

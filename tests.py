@@ -2180,3 +2180,73 @@ class TestApresentacaoTCC:
         resp = client.get('/')
         assert "'unsafe-inline'" not in resp.headers['Content-Security-Policy']
         assert resp.headers['X-Frame-Options'] == 'DENY'
+
+
+class TestQuizAoVivo:
+    def _jogar(self, app_module, nome, acertar):
+        """Entra pelo QR e responde todas as questões; `acertar(i)` decide cada uma."""
+        imagens = {img["id"]: img for img in app_module.get_imagens()}
+        with app_module.app.test_client() as c:
+            assert c.post('/aovivo', data={'nome': nome}).status_code == 302
+            for i in range(app_module.QUIZ_QUESTIONS_PER_ATTEMPT):
+                c.get('/quiz')
+                with c.session_transaction() as sess:
+                    pronto = 'quiz_atual' in sess
+                if not pronto:
+                    c.get('/quiz')
+                with c.session_transaction() as sess:
+                    atual, attempt_id = sess['quiz_atual'], sess['attempt_id']
+                codigo = imagens[atual]['icdas_code']
+                resposta = codigo if acertar(i) else (codigo + 1) % 7
+                c.post('/quiz', data={'imagem_id': atual, 'attempt_id': attempt_id, 'resposta': resposta})
+            c.get('/quiz')
+
+    def _painel(self, client):
+        resp = client.get('/aovivo/painel?desde=0')
+        assert resp.status_code == 200
+        assert resp.headers['Access-Control-Allow-Origin'] == '*'
+        return resp.get_json()
+
+    def test_entrada_mostra_formulario_ao_vivo(self, client):
+        html = client.get('/aovivo').get_data(as_text=True)
+        assert 'Quiz ao vivo' in html
+        assert 'action="/aovivo"' in html
+
+    def test_quem_entra_aparece_jogando(self, client, app_module):
+        with app_module.app.test_client() as c:
+            c.post('/aovivo', data={'nome': 'Rodrigo'})
+        dados = self._painel(client)
+        assert [(p['nome'], p['status'], p['acertos']) for p in dados['jogadores']] == [('Rodrigo', 'jogando', None)]
+        assert dados['top'] == []
+
+    def test_top3_por_acertos_e_desempate_por_tempo(self, client, app_module):
+        import database
+        self._jogar(app_module, 'Ana', lambda i: True)
+        self._jogar(app_module, 'Bia', lambda i: i < 8)
+        self._jogar(app_module, 'Caio', lambda i: True)
+        self._jogar(app_module, 'Duda', lambda i: i < 5)
+        # Fixa os tempos: Caio empata com Ana em acertos, mas foi mais rápido.
+        tempos = {'Ana': 90, 'Bia': 40, 'Caio': 75, 'Duda': 30}
+        with database.session_scope(db_path=app_module.DB_PATH) as db:
+            for attempt, participant in db.execute(
+                database.select(database.Attempt, database.Participant)
+                .join(database.Participant)
+            ).all():
+                attempt.finished_at = attempt.started_at + timedelta(seconds=tempos[participant.name])
+            db.commit()
+        dados = self._painel(client)
+        assert all(p['status'] == 'terminou' for p in dados['jogadores'])
+        assert [(p['nome'], p['acertos'], p['segundos']) for p in dados['top']] == [
+            ('Caio', 10, 75.0), ('Ana', 10, 90.0), ('Bia', 8, 40.0)]
+
+    def test_so_primeira_tentativa_conta(self, client, app_module):
+        self._jogar(app_module, 'Leo', lambda i: False)
+        self._jogar(app_module, 'leo', lambda i: True)
+        dados = self._painel(client)
+        assert len(dados['jogadores']) == 1
+        assert dados['top'][0]['acertos'] == 0
+
+    def test_quiz_normal_nao_entra_no_painel(self, client):
+        client.post('/quiz/iniciar', data={'nome': 'Fulano'})
+        client.get('/quiz')
+        assert self._painel(client)['jogadores'] == []

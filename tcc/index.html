@@ -1012,6 +1012,39 @@ aside{display:none}
 .fin .fcol{display:flex;flex-direction:column;gap:22px}
 .fin .rc.av h3{font-size:38px}.fin .rc.av p{font-size:25px}
 #s-conc .fin .rc.go h3{font-size:38px}#s-conc .fin .rc.go p{font-size:25px}
+
+/* ===== rodada 15: quiz ao vivo ===== */
+#s-live .lvA{position:absolute;left:128px;top:300px;width:1664px;display:grid;grid-template-columns:440px 1fr;gap:56px;transition:opacity .6s ease,transform .8s var(--ease)}
+#s-live.k1 .lvA{opacity:0;transform:translateY(-40px) scale(.97);pointer-events:none}
+#s-live .lvqr{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:28px;padding:30px;text-align:center}
+#s-live .lvqr svg{width:100%;height:auto;display:block;border-radius:14px}
+#s-live .lvqr .u{font-size:30px;font-weight:600;color:var(--mint);margin-top:20px;letter-spacing:-.3px}
+#s-live .lvqr .h{font-size:20px;color:#a9bab5;margin-top:8px;line-height:1.45}
+#s-live .lvhd{font-size:24px;letter-spacing:2px;text-transform:uppercase;color:#a9bab5;font-weight:600;display:flex;align-items:baseline;gap:10px}
+#s-live .lvhd #lvn{font-size:64px;color:var(--paper);letter-spacing:-2px;font-weight:700;font-variant-numeric:tabular-nums}
+#s-live .lvst{margin-left:auto;font-size:18px;letter-spacing:1px;text-transform:none;color:#7d8f8a}
+#s-live .lvgrid{margin-top:24px;display:flex;flex-wrap:wrap;gap:14px;align-content:flex-start;max-height:520px;overflow:hidden}
+#s-live .lvempty{font-size:28px;color:#8ea19b;line-height:1.4;max-width:720px}
+#s-live .lvc{display:flex;align-items:center;gap:14px;padding:14px 22px 14px 16px;border-radius:999px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);font-size:27px;font-weight:600;color:var(--paper);animation:lvin .55s cubic-bezier(.2,1.4,.4,1) both;transition:background .4s,border-color .4s}
+#s-live .lvc i{width:38px;height:38px;border-radius:50%;background:var(--lil);color:#2a1d63;font-style:normal;font-size:19px;font-weight:700;display:grid;place-items:center}
+#s-live .lvc small{font-size:20px;font-weight:500;color:#a9bab5;font-variant-numeric:tabular-nums}
+#s-live .lvc.done{background:rgba(108,228,194,.12);border-color:var(--mint)}
+#s-live .lvc.done i{background:var(--mint);color:#0b3d31}
+#s-live .lvc.done small{color:var(--mint)}
+@keyframes lvin{from{opacity:0;transform:scale(.6) translateY(14px)}}
+#s-live .lvB{position:absolute;left:128px;right:128px;top:300px;height:600px;display:flex;align-items:flex-end;justify-content:center;gap:36px;pointer-events:none}
+#s-live .lvp{width:420px;display:flex;flex-direction:column;align-items:center;opacity:0;transform:translateY(60px);transition:opacity .6s ease,transform .9s cubic-bezier(.2,1.25,.4,1)}
+#s-live.k1 .lvp.go{opacity:1;transform:none}
+#s-live .lvp .nm{font-size:40px;font-weight:700;color:var(--paper);letter-spacing:-1px;text-align:center;line-height:1.1;max-width:420px;overflow-wrap:anywhere}
+#s-live .lvp .sc{font-size:26px;color:#cfdad7;margin:10px 0 18px;font-variant-numeric:tabular-nums}
+#s-live .lvp .sc b{color:var(--mint);font-weight:700}
+#s-live .lvp .bk{width:100%;border-radius:22px 22px 0 0;display:flex;align-items:flex-start;justify-content:center;padding-top:22px;font-size:72px;font-weight:700;color:#0b3d31}
+#s-live .lvp.p1 .bk{height:330px;background:linear-gradient(180deg,#6ce4c2,#2fae8c)}
+#s-live .lvp.p2 .bk{height:240px;background:linear-gradient(180deg,#c1b3ef,#8f7ad6);color:#2a1d63}
+#s-live .lvp.p3 .bk{height:170px;background:linear-gradient(180deg,#9fb1ac,#6d817b);color:#1d2a27}
+#s-live .lvp.p1 .nm{font-size:52px}
+#s-live .lvnone{font-size:32px;color:#a9bab5;align-self:center;opacity:0;transition:opacity .6s .3s}
+#s-live.k1 .lvnone{opacity:1}
 </style>
 
 <div id="prog"></div>
@@ -1483,6 +1516,17 @@ aside{display:none}
   <div class="foot"><span class="b"><span class="mk"><i style="height:8px"></i><i style="height:12px"></i><i style="height:15px"></i><i style="height:18px"></i><i style="height:21px"></i><i style="height:24px"></i><i style="height:26px"></i></span>ICDAS Quiz</span><span class="pg"></span></div>
 </section>
 
+<section class="s dark" id="s-live" data-t="push" data-amb="16" data-steps="1">
+  <p class="eyebrow r" style="--i:0">Sua vez</p>
+  <h2 class="title r" style="--i:1"><span style="color:var(--paper)">Quem acerta mais, </span><span class="acc">mais rápido?</span></h2>
+  <div class="lvA">
+    <div class="lvqr pp" style="--i:3"><svg viewBox="-2 -2 33 33" shape-rendering="crispEdges" role="img" aria-label="QR code para icdasquiz.tech/aovivo"><rect x="-2" y="-2" width="33" height="33" fill="#fff"/><path d="M0 0h1v1h-1zM1 0h1v1h-1zM2 0h1v1h-1zM3 0h1v1h-1zM4 0h1v1h-1zM5 0h1v1h-1zM6 0h1v1h-1zM8 0h1v1h-1zM12 0h1v1h-1zM13 0h1v1h-1zM15 0h1v1h-1zM17 0h1v1h-1zM22 0h1v1h-1zM23 0h1v1h-1zM24 0h1v1h-1zM25 0h1v1h-1zM26 0h1v1h-1zM27 0h1v1h-1zM28 0h1v1h-1zM0 1h1v1h-1zM6 1h1v1h-1zM8 1h1v1h-1zM11 1h1v1h-1zM13 1h1v1h-1zM15 1h1v1h-1zM16 1h1v1h-1zM20 1h1v1h-1zM22 1h1v1h-1zM28 1h1v1h-1zM0 2h1v1h-1zM2 2h1v1h-1zM3 2h1v1h-1zM4 2h1v1h-1zM6 2h1v1h-1zM10 2h1v1h-1zM12 2h1v1h-1zM14 2h1v1h-1zM15 2h1v1h-1zM16 2h1v1h-1zM18 2h1v1h-1zM22 2h1v1h-1zM24 2h1v1h-1zM25 2h1v1h-1zM26 2h1v1h-1zM28 2h1v1h-1zM0 3h1v1h-1zM2 3h1v1h-1zM3 3h1v1h-1zM4 3h1v1h-1zM6 3h1v1h-1zM9 3h1v1h-1zM11 3h1v1h-1zM12 3h1v1h-1zM13 3h1v1h-1zM16 3h1v1h-1zM17 3h1v1h-1zM19 3h1v1h-1zM20 3h1v1h-1zM22 3h1v1h-1zM24 3h1v1h-1zM25 3h1v1h-1zM26 3h1v1h-1zM28 3h1v1h-1zM0 4h1v1h-1zM2 4h1v1h-1zM3 4h1v1h-1zM4 4h1v1h-1zM6 4h1v1h-1zM9 4h1v1h-1zM10 4h1v1h-1zM12 4h1v1h-1zM13 4h1v1h-1zM16 4h1v1h-1zM18 4h1v1h-1zM19 4h1v1h-1zM20 4h1v1h-1zM22 4h1v1h-1zM24 4h1v1h-1zM25 4h1v1h-1zM26 4h1v1h-1zM28 4h1v1h-1zM0 5h1v1h-1zM6 5h1v1h-1zM12 5h1v1h-1zM13 5h1v1h-1zM15 5h1v1h-1zM16 5h1v1h-1zM17 5h1v1h-1zM20 5h1v1h-1zM22 5h1v1h-1zM28 5h1v1h-1zM0 6h1v1h-1zM1 6h1v1h-1zM2 6h1v1h-1zM3 6h1v1h-1zM4 6h1v1h-1zM5 6h1v1h-1zM6 6h1v1h-1zM8 6h1v1h-1zM10 6h1v1h-1zM12 6h1v1h-1zM14 6h1v1h-1zM16 6h1v1h-1zM18 6h1v1h-1zM20 6h1v1h-1zM22 6h1v1h-1zM23 6h1v1h-1zM24 6h1v1h-1zM25 6h1v1h-1zM26 6h1v1h-1zM27 6h1v1h-1zM28 6h1v1h-1zM9 7h1v1h-1zM13 7h1v1h-1zM14 7h1v1h-1zM18 7h1v1h-1zM19 7h1v1h-1zM1 8h1v1h-1zM6 8h1v1h-1zM7 8h1v1h-1zM8 8h1v1h-1zM9 8h1v1h-1zM11 8h1v1h-1zM12 8h1v1h-1zM13 8h1v1h-1zM16 8h1v1h-1zM17 8h1v1h-1zM21 8h1v1h-1zM27 8h1v1h-1zM28 8h1v1h-1zM1 9h1v1h-1zM4 9h1v1h-1zM5 9h1v1h-1zM9 9h1v1h-1zM13 9h1v1h-1zM14 9h1v1h-1zM15 9h1v1h-1zM18 9h1v1h-1zM19 9h1v1h-1zM24 9h1v1h-1zM25 9h1v1h-1zM27 9h1v1h-1zM1 10h1v1h-1zM2 10h1v1h-1zM3 10h1v1h-1zM6 10h1v1h-1zM11 10h1v1h-1zM13 10h1v1h-1zM18 10h1v1h-1zM21 10h1v1h-1zM22 10h1v1h-1zM24 10h1v1h-1zM26 10h1v1h-1zM1 11h1v1h-1zM2 11h1v1h-1zM5 11h1v1h-1zM9 11h1v1h-1zM10 11h1v1h-1zM15 11h1v1h-1zM16 11h1v1h-1zM19 11h1v1h-1zM20 11h1v1h-1zM22 11h1v1h-1zM25 11h1v1h-1zM0 12h1v1h-1zM3 12h1v1h-1zM6 12h1v1h-1zM7 12h1v1h-1zM9 12h1v1h-1zM11 12h1v1h-1zM12 12h1v1h-1zM13 12h1v1h-1zM14 12h1v1h-1zM19 12h1v1h-1zM20 12h1v1h-1zM21 12h1v1h-1zM22 12h1v1h-1zM27 12h1v1h-1zM2 13h1v1h-1zM3 13h1v1h-1zM5 13h1v1h-1zM10 13h1v1h-1zM11 13h1v1h-1zM13 13h1v1h-1zM17 13h1v1h-1zM19 13h1v1h-1zM20 13h1v1h-1zM22 13h1v1h-1zM24 13h1v1h-1zM25 13h1v1h-1zM28 13h1v1h-1zM0 14h1v1h-1zM4 14h1v1h-1zM6 14h1v1h-1zM7 14h1v1h-1zM9 14h1v1h-1zM11 14h1v1h-1zM14 14h1v1h-1zM15 14h1v1h-1zM17 14h1v1h-1zM20 14h1v1h-1zM22 14h1v1h-1zM23 14h1v1h-1zM27 14h1v1h-1zM0 15h1v1h-1zM2 15h1v1h-1zM3 15h1v1h-1zM7 15h1v1h-1zM9 15h1v1h-1zM11 15h1v1h-1zM14 15h1v1h-1zM15 15h1v1h-1zM16 15h1v1h-1zM20 15h1v1h-1zM21 15h1v1h-1zM24 15h1v1h-1zM25 15h1v1h-1zM26 15h1v1h-1zM5 16h1v1h-1zM6 16h1v1h-1zM10 16h1v1h-1zM11 16h1v1h-1zM13 16h1v1h-1zM14 16h1v1h-1zM16 16h1v1h-1zM18 16h1v1h-1zM19 16h1v1h-1zM20 16h1v1h-1zM25 16h1v1h-1zM26 16h1v1h-1zM27 16h1v1h-1zM28 16h1v1h-1zM0 17h1v1h-1zM1 17h1v1h-1zM2 17h1v1h-1zM3 17h1v1h-1zM4 17h1v1h-1zM8 17h1v1h-1zM12 17h1v1h-1zM13 17h1v1h-1zM14 17h1v1h-1zM18 17h1v1h-1zM19 17h1v1h-1zM20 17h1v1h-1zM22 17h1v1h-1zM23 17h1v1h-1zM24 17h1v1h-1zM25 17h1v1h-1zM28 17h1v1h-1zM0 18h1v1h-1zM1 18h1v1h-1zM2 18h1v1h-1zM4 18h1v1h-1zM5 18h1v1h-1zM6 18h1v1h-1zM8 18h1v1h-1zM9 18h1v1h-1zM12 18h1v1h-1zM13 18h1v1h-1zM14 18h1v1h-1zM15 18h1v1h-1zM18 18h1v1h-1zM19 18h1v1h-1zM25 18h1v1h-1zM26 18h1v1h-1zM28 18h1v1h-1zM0 19h1v1h-1zM4 19h1v1h-1zM8 19h1v1h-1zM11 19h1v1h-1zM12 19h1v1h-1zM14 19h1v1h-1zM19 19h1v1h-1zM20 19h1v1h-1zM21 19h1v1h-1zM22 19h1v1h-1zM24 19h1v1h-1zM25 19h1v1h-1zM27 19h1v1h-1zM0 20h1v1h-1zM2 20h1v1h-1zM4 20h1v1h-1zM6 20h1v1h-1zM7 20h1v1h-1zM8 20h1v1h-1zM10 20h1v1h-1zM11 20h1v1h-1zM15 20h1v1h-1zM17 20h1v1h-1zM19 20h1v1h-1zM20 20h1v1h-1zM21 20h1v1h-1zM22 20h1v1h-1zM23 20h1v1h-1zM24 20h1v1h-1zM26 20h1v1h-1zM28 20h1v1h-1zM8 21h1v1h-1zM10 21h1v1h-1zM14 21h1v1h-1zM15 21h1v1h-1zM20 21h1v1h-1zM24 21h1v1h-1zM25 21h1v1h-1zM26 21h1v1h-1zM27 21h1v1h-1zM0 22h1v1h-1zM1 22h1v1h-1zM2 22h1v1h-1zM3 22h1v1h-1zM4 22h1v1h-1zM5 22h1v1h-1zM6 22h1v1h-1zM8 22h1v1h-1zM10 22h1v1h-1zM12 22h1v1h-1zM15 22h1v1h-1zM16 22h1v1h-1zM18 22h1v1h-1zM19 22h1v1h-1zM20 22h1v1h-1zM22 22h1v1h-1zM24 22h1v1h-1zM0 23h1v1h-1zM6 23h1v1h-1zM9 23h1v1h-1zM10 23h1v1h-1zM16 23h1v1h-1zM18 23h1v1h-1zM19 23h1v1h-1zM20 23h1v1h-1zM24 23h1v1h-1zM25 23h1v1h-1zM27 23h1v1h-1zM0 24h1v1h-1zM2 24h1v1h-1zM3 24h1v1h-1zM4 24h1v1h-1zM6 24h1v1h-1zM9 24h1v1h-1zM10 24h1v1h-1zM11 24h1v1h-1zM15 24h1v1h-1zM16 24h1v1h-1zM17 24h1v1h-1zM18 24h1v1h-1zM19 24h1v1h-1zM20 24h1v1h-1zM21 24h1v1h-1zM22 24h1v1h-1zM23 24h1v1h-1zM24 24h1v1h-1zM27 24h1v1h-1zM0 25h1v1h-1zM2 25h1v1h-1zM3 25h1v1h-1zM4 25h1v1h-1zM6 25h1v1h-1zM10 25h1v1h-1zM12 25h1v1h-1zM14 25h1v1h-1zM16 25h1v1h-1zM18 25h1v1h-1zM19 25h1v1h-1zM20 25h1v1h-1zM23 25h1v1h-1zM25 25h1v1h-1zM27 25h1v1h-1zM0 26h1v1h-1zM2 26h1v1h-1zM3 26h1v1h-1zM4 26h1v1h-1zM6 26h1v1h-1zM9 26h1v1h-1zM11 26h1v1h-1zM12 26h1v1h-1zM13 26h1v1h-1zM14 26h1v1h-1zM18 26h1v1h-1zM19 26h1v1h-1zM20 26h1v1h-1zM21 26h1v1h-1zM22 26h1v1h-1zM23 26h1v1h-1zM24 26h1v1h-1zM25 26h1v1h-1zM27 26h1v1h-1zM0 27h1v1h-1zM6 27h1v1h-1zM8 27h1v1h-1zM10 27h1v1h-1zM11 27h1v1h-1zM13 27h1v1h-1zM15 27h1v1h-1zM22 27h1v1h-1zM24 27h1v1h-1zM25 27h1v1h-1zM26 27h1v1h-1zM28 27h1v1h-1zM0 28h1v1h-1zM1 28h1v1h-1zM2 28h1v1h-1zM3 28h1v1h-1zM4 28h1v1h-1zM5 28h1v1h-1zM6 28h1v1h-1zM9 28h1v1h-1zM10 28h1v1h-1zM16 28h1v1h-1zM17 28h1v1h-1zM19 28h1v1h-1zM24 28h1v1h-1zM26 28h1v1h-1z" fill="#192521"/></svg><p class="u">icdasquiz.tech/aovivo</p><p class="h">10 fotos · vale a primeira tentativa<br>empate: quem terminou antes</p></div>
+    <div class="lvlobby r" style="--i:4"><p class="lvhd"><span id="lvn">0</span> <span id="lvl">na sala</span><span class="lvst" id="lvst"></span></p><div class="lvgrid" id="lvgrid"><p class="lvempty">Aponte a câmera para o QR code e coloque seu nome.</p></div></div>
+  </div>
+  <div class="lvB" id="lvpod"></div>
+  <div class="foot"><span class="b"><span class="mk"><i style="height:8px"></i><i style="height:12px"></i><i style="height:15px"></i><i style="height:18px"></i><i style="height:21px"></i><i style="height:24px"></i><i style="height:26px"></i></span>ICDAS Quiz</span><span class="pg"></span></div>
+</section>
+
 <section class="s dark" id="s-fim" data-t="fade" data-amb="18">
   <div class="fl">
     <p class="eyebrow r" style="--i:0">ICDAS Quiz</p>
@@ -1679,5 +1723,36 @@ aside{display:none}
 
   const m=/^#s(\d+)$/.exec(location.hash);go(m?(+m[1]-1):0);
   addEventListener('hashchange',()=>{const m=/^#s(\d+)$/.exec(location.hash);if(m&&+m[1]-1!==cur)go(+m[1]-1);});
+})();
+</script>
+
+<script>
+(()=>{const sec=document.getElementById('s-live');if(!sec)return;
+  const API=(/^\/tcc\//.test(location.pathname)?'':'https://icdasquiz.tech')+'/aovivo/painel';
+  const grid=document.getElementById('lvgrid'),cnt=document.getElementById('lvn'),lbl=document.getElementById('lvl'),st=document.getElementById('lvst'),pod=document.getElementById('lvpod');
+  let since=0;try{since=+sessionStorage.getItem('lvSince')||0;}catch(e){}
+  let timer=0,data={jogadores:[],top:[]},shown=new Map(),revealed=false,rt=[];
+  const fmt=v=>v.toFixed(1).replace('.',',')+' s';
+  const ini=n=>n.trim().split(/\s+/).map(w=>w[0]).slice(0,2).join('').toUpperCase();
+  const esc=t=>t.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  function render(){const js=data.jogadores||[];cnt.textContent=js.length;lbl.textContent=js.length===1?'na sala':'na sala';
+    if(!js.length){if(!grid.querySelector('.lvempty'))grid.innerHTML='<p class="lvempty">Aponte a câmera para o QR code e coloque seu nome.</p>';shown.clear();return;}
+    const e=grid.querySelector('.lvempty');if(e)e.remove();
+    js.forEach(p=>{let el=shown.get(p.entrou+p.nome);if(!el){el=document.createElement('div');el.className='lvc';el.innerHTML='<i>'+esc(ini(p.nome))+'</i><span>'+esc(p.nome)+'</span><small></small>';grid.appendChild(el);shown.set(p.entrou+p.nome,el);}
+      const done=p.status==='terminou';el.classList.toggle('done',done);
+      el.querySelector('small').textContent=done?'✓ terminou · '+fmt(p.segundos):(p.status==='saiu'?'saiu':p.respondidas+'/10');});
+  }
+  async function poll(){try{const r=await fetch(API+'?desde='+since,{cache:'no-store'});if(!r.ok)throw 0;data=await r.json();st.textContent='';render();}catch(e){st.textContent='sem conexão com o site';}}
+  function podium(){rt.forEach(clearTimeout);rt=[];const t=(data.top||[]).slice(0,3);
+    if(!t.length){pod.innerHTML='<p class="lvnone">Ninguém terminou ainda.</p>';return;}
+    const order=[1,0,2].filter(i=>t[i]);
+    pod.innerHTML=order.map(i=>{const p=t[i];return '<div class="lvp p'+(i+1)+'"><p class="nm">'+esc(p.nome)+'</p><p class="sc"><b>'+p.acertos+'/10</b> · '+fmt(p.segundos)+'</p><div class="bk">'+(i+1)+'º</div></div>';}).join('');
+    [2,1,0].forEach((i,n)=>{const el=pod.querySelector('.p'+(i+1));if(el)rt.push(setTimeout(()=>el.classList.add('go'),300+n*1500));});}
+  function chk(){const on=sec.classList.contains('on');
+    if(on&&!timer){if(!since){since=Date.now()-60000;try{sessionStorage.setItem('lvSince',since);}catch(e){}}poll();timer=setInterval(()=>{if(!sec.classList.contains('k1'))poll();},2000);}
+    if(!on&&timer){clearInterval(timer);timer=0;}
+    const k1=sec.classList.contains('k1');if(k1&&!revealed){revealed=true;poll().then(podium);}if(!k1&&revealed){revealed=false;rt.forEach(clearTimeout);pod.innerHTML='';}}
+  new MutationObserver(chk).observe(sec,{attributes:true,attributeFilter:['class']});chk();
+  addEventListener('keydown',e=>{if((e.key==='r'||e.key==='R')&&sec.classList.contains('on')){since=Date.now();try{sessionStorage.setItem('lvSince',since);}catch(x){}grid.innerHTML='';shown.clear();data={jogadores:[],top:[]};render();poll();}});
 })();
 </script>

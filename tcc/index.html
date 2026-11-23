@@ -1,5 +1,10 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#111b18">
 <title>Defesa ICDAS Quiz</title>
-<meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="fonts/fonts.css">
 <style>
 :root{
@@ -1094,7 +1099,35 @@ aside{display:none}
 #s-live .lvmore.on{opacity:1}
 #s-live .lvnone{position:absolute;left:0;right:0;top:250px;text-align:center;font-size:40px;color:#a9bab5}
 #s-live .lvconf{position:absolute;left:0;top:0;width:1920px;height:1080px;pointer-events:none;z-index:6}
+
+/* ===== rodada 17: seções do TCC ===== */
+.eyebrow.sect{display:inline-flex;align-items:center;gap:18px;font-size:34px;letter-spacing:2.5px;font-weight:700}
+.eyebrow.sect .n{display:inline-grid;place-items:center;min-width:64px;height:64px;padding:0 12px;border-radius:18px;background:var(--acc);color:#fff;font-size:30px;letter-spacing:0;font-variant-numeric:tabular-nums}
+.dark .eyebrow.sect .n{background:var(--mint);color:#0f1a17}
+.eyebrow.sect .t{color:var(--ink)}
+.dark .eyebrow.sect .t{color:var(--paper)}
+.eyebrow.sect .sub{font-size:22px;font-weight:600;letter-spacing:2px;color:var(--ink3);padding-left:18px;border-left:2px solid var(--hair)}
+.dark .eyebrow.sect .sub{color:#a9bab5;border-color:rgba(255,255,255,.2)}
+.foot .rail{display:flex;gap:6px;font-size:17px;font-weight:600;letter-spacing:1.2px;text-transform:uppercase}
+.foot .rail span{padding:6px 12px;border-radius:999px;opacity:.45}
+.foot .rail span.dn{opacity:.7}
+.foot .rail span.on{opacity:1;background:var(--acc);color:#fff}
+.dark .foot .rail span.on{background:var(--mint);color:#0f1a17}
+#s-1809 .uname .ty{width:auto;clip-path:inset(0 100% 0 0)}
+#s-1809.k1 .uname.m .ty{width:auto;animation:tyclip 1.1s steps(14) .5s both}
+#s-1809.k1 .uname.n .ty{width:auto;animation:tyclip 1.1s steps(13) 1.5s both}
+@keyframes tyclip{to{clip-path:inset(0 0 0 0)}}
+.uname{width:auto;min-width:420px}
+#s-err .err{margin-top:20px}
+
+/* ===== rodada 18: desempenho ===== */
+.amb{will-change:transform}
+#stage:not([style*="transform"]){visibility:hidden}
 </style>
+<script>if('serviceWorker' in navigator&&/^https?:$/.test(location.protocol))addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){})})</script>
+</head>
+<body>
+
 
 <div id="prog"></div>
 <div id="vp"><div id="stage">
@@ -1122,7 +1155,7 @@ aside{display:none}
 </section>
 
 <section class="s" id="s-proc" data-t="push" data-amb="3">
-  <p class="eyebrow r" style="--i:0">Contexto</p>
+  <p class="eyebrow sect r" style="--i:0"><span class="n">01</span><span class="t">Introdução</span></p>
   <h2 class="title r" style="--i:1">O que é a cárie dentária?</h2>
   <div class="cx">
     <div class="cards">
@@ -1159,7 +1192,7 @@ aside{display:none}
     <div class="bar"></div><div class="knob" id="cknob" style="left:3%"></div>
     <div class="ends"><p>Hígido</p><p>Mancha branca opaca</p><p>Pigmento e sombra</p><p>Cavidade com dentina</p></div>
   </div>
-  <div class="foot"><span class="b"><span class="mk"><i style="height:8px"></i><i style="height:12px"></i><i style="height:15px"></i><i style="height:18px"></i><i style="height:21px"></i><i style="height:24px"></i><i style="height:26px"></i></span>ICDAS Quiz</span><span class="pg"></span></div>
+  <div class="foot"><span class="b"><span class="mk"><i style="height:8px"></i><i style="height:12px"></i><i style="height:15px"></i><i style="height:18px"></i><i style="height:21px"></i><i style="height:24px"></i><i style="height:26px"></i></span>ICDAS Quiz</span><span class="rail"><span class="on">Introdução</span><span class="">Objetivo</span><span class="">Metodologia</span><span class="">Resultados</span><span class="">Discussão</span><span class="">Conclusão</span></span><span class="pg"></span></div>
 </section>
 
 <section class="s" id="s-sis" data-t="push" data-amb="4" data-steps="1">
@@ -1220,12 +1253,12 @@ aside{display:none}
     </div>
     <div class="shot r" style="--i:6"><img src="img/c2livre.jpg" alt="ICDAS 2, superfície livre"><p class="k">ICDAS 2</p><p class="label">Já é visível com a superfície úmida, e a secagem confirma.</p></div>
   </div>
-  <p class="punch r" style="--i:9">Na fotografia, ninguém consegue secar o dente.</p>
+  <p class="punch r" style="--i:9">Na fotografia, não é possível realizar a secagem da superfície.</p>
   <div class="foot"><span class="b"><span class="mk"><i style="height:8px"></i><i style="height:12px"></i><i style="height:15px"></i><i style="height:18px"></i><i style="height:21px"></i><i style="height:24px"></i><i style="height:26px"></i></span>ICDAS Quiz</span><span class="pg"></span></div>
 </section>
 
 <section class="s dark" id="s-obj" data-t="dark" data-amb="7">
-  <p class="eyebrow r" style="--i:0">Objetivo</p>
+  <p class="eyebrow sect r" style="--i:0"><span class="n">02</span><span class="t">Objetivo</span></p>
   <h2 class="title r" style="--i:1">Desenvolver um software web para o <span class="acc">ensino visual do ICDAS</span> e o raciocínio sobre tratamento.</h2>
   <p class="lead r" style="--i:3;margin-top:36px;width:1400px">A ideia: difundir esse conhecimento e dar ao aluno uma ferramenta para treinar o olhar.</p>
   <div class="prior" style="margin-top:70px">
@@ -1233,11 +1266,11 @@ aside{display:none}
     <div class="fi" style="--i:6"><p class="w">E-learning com ferramenta fotográfica</p><p class="rr">Luz et al., 2015</p></div>
     <div class="fi" style="--i:7"><p class="w">Aula, prática e e-learning em sequência</p><p class="rr">El-Damanhoury, Fakhruddin e Awad, 2014</p></div>
   </div>
-  <div class="foot"><span class="b"><span class="mk"><i style="height:8px"></i><i style="height:12px"></i><i style="height:15px"></i><i style="height:18px"></i><i style="height:21px"></i><i style="height:24px"></i><i style="height:26px"></i></span>ICDAS Quiz</span><span class="pg"></span></div>
+  <div class="foot"><span class="b"><span class="mk"><i style="height:8px"></i><i style="height:12px"></i><i style="height:15px"></i><i style="height:18px"></i><i style="height:21px"></i><i style="height:24px"></i><i style="height:26px"></i></span>ICDAS Quiz</span><span class="rail"><span class="dn">Introdução</span><span class="on">Objetivo</span><span class="">Metodologia</span><span class="">Resultados</span><span class="">Discussão</span><span class="">Conclusão</span></span><span class="pg"></span></div>
 </section>
 
 <section class="s" id="s-met" data-t="dark" data-amb="8">
-  <p class="eyebrow r" style="--i:0">Método · pesquisa aplicada</p>
+  <p class="eyebrow sect r" style="--i:0"><span class="n">03</span><span class="t">Metodologia</span><span class="sub">pesquisa aplicada</span></p>
   <h2 class="title r" style="--i:1">Desenvolvimento tecnológico, em três frentes.</h2>
   <div class="mt3">
     <div class="mtc r" style="--i:3"><svg width="64" height="64" viewBox="0 0 64 64" aria-hidden="true"><path d="M8 14 C18 10 26 11 32 16 C38 11 46 10 56 14 V52 C46 48 38 49 32 54 C26 49 18 48 8 52 Z" fill="#e7f5f0" stroke="#138168" stroke-width="3" stroke-linejoin="round"/><path d="M32 16 V54" stroke="#138168" stroke-width="3"/><path d="M15 23 C19 22 23 22 26 24 M15 31 C19 30 23 30 26 32 M38 24 C41 22 45 22 49 23 M38 32 C41 30 45 30 49 31" stroke="#138168" stroke-width="2.4" stroke-linecap="round"/></svg><p class="n">Base</p><h3>A literatura define o conteúdo</h3><p>Critérios de 0 a 6 conferidos no artigo original e no manual do ICDAS. A árvore de tratamento segue um livro de referência em manejo da cárie.</p><p class="rf">Ismail et al., 2007 · ICDAS Coordinating Committee, 2009 · Dikmen, 2015 · Meyer-Lueckel et al., 2013</p></div>
@@ -1248,11 +1281,11 @@ aside{display:none}
   </div>
   <div class="mtout fi" style="--i:9"><b>Fora do escopo</b><span>recrutamento de participantes</span><span>intervenção educacional</span><span>medida de aprendizagem</span></div>
   <p class="mtia fi" style="--i:10">IA generativa (GitHub Copilot, Gemini, Codex) apoiou programação, depuração e revisão do texto. As decisões foram do acadêmico e do orientador.</p>
-  <div class="foot"><span class="b"><span class="mk"><i style="height:8px"></i><i style="height:12px"></i><i style="height:15px"></i><i style="height:18px"></i><i style="height:21px"></i><i style="height:24px"></i><i style="height:26px"></i></span>ICDAS Quiz</span><span class="pg"></span></div>
+  <div class="foot"><span class="b"><span class="mk"><i style="height:8px"></i><i style="height:12px"></i><i style="height:15px"></i><i style="height:18px"></i><i style="height:21px"></i><i style="height:24px"></i><i style="height:26px"></i></span>ICDAS Quiz</span><span class="rail"><span class="dn">Introdução</span><span class="dn">Objetivo</span><span class="on">Metodologia</span><span class="">Resultados</span><span class="">Discussão</span><span class="">Conclusão</span></span><span class="pg"></span></div>
 </section>
 
 <section class="s" id="s-prod" data-t="push" data-amb="11" data-steps="1">
-  <p class="eyebrow r" style="--i:0">O produto</p>
+  <p class="eyebrow sect r" style="--i:0"><span class="n">04</span><span class="t">Resultados</span><span class="sub">o produto</span></p>
   <h2 class="title r" style="--i:1">O ICDAS Quiz hoje.</h2>
   <div class="bw r" style="--i:2">
     <div class="bar"><i></i><i></i><i></i><span>icdasquiz.tech</span></div>
@@ -1271,7 +1304,7 @@ aside{display:none}
     <p class="cbl">por código ICDAS · conferido em 15/11/2026</p>
   </div>
   <div class="chips fi" style="--i:8"><p>Escala 0 a 6</p><p>Galeria</p><p>Quiz com feedback</p><p>Placar</p><p>Árvore de tratamento</p></div>
-  <div class="foot"><span class="b"><span class="mk"><i style="height:8px"></i><i style="height:12px"></i><i style="height:15px"></i><i style="height:18px"></i><i style="height:21px"></i><i style="height:24px"></i><i style="height:26px"></i></span>ICDAS Quiz</span><span class="pg"></span></div>
+  <div class="foot"><span class="b"><span class="mk"><i style="height:8px"></i><i style="height:12px"></i><i style="height:15px"></i><i style="height:18px"></i><i style="height:21px"></i><i style="height:24px"></i><i style="height:26px"></i></span>ICDAS Quiz</span><span class="rail"><span class="dn">Introdução</span><span class="dn">Objetivo</span><span class="dn">Metodologia</span><span class="on">Resultados</span><span class="">Discussão</span><span class="">Conclusão</span></span><span class="pg"></span></div>
 </section>
 
 <section class="s" id="s-arv" data-t="push" data-amb="11" data-steps="1">
@@ -1529,7 +1562,7 @@ aside{display:none}
 </section>
 
 <section class="s" id="s-err" data-t="push" data-amb="15" data-steps="1">
-  <p class="eyebrow r" style="--i:0">O que os dados mostram</p>
+  <p class="eyebrow sect r" style="--i:0"><span class="n">05</span><span class="t">Discussão</span><span class="sub">o que os dados mostram</span></p>
   <h2 class="title r" style="--i:1">Onde o olho mais erra: <span class="lil">1 e 2</span>.</h2>
   <div class="err">
     <div class="acc-bars fi" style="--i:2">
@@ -1548,11 +1581,11 @@ aside{display:none}
     </div>
   </div>
   <p class="callout fr" data-f="1">Quando o gabarito era 2, <b>106 respostas marcaram 1</b>. Sem secar, o 2 parece 1.</p>
-  <div class="foot"><span class="b"><span class="mk"><i style="height:8px"></i><i style="height:12px"></i><i style="height:15px"></i><i style="height:18px"></i><i style="height:21px"></i><i style="height:24px"></i><i style="height:26px"></i></span>ICDAS Quiz</span><span class="pg"></span></div>
+  <div class="foot"><span class="b"><span class="mk"><i style="height:8px"></i><i style="height:12px"></i><i style="height:15px"></i><i style="height:18px"></i><i style="height:21px"></i><i style="height:24px"></i><i style="height:26px"></i></span>ICDAS Quiz</span><span class="rail"><span class="dn">Introdução</span><span class="dn">Objetivo</span><span class="dn">Metodologia</span><span class="dn">Resultados</span><span class="on">Discussão</span><span class="">Conclusão</span></span><span class="pg"></span></div>
 </section>
 
 <section class="s dark" id="s-conc" data-t="dark" data-amb="17">
-  <p class="eyebrow r" style="--i:0">Conclusão</p>
+  <p class="eyebrow sect r" style="--i:0"><span class="n">06</span><span class="t">Conclusão</span></p>
   <h2 class="title r" style="--i:1"><span style="color:var(--paper)">O software está no ar. </span><span class="acc">Agora, a pesquisa.</span></h2>
   <div class="fin">
     <div class="rc r" style="--i:4"><p class="tag" style="color:var(--lil)">Limites deste trabalho</p>
@@ -1562,7 +1595,7 @@ aside{display:none}
     <div class="rc go r" style="--i:7"><p class="tag">Um convite</p><h3>Que outro aluno continue este trabalho.</h3><p>Com uma pesquisa aplicada, aprovada pelo CEP, para medir se o treino melhora a classificação, principalmente nos códigos 1 e 2.</p></div>
     </div>
   </div>
-  <div class="foot"><span class="b"><span class="mk"><i style="height:8px"></i><i style="height:12px"></i><i style="height:15px"></i><i style="height:18px"></i><i style="height:21px"></i><i style="height:24px"></i><i style="height:26px"></i></span>ICDAS Quiz</span><span class="pg"></span></div>
+  <div class="foot"><span class="b"><span class="mk"><i style="height:8px"></i><i style="height:12px"></i><i style="height:15px"></i><i style="height:18px"></i><i style="height:21px"></i><i style="height:24px"></i><i style="height:26px"></i></span>ICDAS Quiz</span><span class="rail"><span class="dn">Introdução</span><span class="dn">Objetivo</span><span class="dn">Metodologia</span><span class="dn">Resultados</span><span class="dn">Discussão</span><span class="on">Conclusão</span></span><span class="pg"></span></div>
 </section>
 
 <section class="s dark" id="s-live" data-t="push" data-amb="16" data-steps="1">
@@ -1846,3 +1879,24 @@ aside{display:none}
   addEventListener('keydown',e=>{if((e.key==='r'||e.key==='R')&&sec.classList.contains('on')&&!revealed){since=Date.now()+offset;ss.set('lvSince',since);hidden=new Set();ss.set('lvHidden','[]');data={jogadores:[],top:[]};render();poll();}});
 })();
 </script>
+<script>
+(function(){
+  var so=document.getElementById('s-open'),f=document.getElementById('opening');
+  if(so&&f){
+    var st=null;
+    function send(a){try{f.contentWindow.postMessage({source:'icdasquiz-presentation-controller',action:a},location.origin)}catch(e){}}
+    function chk(){var on=so.classList.contains('on')||so.classList.contains('leaving');if(on!==st){st=on;send(on?'resume':'pause')}}
+    new MutationObserver(chk).observe(so,{attributes:true,attributeFilter:['class']});
+    f.addEventListener('load',function(){st=null;chk()});
+    chk();
+  }
+  function warm(){
+    var imgs=[].slice.call(document.querySelectorAll('#stage img'));
+    (function next(){var im=imgs.shift();if(!im)return;
+      var p=im.decode?im.decode():Promise.resolve();p.catch(function(){}).then(function(){setTimeout(next,30)})})();
+  }
+  if(document.readyState==='complete')setTimeout(warm,1500);else addEventListener('load',function(){setTimeout(warm,1500)});
+})();
+</script>
+</body>
+</html>

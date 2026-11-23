@@ -25,6 +25,8 @@ from werkzeug.exceptions import SecurityError
 
 from database import (
     LIVE_MODE,
+    live_attempt_seconds,
+    live_name_owner,
     live_snapshot,
     analytics_snapshot,
     dashboard_redesign_snapshot,
@@ -511,6 +513,11 @@ def _render_quiz(**context):
     context["outcomes"] = session.get("quiz_outcomes") or []
     context["review"] = None
     context["review_example"] = {}
+    context["aovivo_resultado"] = session.get("quiz_modo") == LIVE_MODE
+    context["aovivo_segundos"] = None
+    if context.get("quiz_completo") and context["aovivo_resultado"]:
+        context["aovivo_segundos"] = live_attempt_seconds(
+            session.get("last_completed_attempt_id"), **_db_options())
     if context.get("quiz_completo"):
         review = attempt_review_snapshot(
             attempt_id=session.get("last_completed_attempt_id"),
@@ -1066,6 +1073,9 @@ def quiz_trocar_aluno():
 def aovivo():
     session.permanent = True
     if request.method == "GET":
+        # Recarregou ou escaneou de novo no meio do quiz: continua de onde parou.
+        if session.get("quiz_modo") == LIVE_MODE and attempt_is_active(session.get("attempt_id"), **_db_options()):
+            return redirect(url_for("quiz"))
         return _render_quiz(
             imagem=None, mensagem=None,
             total_imagens=min(QUIZ_QUESTIONS_PER_ATTEMPT, len(get_imagens())),
@@ -1074,8 +1084,22 @@ def aovivo():
             pedir_nome=True, nome_sugerido="", quiz_nome=None,
             form_action=url_for("aovivo"), aovivo=True,
         )
+    nome = request.form.get("nome", "")
+    dono = live_name_owner(nome, since=datetime.now(timezone.utc) - timedelta(hours=6), **_db_options()) if nome.strip() else None
+    if dono is not None:
+        if dono == session.get("participant_id") and session.get("quiz_modo") == LIVE_MODE:
+            # Mesma pessoa, mesmo aparelho: não abre outra tentativa.
+            return redirect(url_for("quiz"))
+        return _render_quiz(
+            imagem=None, mensagem="Esse nome já está na sala. Acrescente o sobrenome.",
+            total_imagens=min(QUIZ_QUESTIONS_PER_ATTEMPT, len(get_imagens())),
+            correto=None, descricao_codigo=None, respondido=False,
+            score_acertos=0, score_total=0, modo_sequencial=False,
+            pedir_nome=True, nome_sugerido="", quiz_nome=None,
+            form_action=url_for("aovivo"), aovivo=True,
+        ), 409
     try:
-        participant = create_participant(request.form.get("nome", ""), **_db_options())
+        participant = create_participant(nome, **_db_options())
     except ValueError:
         return _render_quiz(
             imagem=None, mensagem="Informe um nome válido para começar.",
@@ -1107,7 +1131,10 @@ def aovivo_painel():
     except (OverflowError, OSError, ValueError):
         desde = limite
     desde = max(desde, limite)
-    resp = jsonify(live_snapshot(since=desde, **_db_options()))
+    dados = live_snapshot(since=desde, **_db_options())
+    # Relógio do servidor: o slide calcula "desde" por ele, não pelo relógio do notebook.
+    dados["agora"] = int(agora.timestamp() * 1000)
+    resp = jsonify(dados)
     resp.headers["Access-Control-Allow-Origin"] = "*"
     return resp
 

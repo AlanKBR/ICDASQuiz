@@ -29,8 +29,9 @@
       <span class="kick">Resultado de {{ first_name }}</span>
       <h1 class="result-numeric" aria-label="{{ score_acertos }} acertos de {{ score_total }}">{{ score_acertos }}<small>/{{ score_total }}</small></h1>
       <p class="result-line">{% if wrong == 0 %}Nenhum erro.{% else %}{{ wrong }} {{ 'imagem para revisar.' if wrong == 1 else 'imagens para revisar.' }}{% endif %}</p>
+      {% if aovivo_resultado %}<p class="result-line live-time">{% if aovivo_segundos is not none %}Seu tempo: <strong>{{ ('%.1f' % aovivo_segundos)|replace('.', ',') }} s</strong>. {% endif %}Agora é só olhar o telão.</p>{% endif %}
       <div class="result-actions">
-        <form method="post" action="{{ url_for('quiz_resetar') }}">{{ csrf() }}<button type="submit" class="go">De novo <span aria-hidden="true">→</span></button></form>
+        {% if not aovivo_resultado %}<form method="post" action="{{ url_for('quiz_resetar') }}">{{ csrf() }}<button type="submit" class="go">De novo <span aria-hidden="true">→</span></button></form>{% endif %}
         <a class="ghost" href="{{ url_for('home') }}">Início</a>
         <a class="ghost" href="{{ url_for('scores') }}">Placar</a>
       </div>

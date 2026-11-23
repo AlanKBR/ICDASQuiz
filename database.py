@@ -652,6 +652,32 @@ def live_snapshot(*, since: datetime, database_url: str | None = None, db_path: 
     return {"jogadores": players, "top": ranking[:3]}
 
 
+def live_name_owner(name: str, *, since: datetime, database_url: str | None = None,
+                    db_path: str | None = None) -> int | None:
+    """Participante que já usa este nome na sala ao vivo desde `since`, se houver."""
+    key = normalize_name(name)
+    with session_scope(database_url=database_url, db_path=db_path) as db:
+        return db.scalar(
+            select(Attempt.participant_id)
+            .join(Participant, Attempt.participant_id == Participant.id)
+            .where(Attempt.mode == LIVE_MODE, Attempt.started_at >= _aware(since),
+                   Participant.name_key == key)
+            .order_by(Attempt.started_at)
+            .limit(1)
+        )
+
+
+def live_attempt_seconds(attempt_id: int | None, *, database_url: str | None = None,
+                         db_path: str | None = None) -> float | None:
+    if not attempt_id:
+        return None
+    with session_scope(database_url=database_url, db_path=db_path) as db:
+        attempt = db.get(Attempt, attempt_id)
+        if attempt is None or attempt.mode != LIVE_MODE or attempt.finished_at is None:
+            return None
+        return round((_aware(attempt.finished_at) - _aware(attempt.started_at)).total_seconds(), 1)
+
+
 def database_healthy(*, database_url: str | None = None, db_path: str | None = None) -> bool:
     try:
         with get_engine(database_url=database_url, db_path=db_path).connect() as connection:

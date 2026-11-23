@@ -1,0 +1,11 @@
+Model Information:
+* title:	Maxillary First Molar
+* source:	https://sketchfab.com/3d-models/maxillary-first-molar-e719a474ef7e4bd7abec508f85f1e984
+* author:	University of Dundee, School of Dentistry (https://sketchfab.com/DundeeDental)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Maxillary First Molar" (https://sketchfab.com/3d-models/maxillary-first-molar-e719a474ef7e4bd7abec508f85f1e984) by University of Dundee, School of Dentistry (https://sketchfab.com/DundeeDental) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

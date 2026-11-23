@@ -442,13 +442,32 @@ _CSP = (
     "form-action 'self';"
 )
 
+# Apresentação da defesa do TCC (/tcc): deck estático com scripts e estilos
+# inline e a abertura 3D num iframe da mesma origem.
+TCC_DIR = Path(__file__).parent / "tcc"
+_CSP_TCC = (
+    "default-src 'self'; "
+    "style-src 'self' 'unsafe-inline'; "
+    "font-src 'self' data:; "
+    "script-src 'self' 'unsafe-inline'; "
+    "img-src 'self' data: blob:; "
+    "media-src 'self' blob:; "
+    "connect-src 'self' data: blob:; "
+    "worker-src 'self' blob:; "
+    "frame-src 'self'; "
+    "frame-ancestors 'self'; "
+    "base-uri 'self'; "
+    "form-action 'none';"
+)
+
 
 @app.after_request
 def set_security_headers(response):
-    response.headers["Content-Security-Policy"] = _CSP
+    is_tcc = request.path == "/tcc" or request.path.startswith("/tcc/")
+    response.headers["Content-Security-Policy"] = _CSP_TCC if is_tcc else _CSP
     response.headers["X-Robots-Tag"] = "noindex"
     response.headers["X-Content-Type-Options"] = "nosniff"
-    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-Frame-Options"] = "SAMEORIGIN" if is_tcc else "DENY"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     response.headers["Permissions-Policy"] = (
         "camera=(), microphone=(), geolocation=(), payment=()"
@@ -1139,6 +1158,17 @@ def health():
     db_ok = database_healthy(**_db_options())
     status = "ok" if db_ok else "degraded"
     return jsonify({"status": status, "db": db_ok}), 200 if db_ok else 503
+
+
+@app.route("/tcc")
+def tcc_redirect():
+    return redirect("/tcc/", code=301)
+
+
+@app.route("/tcc/")
+@app.route("/tcc/<path:arquivo>")
+def tcc(arquivo="index.html"):
+    return send_from_directory(TCC_DIR, arquivo)
 
 
 @app.route("/robots.txt")

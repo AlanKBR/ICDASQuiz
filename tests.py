@@ -2154,3 +2154,29 @@ class TestHandoffFinish2026:
         assert 'Math.hypot' in js
         assert 'wheel' in js
         assert 'pinch-ready' in js
+
+
+class TestApresentacaoTCC:
+    def test_tcc_redireciona_para_barra(self, client):
+        resp = client.get('/tcc')
+        assert resp.status_code == 301
+        assert resp.headers['Location'].endswith('/tcc/')
+
+    def test_tcc_serve_deck_com_csp_propria(self, client):
+        resp = client.get('/tcc/')
+        assert resp.status_code == 200
+        assert 'id="stage"' in resp.get_data(as_text=True)
+        csp = resp.headers['Content-Security-Policy']
+        assert "script-src 'self' 'unsafe-inline'" in csp
+        assert "frame-ancestors 'self'" in csp
+        assert resp.headers['X-Frame-Options'] == 'SAMEORIGIN'
+
+    def test_tcc_serve_arquivos_e_bloqueia_traversal(self, client):
+        assert client.get('/tcc/fonts/fonts.css').status_code == 200
+        assert client.get('/tcc/../app.py').status_code == 404
+        assert client.get('/tcc/nao-existe.png').status_code == 404
+
+    def test_csp_do_site_continua_estrita(self, client):
+        resp = client.get('/')
+        assert "'unsafe-inline'" not in resp.headers['Content-Security-Policy']
+        assert resp.headers['X-Frame-Options'] == 'DENY'

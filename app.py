@@ -501,6 +501,13 @@ def set_security_headers(response):
     # Cache de assets estáticos (Bloco 7)
     if request.path.startswith("/static/"):
         response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+    elif is_tcc:
+        # Deck do TCC: a página e o service worker revalidam sempre; imagens,
+        # fontes e a abertura 3D ficam no cache do navegador.
+        if request.path in ("/tcc", "/tcc/", "/tcc/index.html", "/tcc/sw.js"):
+            response.headers["Cache-Control"] = "no-cache"
+        else:
+            response.headers["Cache-Control"] = "public, max-age=604800"
     else:
         response.headers["Cache-Control"] = "no-store"
     return response

@@ -106,22 +106,14 @@ def _client_ip():
     return (request.remote_addr or "").strip()
 
 
-def _limiter_key():
-    """No quiz ao vivo várias pessoas dividem o IP da sala; separa por participante."""
-    ip = _client_ip()
-    try:
-        if session.get("quiz_modo") == "aovivo" and session.get("participant_id"):
-            return f"{ip}:p{int(session['participant_id'])}"
-    except (TypeError, ValueError, RuntimeError):
-        pass
-    return ip
-
-
 limiter = Limiter(
     app=app,
-    key_func=_limiter_key,
+    # O quiz é usado por turmas inteiras atrás do mesmo IP público; limites
+    # globais/por IP bloqueariam alunos legítimos. Só rotas administrativas
+    # explicitamente decoradas têm rate limiting.
+    key_func=_client_ip,
     storage_uri="memory://",
-    default_limits=["200 per minute"],
+    default_limits=[],
 )
 
 DB_PATH = os.environ.get("DB_PATH", str(Path(__file__).parent / "icdas.db"))
@@ -610,7 +602,6 @@ def arvore_tratamento():
 
 
 @app.route("/quiz", methods=["GET", "POST"])
-@limiter.limit("60 per minute", methods=["POST"])
 def quiz():
     # Quem veio pelo QR e está explorando: qualquer "Iniciar o quiz" leva ao quiz ao vivo.
     if session.get("aovivo_convite") and session.get("quiz_modo") != LIVE_MODE:
@@ -834,7 +825,6 @@ def quiz():
 
 
 @app.route("/quiz/iniciar", methods=["POST"])
-@limiter.limit("20 per minute")
 def quiz_iniciar():
     """Identifica o aluno antes de iniciar o quiz."""
     session.permanent = True
@@ -1046,7 +1036,6 @@ def _quiz_pop(imagens):
 
 
 @app.route("/quiz/modo", methods=["POST"])
-@limiter.limit("20 per minute")
 def quiz_modo():
     """Troca o modo encerrando a tentativa anterior sem apagar seu histórico."""
     session.permanent = True
@@ -1060,7 +1049,6 @@ def quiz_modo():
 
 
 @app.route("/quiz/finalizar", methods=["POST"])
-@limiter.limit("10 per minute")
 def quiz_finalizar():
     """Finaliza a tentativa; respostas já são persistidas uma a uma."""
     _end_session_attempt("completed")
@@ -1069,7 +1057,6 @@ def quiz_finalizar():
 
 
 @app.route("/quiz/resetar", methods=["POST"])
-@limiter.limit("20 per minute")
 def quiz_resetar():
     """Inicia nova tentativa e preserva a anterior como reset."""
     _end_session_attempt("reset")
@@ -1080,7 +1067,6 @@ def quiz_resetar():
 
 
 @app.route("/quiz/trocar-aluno", methods=["POST"])
-@limiter.limit("20 per minute")
 def quiz_trocar_aluno():
     """Permite uso sequencial do mesmo dispositivo por pessoas diferentes."""
     _end_session_attempt("student_change")
@@ -1100,7 +1086,6 @@ def quiz_trocar_aluno():
 # ---------------------------------------------------------------------------
 
 @app.route("/aovivo", methods=["GET", "POST"])
-@limiter.limit("600 per minute", methods=["POST"])
 def aovivo():
     session.permanent = True
     if request.method == "GET":
@@ -1160,7 +1145,6 @@ def aovivo_explorar():
 
 
 @app.get("/aovivo/painel")
-@limiter.limit("120 per minute")
 def aovivo_painel():
     """Estado do quiz ao vivo para o slide. Só nomes, acertos e tempo."""
     agora = datetime.now(timezone.utc)
@@ -1180,7 +1164,6 @@ def aovivo_painel():
 
 
 @app.route("/scores")
-@limiter.limit("30 per minute")
 def scores():
     snapshot = scoreboard_snapshot(**_db_options())
     return render_template("scores.html", **snapshot)

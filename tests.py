@@ -1376,83 +1376,54 @@ class TestManipulacaoDeSessao:
 
 
 class TestRateLimiting:
-    """Verifica que o rate limiting bloqueia requisições excessivas."""
+    """Participantes compartilham IP sem bloqueio; login administrativo é limitado."""
 
-    def test_aovivo_registro_permite_600_posts_por_ip(self, rate_client):
-        """A sala pode registrar até 600 POSTs/min pelo mesmo IP; 601º é bloqueado."""
+    def test_aovivo_registro_sem_limite_por_ip(self, rate_client):
+        """Mesmo após 650 tentativas, a entrada nunca devolve HTTP 429."""
         headers = {"CF-Connecting-IP": "198.51.100.77"}
-        for _ in range(600):
+        for _ in range(650):
             resp = rate_client.post("/aovivo", data={"nome": ""}, headers=headers)
-            assert resp.status_code == 400  # Nome inválido, mas sem limitação de tráfego.
+            assert resp.status_code == 400  # Nome inválido, sem bloqueio por tráfego.
 
-        resp = rate_client.post("/aovivo", data={"nome": ""}, headers=headers)
-        assert resp.status_code == 429
-
-    def test_quiz_post_rate_limit(self, rate_client, app_module):
-        """61 POSTs em /quiz disparam 429."""
+    def test_quiz_post_compartilhado_nao_limita(self, rate_client, app_module):
+        """O POST do quiz não bloqueia uma sala inteira atrás do mesmo IP."""
         imagens = app_module.get_imagens()
         if not imagens:
             pytest.skip("Sem imagens")
         img = imagens[0]
-        last_status = None
-        for i in range(62):
+        for _ in range(80):
             resp = rate_client.post("/quiz", data={
                 "imagem_id": str(img["id"]),
                 "resposta": str(img["icdas_code"]),
-            })
-            last_status = resp.status_code
-            if resp.status_code == 429:
-                break
-        assert last_status == 429, (
-            "Rate limiting não ativou após 62 POSTs em /quiz"
-        )
+            }, headers={"CF-Connecting-IP": "198.51.100.77"})
+            assert resp.status_code != 429
 
-    def test_429_tem_template_customizado(self, rate_client, app_module):
-        """Resposta 429 usa o template 429.html personalizado."""
-        imagens = app_module.get_imagens()
-        if not imagens:
-            pytest.skip("Sem imagens")
-        img = imagens[0]
-        for _ in range(62):
-            resp = rate_client.post("/quiz", data={
-                "imagem_id": str(img["id"]),
-                "resposta": "0",
-            })
+    def test_login_admin_mantem_protecao_e_template_429(self, rate_client):
+        """Só o login administrativo mantém bloqueio anti-abuso por IP."""
+        for _ in range(12):
+            resp = rate_client.post("/dashboard/login", data={
+                "password": "invalid",
+            }, headers={"CF-Connecting-IP": "198.51.100.77"})
             if resp.status_code == 429:
                 html = resp.data.decode("utf-8")
                 assert "429" in html
                 assert "requisi" in html.lower()  # "requisições"
                 break
         else:
-            pytest.skip("Rate limit não atingido")
+            pytest.fail("Login administrativo não foi limitado")
 
-    def test_scores_rate_limit(self, rate_client):
-        """31 GETs em /scores disparam 429."""
-        last_status = None
-        for i in range(32):
-            resp = rate_client.get("/scores")
-            last_status = resp.status_code
-            if resp.status_code == 429:
-                break
-        assert last_status == 429, (
-            "Rate limiting não ativou em /scores"
-        )
+    def test_scores_nao_limita_turma(self, rate_client):
+        for _ in range(45):
+            assert rate_client.get("/scores").status_code == 200
 
-    def test_finalizar_rate_limit(self, rate_client):
-        """11 POSTs em /quiz/finalizar disparam 429."""
-        last_status = None
-        for _ in range(12):
+    def test_finalizar_nao_limita_turma(self, rate_client):
+        for _ in range(30):
             resp = rate_client.post("/quiz/finalizar", data={})
-            last_status = resp.status_code
-            if resp.status_code == 429:
-                break
-        assert last_status == 429, (
-            "Rate limiting não ativou em /quiz/finalizar"
-        )
+            assert resp.status_code != 429
 
     def test_rate_limit_nao_afeta_gets_normais(self, rate_client):
-        """GET em / não tem rate limit agressivo (default 200/min é suficiente)."""
-        for _ in range(20):
+        """A landing não tem limite global compartilhado por IP."""
+        for _ in range(210):
             resp = rate_client.get("/")
             assert resp.status_code == 200
 

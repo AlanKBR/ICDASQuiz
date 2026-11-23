@@ -887,3 +887,13 @@ dialog::backdrop{overscroll-behavior:contain;overflow:hidden}
   .gallery-lightbox-details{overflow-y:auto;max-height:37dvh;gap:7px;padding:20px 16px calc(15px + env(safe-area-inset-bottom))}
   .gallery-lightbox-footer{min-height:48px}
 }
+
+/* Quiz ao vivo: convite para explorar antes de começar */
+.live-note{margin-top:14px;text-align:center;font-size:14px;color:var(--ink2,#4c5855)}
+.live-explore{display:block;margin:6px auto 0;text-align:center}
+.live-pill{position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:60;display:flex;align-items:center;gap:10px;padding:13px 20px;border-radius:999px;background:var(--ink,#192521);color:#fff;font-weight:600;font-size:15px;text-decoration:none;box-shadow:0 14px 34px rgba(25,37,33,.28);white-space:nowrap;animation:live-pill-in .5s cubic-bezier(.2,1.4,.4,1) both}
+.live-pill strong{color:#6ce4c2;font-weight:700}
+.live-dot{width:10px;height:10px;border-radius:50%;background:#6ce4c2;box-shadow:0 0 0 0 rgba(108,228,194,.7);animation:live-dot 1.6s ease-out infinite}
+@keyframes live-pill-in{from{opacity:0;transform:translate(-50%,24px)}}
+@keyframes live-dot{0%{box-shadow:0 0 0 0 rgba(108,228,194,.7)}100%{box-shadow:0 0 0 12px rgba(108,228,194,0)}}
+@media (prefers-reduced-motion:reduce){.live-pill,.live-dot{animation:none}}

@@ -2303,3 +2303,15 @@ class TestQuizAoVivo:
         assert 'Seu tempo:' in html
         assert 'olhar o telão' in html
         assert 'De novo' not in html
+
+    def test_explorar_antes_mostra_convite_sem_comecar_o_tempo(self, client, app_module):
+        with app_module.app.test_client() as c:
+            assert 'Explorar o site antes' in c.get('/aovivo').get_data(as_text=True)
+            assert c.get('/aovivo/explorar').status_code == 302
+            assert 'live-pill' in c.get('/galeria').get_data(as_text=True)
+            assert c.get('/quiz').headers['Location'].endswith('/aovivo')
+            assert 'live-pill' not in c.get('/aovivo').get_data(as_text=True)
+            assert c.get('/aovivo/painel?desde=0').get_json()['jogadores'] == []
+            c.post('/aovivo', data={'nome': 'Explorador'})
+            assert 'live-pill' not in c.get('/galeria').get_data(as_text=True)
+        assert [p['nome'] for p in self._painel(client)['jogadores']] == ['Explorador']

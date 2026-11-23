@@ -15,6 +15,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 from flask import (
+    has_request_context,
     Flask, jsonify, make_response, render_template, request,
     redirect, url_for, session, send_from_directory,
 )
@@ -426,7 +427,10 @@ def inject_globals():
         """Retorna URL do asset com query string de cache-busting."""
         return url_for("static", filename=filename) + "?v=" + _get_asset_hash(filename)
 
-    return {"now": _NOW, "versioned_url": versioned_url, "descriptions": DESCRICOES}
+    convite = (has_request_context() and bool(session.get("aovivo_convite"))
+               and request.endpoint not in ("aovivo", "quiz"))
+    return {"now": _NOW, "versioned_url": versioned_url, "descriptions": DESCRICOES,
+            "aovivo_convite": convite}
 
 
 # Pré-aquece o cache de hashes na inicialização do processo (--preload safe).
@@ -584,6 +588,9 @@ def arvore_tratamento():
 @app.route("/quiz", methods=["GET", "POST"])
 @limiter.limit("60 per minute", methods=["POST"])
 def quiz():
+    # Quem veio pelo QR e está explorando: qualquer "Iniciar o quiz" leva ao quiz ao vivo.
+    if session.get("aovivo_convite") and session.get("quiz_modo") != LIVE_MODE:
+        return redirect(url_for("aovivo"))
     imagens = get_imagens()
 
     session.permanent = True
@@ -1114,9 +1121,18 @@ def aovivo():
     session["participant_id"] = participant.id
     session["quiz_nome"] = participant.name
     session["quiz_modo"] = LIVE_MODE
+    session.pop("aovivo_convite", None)
     _clear_quiz_progress()
     _start_session_attempt()
     return redirect(url_for("quiz"))
+
+
+@app.get("/aovivo/explorar")
+def aovivo_explorar():
+    """Deixa a pessoa navegar antes; o tempo só começa quando ela coloca o nome."""
+    session.permanent = True
+    session["aovivo_convite"] = True
+    return redirect(url_for("home"))
 
 
 @app.get("/aovivo/painel")

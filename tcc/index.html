@@ -1673,7 +1673,7 @@ aside{display:none}
   <button id="bfs">Tela cheia (F)</button>
 </div>
 <div id="notes" hidden></div>
-<div class="hint" id="hint">→ avança · ← volta · N notas · F tela cheia</div>
+<div class="hint" id="hint" hidden></div>
 
 <script>
 (function(){
@@ -1973,6 +1973,16 @@ function __asciiTooth(secId,cvId,fs){
   new MutationObserver(chk).observe(sec,{attributes:true,attributeFilter:['class']});chk();
 }
 __asciiTooth('s-fim','ftooth',21);__asciiTooth('s-live','lvtooth',24);
+</script><script>
+(function(){
+  var done=false;
+  function go(e){
+    if(done)return;if(e&&e.type==='keydown'&&/^(f|F|Escape)$/.test(e.key))return;
+    done=true;['keydown','pointerdown'].forEach(function(t){removeEventListener(t,go,true)});
+    try{if(!document.fullscreenElement&&document.documentElement.requestFullscreen)document.documentElement.requestFullscreen().catch(function(){});}catch(x){}
+  }
+  ['keydown','pointerdown'].forEach(function(t){addEventListener(t,go,true)});
+})();
 </script>
 </body>
 </html>

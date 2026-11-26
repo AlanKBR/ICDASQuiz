@@ -55,10 +55,12 @@ a{color:inherit}
 .hero-deck-feedback{font-size:13px;color:var(--ink3);min-height:36px;margin:12px 0 0}
 .hero-deck-lock{display:none;position:absolute;inset:0;background:#192521dd;border-radius:28px;align-items:center;justify-content:center;flex-direction:column;gap:16px;padding:20px;text-align:center;color:#fff;z-index:4}
 .hero-deck-lock.is-on{display:flex}.hero-deck-lock .go{background:var(--mint);color:var(--ink)}
-.marquee{display:flex;flex-direction:column;gap:12px;overflow:hidden;margin:0 auto 70px;-webkit-mask-image:linear-gradient(90deg,transparent,#000 7%,#000 93%,transparent);mask-image:linear-gradient(90deg,transparent,#000 7%,#000 93%,transparent)}
-.marquee-row{display:flex;width:max-content;gap:12px;animation:marquee 65s linear infinite}.marquee-row.reverse{animation-direction:reverse;animation-duration:75s}
+.marquee{--marquee-gap:12px;display:flex;flex-direction:column;gap:12px;overflow:hidden;margin:0 auto 70px;-webkit-mask-image:linear-gradient(90deg,transparent,#000 7%,#000 93%,transparent);mask-image:linear-gradient(90deg,transparent,#000 7%,#000 93%,transparent)}
+.marquee-row{display:flex;width:max-content;gap:var(--marquee-gap);animation:marquee var(--marquee-duration,140s) linear infinite;will-change:transform}.marquee-row.reverse{animation-direction:reverse}
 .marquee img{width:180px;height:130px;object-fit:cover;border-radius:18px;flex:none}
-@keyframes marquee{to{transform:translateX(-50%)}}
+/* Track consists of two identical sequences. The half-gap correction keeps
+   the next frame pixel-identical when the animation restarts. */
+@keyframes marquee{to{transform:translateX(calc(-50% - var(--marquee-gap)/2))}}
 .landing-section{max-width:1380px;margin:0 auto;padding:65px 48px 80px}
 .landing-section .section-title{font-weight:600;font-size:clamp(36px,4.2vw,68px);line-height:1.08;letter-spacing:-.045em;max-width:850px;margin:8px 0 20px}
 .landing-section .section-lead{max-width:680px;font-size:18px;color:var(--ink2);line-height:1.6}
@@ -174,7 +176,14 @@ body.quiz-active .quiz-main{flex:1;min-height:0;max-width:none;padding:0;display
 @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}.redesigned *, .redesigned *::before,.redesigned *::after{animation-duration:.001ms!important;transition-duration:.001ms!important}.marquee-row{animation:none}}
 .project-credits{font-size:13px;color:var(--ink3);margin-top:24px}.project-credits strong{color:var(--ink);font-weight:600}.landing-section em{color:var(--acc);font-style:normal}
 .diff-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 22px;margin-top:22px}.diff-grid p{font-size:13px;margin:0}.diff-grid strong{color:#fff}
-.dry-timer{width:48px;height:48px;border:3px solid var(--mint);border-radius:50%;display:flex;align-items:center;justify-content:center;margin-top:10px;font-size:13px;font-weight:700}
+.dry-timer-control{display:flex;align-items:center;gap:12px;margin-top:16px;flex-wrap:wrap}
+.dry-timer{width:62px;height:62px;border:0;border-radius:50%;background:var(--sunken);color:var(--ink);display:grid;place-items:center;position:relative;isolation:isolate;font-size:15px;font-weight:700;flex:none;cursor:pointer;transition:background 150ms cubic-bezier(.2,0,0,1)}
+.dry-timer:hover{background:#d8eee5}.dry-timer:focus-visible{outline:3px solid var(--acc-d);outline-offset:3px}
+.dry-timer svg{position:absolute;width:100%;height:100%;inset:0;transform:rotate(-90deg);pointer-events:none;overflow:visible}
+.dry-timer circle{fill:none;stroke-width:4}.dry-timer-track{stroke:#d0e2da}.dry-timer-progress{stroke:var(--acc-d);stroke-linecap:round}
+.dry-timer [data-dry-value]{position:relative;z-index:1;font-variant-numeric:tabular-nums}
+.dry-timer[data-state="running"]{background:#e5f6ee}.dry-timer[data-state="complete"]{background:var(--mint);color:var(--ink)}
+.dry-timer-hint{font-size:12px;line-height:1.4;color:var(--ink2);max-width:146px}
 .hero-deck-front [data-demo-photo][hidden]{display:none}
 @media (max-width:650px){.diff-grid{grid-template-columns:1fr}.project-number{font-size:90px}}
 .score-tabs{display:none}
@@ -257,20 +266,121 @@ dialog::backdrop{overscroll-behavior:contain;overflow:hidden}
   .hero-wrap .blob.a{animation:hero-blob-float 16s ease-in-out infinite alternate}
   .hero-wrap .blob.b{animation:hero-blob-float 19s ease-in-out infinite alternate-reverse}
   .hero-deck-lock .go{animation:hero-cta-pulse 2.8s ease-in-out infinite}
-  .dry-timer::before{animation:dry-timer-turn 5s linear infinite}
 }
 @keyframes hero-word-in{from{opacity:0;transform:translateY(13px)}to{opacity:1;transform:translateY(0)}}
 @keyframes hero-blob-float{from{transform:translate3d(-7px,0,0)}to{transform:translate3d(13px,17px,0)}}
 @keyframes hero-cta-pulse{50%{box-shadow:0 0 0 8px #6ce4c230}}
-.dry-timer{position:relative;isolation:isolate}
-.dry-timer::before{content:'';position:absolute;inset:-3px;border-radius:50%;background:conic-gradient(var(--acc-d) 0 25%,transparent 25% 100%);-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 5px),#000 calc(100% - 4px));mask:radial-gradient(farthest-side,transparent calc(100% - 5px),#000 calc(100% - 4px));pointer-events:none}
-@keyframes dry-timer-turn{to{transform:rotate(360deg)}}
+/* Five seconds are measured in JavaScript, not simulated by an endless CSS
+   rotation. Reduced-motion users get the same usable timer without flourish. */
 @media(max-width:650px){
   .gallery-lightbox-details>.xbtn{position:fixed;top:calc(14px + env(safe-area-inset-top));right:16px;z-index:120;background:var(--canvas);color:var(--ink)}
   .gallery-lightbox-details .gallery-clinical-description{display:none}
   .gallery-lightbox-details .dry-pill{align-self:flex-start;margin:0;font-size:11px}
   .gallery-lightbox-details{overflow-y:auto;max-height:37dvh;gap:7px;padding:20px 16px calc(15px + env(safe-area-inset-bottom))}
   .gallery-lightbox-footer{min-height:48px}
+}
+
+/* Visual polish 2026-11-15: feedback and geometry shared by both quiz modes.
+   The correct answer is visually primary; the chosen wrong code remains clear. */
+.quiz-codes:not(.demo-codes){padding:11px 8px 5px;margin:-3px -8px -3px;width:calc(100% + 16px)}
+.quiz-code.k{transform-origin:center;isolation:isolate;border-width:1.5px;font-variant-numeric:tabular-nums}
+@media(hover:hover) and (pointer:fine){
+  .quiz-radio:not(:checked)+.quiz-code.k:hover,
+  .hero-deck .quiz-code.k:not(:disabled):hover{border-color:var(--ink);transform:translateY(-2px)}
+}
+.hero-deck .quiz-codes.demo-codes{padding:9px 7px 7px;margin:12px -7px 0;width:calc(100% + 14px);gap:6px}
+.hero-deck .quiz-code.k{min-height:44px;position:relative;transition:background 190ms var(--ease, ease),border-color 190ms var(--ease, ease),color 190ms var(--ease, ease),opacity 190ms var(--ease, ease),transform 190ms var(--ease, ease)}
+.hero-deck .quiz-code.k.is-correct{background:var(--mint);border-color:var(--acc-d);color:var(--ink);opacity:1;box-shadow:0 0 0 1px var(--acc-d);transform:scale(1.06)}
+.hero-deck .quiz-code.k.is-wrong{background:var(--lil-s);border-color:var(--lil-d);color:var(--lil-d);opacity:1;box-shadow:inset 0 0 0 1px var(--lil-d)}
+.hero-deck .quiz-code.k.is-dim{opacity:.35;transform:none}
+.hero-deck .quiz-code.k:focus-visible{outline:3px solid var(--acc-d);outline-offset:3px}
+.hero-deck .quiz-code.k:disabled{cursor:default}
+.hero-deck-front{transition:opacity 220ms var(--ease, ease),transform 220ms var(--ease, ease),box-shadow 190ms var(--ease, ease)}
+.hero-deck-front.is-correct{box-shadow:0 0 0 3px var(--mint),0 20px 55px #1925213b}
+.hero-deck-front.is-wrong{box-shadow:0 0 0 3px var(--lil-d),0 20px 55px #1925213b}
+.hero-deck-front.is-changing{opacity:.24;transform:translateX(9px) rotate(1deg)}
+.hero-deck-front[data-feedback] .question-chip{opacity:0;transform:translateY(-5px);pointer-events:none}
+.hero-deck-front .question-chip{transition:opacity 140ms,transform 140ms}
+.demo-result-badge{position:absolute;top:18px;left:18px;z-index:3;min-height:38px;display:inline-flex;align-items:center;gap:7px;padding:7px 14px;border-radius:999px;font-size:14px;font-weight:700;box-shadow:0 6px 20px #19252122}
+.demo-result-badge.is-correct{background:var(--mint);color:var(--ink)}
+.demo-result-badge.is-wrong{background:#fff;color:var(--lil-d)}
+.hero-deck-front.is-locked img{filter:blur(6px) saturate(.75);transform:scale(1.04)}
+.hero-deck-front.is-locked .demo-result-badge{display:none}
+.hero-deck-front img{transition:filter 320ms ease,transform 320ms ease}
+.hero-deck-footer{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;min-height:41px;margin-top:10px}
+.hero-deck-footer .hero-deck-feedback{flex:1;min-width:0;margin:0;min-height:0;line-height:1.55}
+.hero-deck-score{flex:none;font-variant-numeric:tabular-nums;font-size:12px;font-weight:650;color:var(--acc-d);background:var(--sunken);padding:5px 9px;border-radius:999px;white-space:nowrap}
+.quiz-response-panel .quiz-code.k.ok{background:var(--mint);border-color:var(--acc-d);color:var(--ink);opacity:1;box-shadow:inset 0 0 0 1px var(--acc-d)}
+.quiz-response-panel .quiz-code.k.no{background:var(--lil-s);border-color:var(--lil-d);color:var(--lil-d);opacity:1;box-shadow:inset 0 0 0 1px var(--lil-d)}
+.quiz-response-panel .quiz-code.k.dim{opacity:.42;transform:none}
+@media(prefers-reduced-motion:no-preference){
+  .hero-deck .quiz-code.k.is-correct,.quiz-response-panel .quiz-code.k.ok{animation:icdas-answer-pop 400ms cubic-bezier(.2,0,0,1) both}
+  .hero-deck .quiz-code.k.is-wrong,.quiz-response-panel .quiz-code.k.no{animation:icdas-answer-shake 320ms cubic-bezier(.2,0,0,1) both}
+  .demo-result-badge:not([hidden]){animation:icdas-badge-enter 360ms cubic-bezier(.2,0,0,1) both}
+  .quiz-feedback-card{animation:icdas-feedback-enter 250ms cubic-bezier(.2,0,0,1) both}
+  .quiz-image-panel{animation:icdas-image-enter 260ms cubic-bezier(.2,0,0,1) both}
+  .streak{animation:icdas-badge-enter 360ms cubic-bezier(.2,0,0,1) both}
+}
+@keyframes icdas-answer-pop{0%{transform:scale(1)}45%{transform:scale(1.15)}80%{transform:scale(1.03)}100%{transform:scale(1.06)}}
+@keyframes icdas-answer-shake{0%,100%{transform:translateX(0)}24%{transform:translateX(-3px)}48%{transform:translateX(3px)}72%{transform:translateX(-1px)}}
+@keyframes icdas-badge-enter{0%{opacity:0;transform:scale(.78) translateY(5px)}75%{transform:scale(1.05)}100%{opacity:1;transform:none}}
+@keyframes icdas-feedback-enter{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes icdas-image-enter{from{opacity:.84;transform:scale(.99)}to{opacity:1;transform:none}}
+@media(max-width:650px){
+  .hero-deck-footer{gap:7px}
+  .hero-deck-score{font-size:11px;padding:5px 7px}
+  .hero-deck .quiz-codes.demo-codes{padding-inline:7px;margin-inline:-7px;width:calc(100% + 14px)}
+}
+/* Real photographic layers, like the approved stacked-card prototype. */
+.hero-deck-back{overflow:hidden;background:var(--sunken)}
+.hero-deck-back img{width:100%;height:100%;object-fit:cover;display:block;opacity:.76;filter:saturate(.83) blur(.5px)}
+
+/* Touch comfort and consistent focus areas without enlarging visible icons. */
+.site-header .site-brand,.site-header .site-nav a{display:inline-flex;align-items:center;min-height:44px}
+.site-footer .footer-inner a{display:inline-flex;align-items:center;min-height:44px}
+.scale-gallery-link{display:inline-flex;align-items:center;min-height:44px;margin-top:4px}
+.gallery-filter{min-height:44px}
+.score-tabs button{min-height:44px}
+.tree-reset{min-height:44px}
+.tree-academic-details summary{min-height:44px;display:flex;align-items:center}
+.professor-actions a,.professor-actions button{display:inline-flex;min-height:44px;align-items:center}
+.period-chooser a{display:inline-flex;align-items:center;min-height:44px}
+.photo-toggle button{min-height:44px}
+.change-student-form .subtle-link{min-height:44px}
+@media(hover:hover) and (pointer:fine){
+  .scale-gallery-link:hover{color:var(--acc);text-decoration-thickness:2px}
+  .review-thumb:hover{filter:brightness(.95)}
+}
+/* Scroll reveal uses compositor-only opacity/transform: no layout shift. */
+@media(prefers-reduced-motion:no-preference){
+  .polish-reveal{opacity:0;transform:translateY(15px);transition:opacity 460ms cubic-bezier(.2,0,0,1),transform 460ms cubic-bezier(.2,0,0,1)}
+  .polish-reveal.is-visible{opacity:1;transform:none}
+  .scale-card.polish-reveal:nth-child(2),.step-card.polish-reveal:nth-child(2){transition-delay:65ms}
+  .scale-card.polish-reveal:nth-child(3),.step-card.polish-reveal:nth-child(3){transition-delay:115ms}
+  .scale-card.polish-reveal:nth-child(4){transition-delay:165ms}
+  .scale-card.polish-reveal:nth-child(n + 5){transition-delay:200ms}
+}
+/* Mobile navigation visibility wins over the shared 44px touch-target rule. */
+@media(max-width:900px){.site-header .site-nav a.nav-anchor{display:none}}
+@media(max-width:650px){.site-header .site-nav a:first-child{display:none}}
+/* Short, narrow phones may need to scroll a long clinical explanation.
+   Keep the next action visible and expose the remaining text to both touch
+   and keyboard users instead of truncating it. */
+@media (max-width:380px) and (max-height:690px){
+  .quiz-workspace.has-feedback .quiz-response-scroll{scrollbar-width:thin;scrollbar-color:#8ab9aa transparent;padding-right:3px}
+  .quiz-workspace.has-feedback .quiz-response-scroll::-webkit-scrollbar{display:block;width:3px}
+  .quiz-workspace.has-feedback .quiz-response-scroll::-webkit-scrollbar-thumb{background:#8ab9aa;border-radius:3px}
+}
+/* Draw attention to the next action only when it becomes available. */
+@media(prefers-reduced-motion:no-preference){
+  .quiz-submit.is-ready{animation:icdas-cta-ready 290ms cubic-bezier(.2,0,0,1) both}
+  .quiz-segments .cur{animation:icdas-progress-current 600ms cubic-bezier(.2,0,0,1) both}
+  .review-detail:not([hidden]){animation:icdas-feedback-enter 260ms cubic-bezier(.2,0,0,1) both}
+}
+@keyframes icdas-cta-ready{0%{transform:translateY(5px);opacity:.85}100%{transform:none;opacity:1}}
+@keyframes icdas-progress-current{0%{opacity:.25;transform:scaleX(.68)}100%{opacity:1;transform:none}}
+@media (max-width:650px){
+  .marquee-row{animation-duration:var(--marquee-duration-mobile,var(--marquee-duration,140s))}
 }
 
 /* Quiz ao vivo: convite para explorar antes de começar */

@@ -1,0 +1,8 @@
+node_modules/
+dist/
+# Arquivos de referência locais da conversa: não incluir em push público
+assets/
+public/assets/
+.debug-frames/
+__pycache__/
+tools/__pycache__/

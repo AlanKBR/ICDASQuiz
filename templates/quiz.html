@@ -85,7 +85,7 @@
       </button>
     </div>
     <div class="quiz-response-panel">
-      <div class="quiz-response-scroll">
+      <div class="quiz-response-scroll" tabindex="0" aria-label="{{ 'Explicação e resultado da resposta' if respondido else 'Opções de classificação ICDAS' }}">
         {% if not respondido %}<h1 class="quiz-question">Qual o código ICDAS?</h1>{% endif %}
         {% if mensagem and not respondido %}<p class="form-alert" role="alert">{{ mensagem }}</p>{% endif %}
         <form id="quiz-answer-form" method="post" action="{{ url_for('quiz') }}" class="quiz-answer-form">

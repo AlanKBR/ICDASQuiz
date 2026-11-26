@@ -26,6 +26,7 @@
     const sync = () => {
       const active = radios.find(r => r.checked);
       button.disabled = !active;
+      button.classList.toggle('is-ready', Boolean(active));
       if (hint) hint.textContent = active ? `ICDAS ${active.value} · ${descriptions[+active.value]}` : 'Toque no código';
     };
     radios.forEach(r => r.addEventListener('change', sync));

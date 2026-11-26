@@ -1376,73 +1376,54 @@ class TestManipulacaoDeSessao:
 
 
 class TestRateLimiting:
-    """Verifica que o rate limiting bloqueia requisições excessivas."""
+    """Participantes compartilham IP sem bloqueio; login administrativo é limitado."""
 
-    def test_quiz_post_rate_limit(self, rate_client, app_module):
-        """61 POSTs em /quiz disparam 429."""
+    def test_aovivo_registro_sem_limite_por_ip(self, rate_client):
+        """Mesmo após 650 tentativas, a entrada nunca devolve HTTP 429."""
+        headers = {"CF-Connecting-IP": "198.51.100.77"}
+        for _ in range(650):
+            resp = rate_client.post("/aovivo", data={"nome": ""}, headers=headers)
+            assert resp.status_code == 400  # Nome inválido, sem bloqueio por tráfego.
+
+    def test_quiz_post_compartilhado_nao_limita(self, rate_client, app_module):
+        """O POST do quiz não bloqueia uma sala inteira atrás do mesmo IP."""
         imagens = app_module.get_imagens()
         if not imagens:
             pytest.skip("Sem imagens")
         img = imagens[0]
-        last_status = None
-        for i in range(62):
+        for _ in range(80):
             resp = rate_client.post("/quiz", data={
                 "imagem_id": str(img["id"]),
                 "resposta": str(img["icdas_code"]),
-            })
-            last_status = resp.status_code
-            if resp.status_code == 429:
-                break
-        assert last_status == 429, (
-            "Rate limiting não ativou após 62 POSTs em /quiz"
-        )
+            }, headers={"CF-Connecting-IP": "198.51.100.77"})
+            assert resp.status_code != 429
 
-    def test_429_tem_template_customizado(self, rate_client, app_module):
-        """Resposta 429 usa o template 429.html personalizado."""
-        imagens = app_module.get_imagens()
-        if not imagens:
-            pytest.skip("Sem imagens")
-        img = imagens[0]
-        for _ in range(62):
-            resp = rate_client.post("/quiz", data={
-                "imagem_id": str(img["id"]),
-                "resposta": "0",
-            })
+    def test_login_admin_mantem_protecao_e_template_429(self, rate_client):
+        """Só o login administrativo mantém bloqueio anti-abuso por IP."""
+        for _ in range(12):
+            resp = rate_client.post("/dashboard/login", data={
+                "password": "invalid",
+            }, headers={"CF-Connecting-IP": "198.51.100.77"})
             if resp.status_code == 429:
                 html = resp.data.decode("utf-8")
                 assert "429" in html
                 assert "requisi" in html.lower()  # "requisições"
                 break
         else:
-            pytest.skip("Rate limit não atingido")
+            pytest.fail("Login administrativo não foi limitado")
 
-    def test_scores_rate_limit(self, rate_client):
-        """31 GETs em /scores disparam 429."""
-        last_status = None
-        for i in range(32):
-            resp = rate_client.get("/scores")
-            last_status = resp.status_code
-            if resp.status_code == 429:
-                break
-        assert last_status == 429, (
-            "Rate limiting não ativou em /scores"
-        )
+    def test_scores_nao_limita_turma(self, rate_client):
+        for _ in range(45):
+            assert rate_client.get("/scores").status_code == 200
 
-    def test_finalizar_rate_limit(self, rate_client):
-        """11 POSTs em /quiz/finalizar disparam 429."""
-        last_status = None
-        for _ in range(12):
+    def test_finalizar_nao_limita_turma(self, rate_client):
+        for _ in range(30):
             resp = rate_client.post("/quiz/finalizar", data={})
-            last_status = resp.status_code
-            if resp.status_code == 429:
-                break
-        assert last_status == 429, (
-            "Rate limiting não ativou em /quiz/finalizar"
-        )
+            assert resp.status_code != 429
 
     def test_rate_limit_nao_afeta_gets_normais(self, rate_client):
-        """GET em / não tem rate limit agressivo (default 200/min é suficiente)."""
-        for _ in range(20):
+        """A landing não tem limite global compartilhado por IP."""
+        for _ in range(210):
             resp = rate_client.get("/")
             assert resp.status_code == 200
 
@@ -2155,6 +2136,115 @@ class TestHandoffFinish2026:
         assert 'wheel' in js
         assert 'pinch-ready' in js
 
+class TestMicrointeractionPolish20261115:
+    """Contract tests for the handoff's answer-feedback and touch states."""
+
+    def test_miniquiz_expoe_badge_legivel_e_placar(self, client):
+        html = client.get('/').get_data(as_text=True)
+        assert 'data-mini-quiz' in html
+        assert 'data-demo-result-badge hidden aria-hidden="true"' in html
+        assert 'data-demo-score' in html
+        assert 'aria-live="polite" aria-atomic="true" data-demo-hint' in html
+        assert html.count('data-demo-code="') >= 9  # 2 public photos + 7 keys
+        assert html.count('class="quiz-code k" data-demo-code') == 7
+        assert 'hero-deck-back' in html and 'hero-deck-back back2' in html
+
+    def test_miniquiz_corretas_erradas_e_avanco_protegidos(self, client):
+        js = client.get('/static/js/redesign.js').get_data(as_text=True)
+        # Select only the code buttons; photo data attributes also contain a code.
+        assert ".demo-codes button[data-demo-code]" in js
+        assert "const isAnswer = item.dataset.demoCode === correct" in js
+        assert "item.classList.toggle('is-correct', isAnswer)" in js
+        assert "item.classList.toggle('is-wrong', isChoice && !isRight)" in js
+        assert "item.classList.toggle('is-dim', !isAnswer && !isChoice)" in js
+        assert "current >= cards.length || checking" in js
+        assert "lock?.querySelector('.go')?.focus" in js
+
+    def test_geometria_animacao_e_navegacao_movel(self, client):
+        css = client.get('/static/css/app.css').get_data(as_text=True)
+        assert '.quiz-codes:not(.demo-codes){padding:11px 8px 5px' in css
+        assert 'icdas-answer-pop' in css and 'icdas-answer-shake' in css
+        assert 'icdas-feedback-enter' in css and 'icdas-badge-enter' in css
+        assert 'prefers-reduced-motion:no-preference' in css
+        assert '.polish-reveal' in css
+        assert '.site-header .site-nav a.nav-anchor{display:none}' in css
+        assert '.site-header .site-nav a:first-child{display:none}' in css
+        assert '.site-header .site-nav a{display:inline-flex;align-items:center;min-height:44px}' in css
+
+    def test_feedback_longo_e_acessivel_em_celulares_pequenos(self, client):
+        """A long ICDAS explanation must scroll, not be clipped or unreachable."""
+        html = client.get('/quiz').get_data(as_text=True)
+        assert 'class="quiz-response-scroll" tabindex="0"' in html
+        assert 'aria-label="Opções de classificação ICDAS"' in html
+        css = client.get('/static/css/app.css').get_data(as_text=True)
+        assert '.quiz-workspace.has-feedback .quiz-response-scroll{scrollbar-width:thin' in css
+        assert 'min-height:44px' in css
+
+    def test_acoes_contextuais_e_alvos_da_arvore(self, client):
+        quiz_js = client.get('/static/js/quiz.js').get_data(as_text=True)
+        assert "button.classList.toggle('is-ready', Boolean(active))" in quiz_js
+        css = client.get('/static/css/app.css').get_data(as_text=True)
+        assert 'icdas-cta-ready' in css
+        tree = client.get('/static/css/arvore_tratamento.css').get_data(as_text=True)
+        assert '.tree-choices--code .tree-option{--code-diameter:44px}' in tree
+
+class TestCarouselEContagemReal20261115:
+    """O carrossel usa todo o acervo; o timer mede cinco segundos de fato."""
+
+    def test_carrossel_embaralha_acervo_completo_sem_mudar_ordem_original(self, app_module):
+        acervo = app_module.get_imagens()
+        origem = [imagem['id'] for imagem in acervo]
+        faixas = app_module._imagens_carrossel_home(acervo)
+        assert len(faixas) == 2
+        for faixa in faixas:
+            ids = [imagem['id'] for imagem in faixa]
+            assert len(ids) == len(set(ids)) == len(acervo)
+            assert set(ids) == set(origem)
+        assert [imagem['id'] for imagem in faixas[0]] != [imagem['id'] for imagem in faixas[1]]
+        assert [imagem['id'] for imagem in acervo] == origem
+        assert app_module._imagens_carrossel_home([]) == []
+
+    def test_template_carrossel_tem_duas_faixas_aleatorias_e_ciclos_sem_salto(self, client, app_module):
+        import re
+        acervo = app_module.get_imagens()
+        html = client.get('/').get_data(as_text=True)
+        faixas = re.findall(r'<div class="marquee-row [^"]*"[^>]*>(.*?)</div>', html, re.S)
+        assert len(faixas) == 2
+        escolhas = []
+        for faixa in faixas:
+            imagens = re.findall(r'<img src="([^"]+)" alt="" loading="lazy"', faixa)
+            assert len(imagens) == len(acervo) * 2
+            assert len(set(imagens[:len(acervo)])) == len(acervo)
+            assert imagens[:len(acervo)] == imagens[len(acervo):]
+            escolhas.append(imagens[:len(acervo)])
+        assert escolhas[0] != escolhas[1]
+        js = client.get('/static/js/redesign.js').get_data(as_text=True)
+        assert "row.style.setProperty('--marquee-duration'" in js
+        assert "row.style.setProperty('--marquee-duration-mobile'" in js
+        # Security headers disallow inline styles; use the external JS/CSSOM.
+        assert 'style="--marquee-duration:' not in html
+        css = client.get('/static/css/app.css').get_data(as_text=True)
+        assert 'translateX(calc(-50% - var(--marquee-gap)/2))' in css
+        assert 'animation-duration:var(--marquee-duration-mobile' in css
+
+    def test_timer_interativo_em_vez_de_rotacao_infinita(self, client):
+        html = client.get('/').get_data(as_text=True)
+        assert 'data-dry-timer' in html
+        assert 'data-dry-progress' in html
+        assert 'data-dry-value' in html
+        assert 'data-dry-hint' in html
+        assert 'data-dry-status' in html
+        assert 'js/dry-timer.js' in html
+        js = client.get('/static/js/dry-timer.js').get_data(as_text=True)
+        assert 'const duration = 5000' in js
+        assert 'performance.now()' in js
+        assert 'requestAnimationFrame(tick)' in js
+        assert 'visibilitychange' in js
+        assert "button.addEventListener('click', start)" in js
+        assert 'Cinco segundos concluídos' in js
+        css = client.get('/static/css/app.css').get_data(as_text=True)
+        assert 'dry-timer-progress' in css
+        assert 'dry-timer-turn' not in css
 
 class TestApresentacaoTCC:
     def test_tcc_redireciona_para_barra(self, client):
@@ -2170,6 +2260,18 @@ class TestApresentacaoTCC:
         assert "script-src 'self' 'unsafe-inline'" in csp
         assert "frame-ancestors 'self'" in csp
         assert resp.headers['X-Frame-Options'] == 'SAMEORIGIN'
+
+    def test_tcc_tem_fullscreen_nativo_sem_notas(self, client):
+        html = client.get('/tcc/').get_data(as_text=True)
+        assert 'id="presentation-start"' not in html
+        assert 'id="start-fullscreen"' not in html
+        assert "requestFullscreen({navigationUI:'hide'})" in html
+        assert 'document.exitFullscreen()' in html
+        assert "document.addEventListener('fullscreenchange'" in html
+        assert 'aria-pressed="false"' in html
+        assert 'id="bnotes"' not in html
+        assert 'id="notes"' not in html
+        assert 'notes.hidden' not in html
 
     def test_tcc_serve_arquivos_e_bloqueia_traversal(self, client):
         assert client.get('/tcc/fonts/fonts.css').status_code == 200

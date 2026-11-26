@@ -810,13 +810,13 @@ body{background:var(--night);color:var(--ink);font-family:'Onest',system-ui,-app
 .fin .rc.go p{font-size:28px}
 
 /* HUD */
-#hud{position:fixed;left:0;right:0;bottom:0;padding:0 max(16px,env(safe-area-inset-right,0px)) calc(10px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));display:flex;align-items:center;gap:12px;opacity:0;transition:opacity .4s;z-index:10}
-body:hover #hud,#hud:focus-within{opacity:1}
+#hud{position:fixed;left:0;right:0;bottom:0;padding:0 max(16px,env(safe-area-inset-right,0px)) calc(10px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));display:flex;align-items:center;gap:12px;opacity:0;pointer-events:none;transition:opacity .3s;z-index:10}
+body.hud-visible #hud,#hud:focus-within{opacity:1;pointer-events:auto}
+#hud button:focus-visible{outline:3px solid var(--mint);outline-offset:3px}
 #hud button{background:rgba(255,255,255,.12);color:#e4ebe9;border:0;border-radius:10px;padding:8px 14px;font:600 14px 'Onest',system-ui,sans-serif;cursor:pointer}
 #hud button:hover{background:rgba(255,255,255,.22)}
 #cnt{color:#a9b8b4;font:600 14px 'Onest',system-ui,sans-serif;font-variant-numeric:tabular-nums}
 #prog{position:fixed;left:0;top:0;height:4px;background:var(--mint);transition:width .6s var(--ease);z-index:11}
-#notes{position:fixed;left:max(16px,env(safe-area-inset-left,0px));right:max(16px,env(safe-area-inset-right,0px));bottom:60px;max-width:900px;margin:0 auto;background:rgba(17,27,24,.94);color:#e4ebe9;border-radius:16px;padding:20px 24px;font-size:17px;line-height:1.5;white-space:pre-line;z-index:12;max-height:45vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.4)}
 .hint{position:fixed;top:14px;right:max(16px,env(safe-area-inset-right,0px));color:#a9b8b4;font:500 13px 'Onest',system-ui,sans-serif;background:rgba(17,27,24,.8);padding:8px 14px;border-radius:10px;z-index:12;transition:opacity 1s}
 aside{display:none}
 @media (prefers-reduced-motion: reduce){*{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
@@ -1669,17 +1669,14 @@ aside{display:none}
   <button id="bn" aria-label="Próximo">→</button>
   <span id="cnt"></span>
   <span style="flex:1"></span>
-  <button id="bnotes" style="display:none">Notas (N)</button>
-  <button id="bfs">Tela cheia (F)</button>
+  <button id="bfs" type="button" aria-pressed="false">Tela cheia (F)</button>
 </div>
-<div id="notes" hidden></div>
 <div class="hint" id="hint" hidden></div>
 
 <script>
 (function(){
   const stage=document.getElementById('stage');
   const S=[...document.querySelectorAll('.s')];
-  const notes=document.getElementById('notes');
   const amb1=document.getElementById('a1'), amb2=document.getElementById('a2');
   let cur=-1, k=0;
 
@@ -1817,7 +1814,7 @@ aside{display:none}
     applyStep();countUp(s);if(s.id==='s-play')__resetQuiz();if(s.id==='s-proc')__cariesReset();
     document.getElementById('cnt').textContent=(cur+1)+' / '+S.length;
     document.getElementById('prog').style.width=((cur+1)/S.length*100)+'%';
-    const as=s.querySelector('aside');notes.textContent=as?as.textContent.trim():'';
+    
     try{history.replaceState(null,'','#s'+(cur+1));}catch(e){}
   }
   let openPhase='title',openSeen=false;
@@ -1828,19 +1825,55 @@ aside{display:none}
   function prev(){if(S[cur].id==='s-open'){openMsg('reset');openPhase='title';return;}if(k>0){k--;applyStep();}else{if(cur===1){openMsg('reset');openPhase='title';}go(cur-1);}}
 
   addEventListener('keydown',e=>{
+    if(e.key==='Escape'){if(document.fullscreenElement){e.preventDefault();document.exitFullscreen().catch(()=>{});}return;}
+    if(e.ctrlKey||e.altKey||e.metaKey)return;
+    if((e.key==='Enter'||e.key===' ')&&e.target&&e.target.closest&&e.target.closest('button, a, input, textarea, select'))return;
     if(['ArrowRight','PageDown',' ','Enter'].includes(e.key)){e.preventDefault();next();}
     else if(['ArrowLeft','PageUp','Backspace'].includes(e.key)){e.preventDefault();prev();}
-    else if(e.key==='n'||e.key==='N'){notes.hidden=!notes.hidden;}
-    else if(e.key==='f'||e.key==='F'){fs();}
+    else if((e.key==='f'||e.key==='F')&&!e.repeat){e.preventDefault();toggleFullscreen();}
     else if(e.key==='Home')go(0);else if(e.key==='End')go(S.length-1);
     else if(/^[0-6]$/.test(e.key)&&S[cur].id==='s-play')__answer(+e.key);
   });
   document.getElementById('vp').addEventListener('click',e=>{if(e.target.closest('button'))return;(e.clientX>innerWidth*0.3)?next(e):prev();});
   document.getElementById('bn').onclick=e=>{e.stopPropagation();next();};
   document.getElementById('bp').onclick=e=>{e.stopPropagation();prev();};
-  document.getElementById('bnotes').onclick=()=>{notes.hidden=!notes.hidden;};
-  function fs(){try{if(document.fullscreenElement)document.exitFullscreen();else document.documentElement.requestFullscreen().catch(()=>{});}catch(e){}}
-  document.getElementById('bfs').onclick=fs;
+  const fullscreenButton=document.getElementById('bfs');
+  function enterFullscreen(){
+    try{if(!document.fullscreenElement&&document.fullscreenEnabled)document.documentElement.requestFullscreen({navigationUI:'hide'}).catch(()=>{});}catch(e){}
+  }
+  function toggleFullscreen(){
+    if(document.fullscreenElement){document.exitFullscreen().catch(()=>{});}
+    else enterFullscreen();
+  }
+  window.__enterFullscreen=enterFullscreen;
+  function firstFs(){if(window.__fsTried)return;window.__fsTried=true;enterFullscreen();}
+  fullscreenButton.addEventListener('click',toggleFullscreen);
+  document.addEventListener('fullscreenchange',()=>{
+    const active=Boolean(document.fullscreenElement);
+    fullscreenButton.textContent=active?'Sair da tela cheia (F)':'Tela cheia (F)';
+    fullscreenButton.setAttribute('aria-pressed',String(active));
+    fit();
+  });
+  let hudTimer;
+  function showHud(){document.body.classList.add('hud-visible');clearTimeout(hudTimer);hudTimer=setTimeout(()=>document.body.classList.remove('hud-visible'),2500);}
+  addEventListener('pointermove',e=>{if(e.clientY>=innerHeight-100)showHud();});
+  document.getElementById('hud').addEventListener('pointerenter',()=>clearTimeout(hudTimer));
+  document.getElementById('hud').addEventListener('pointerleave',()=>{hudTimer=setTimeout(()=>document.body.classList.remove('hud-visible'),1200);});
+  const openingFrame=document.getElementById('opening');
+  function bindOpeningFullscreen(){
+    try{
+      const w=openingFrame.contentWindow;
+      if(w.__icdasFullscreenBound)return;
+      w.__icdasFullscreenBound=true;
+      w.addEventListener('keydown',e=>{
+        if(e.key==='Escape'&&document.fullscreenElement){e.preventDefault();document.exitFullscreen().catch(()=>{});return;}
+        if((e.key==='f'||e.key==='F')&&!e.repeat&&!e.ctrlKey&&!e.altKey&&!e.metaKey){e.preventDefault();toggleFullscreen();return;}
+        firstFs();
+      },true);
+      w.addEventListener('pointerdown',firstFs,true);
+    }catch(e){}
+  }
+  if(openingFrame){openingFrame.addEventListener('load',bindOpeningFullscreen);if(openingFrame.contentDocument&&openingFrame.contentDocument.readyState==='complete')bindOpeningFullscreen();}
   let tx=null;addEventListener('touchstart',e=>{tx=e.touches[0].clientX;},{passive:true});
   addEventListener('touchend',e=>{if(tx===null)return;const dx=e.changedTouches[0].clientX-tx;if(Math.abs(dx)>50){dx<0?next():prev();}tx=null;});
   setTimeout(()=>{document.getElementById('hint').style.opacity=0;},5000);
@@ -1977,9 +2010,9 @@ __asciiTooth('s-fim','ftooth',21);__asciiTooth('s-live','lvtooth',24);
 (function(){
   var done=false;
   function go(e){
-    if(done)return;if(e&&e.type==='keydown'&&/^(f|F|Escape)$/.test(e.key))return;
-    done=true;['keydown','pointerdown'].forEach(function(t){removeEventListener(t,go,true)});
-    try{if(!document.fullscreenElement&&document.documentElement.requestFullscreen)document.documentElement.requestFullscreen().catch(function(){});}catch(x){}
+    if(done||window.__fsTried)return;if(e&&e.type==='keydown'&&/^(f|F|Escape)$/.test(e.key))return;
+    done=true;window.__fsTried=true;['keydown','pointerdown'].forEach(function(t){removeEventListener(t,go,true)});
+    if(window.__enterFullscreen)window.__enterFullscreen();
   }
   ['keydown','pointerdown'].forEach(function(t){addEventListener(t,go,true)});
 })();

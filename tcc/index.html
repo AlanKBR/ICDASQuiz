@@ -1159,6 +1159,46 @@ aside{display:none}
 #s-proc .stg .t{font-size:44px}
 #s-proc .stg .d{font-size:25px}
 #s-proc .refs3{position:absolute;left:128px;right:128px;bottom:104px;margin:0}
+
+/* ===== rodada 24: transições ===== */
+/* o slide que sai leva o conteúdo junto, em onda, em vez de sumir de uma vez */
+.s.leaving .r,.s.leaving .fi,.s.leaving .pp{opacity:1;animation:exL .4s cubic-bezier(.55,0,.8,.2) both;animation-delay:calc(var(--i,0)*20ms)}
+#stage.rev .s.leaving .r,#stage.rev .s.leaving .fi,#stage.rev .s.leaving .pp{animation-name:exR}
+#stage[data-tr="dark"] .s.leaving .r,#stage[data-tr="dark"] .s.leaving .fi,#stage[data-tr="dark"] .s.leaving .pp{animation-name:exUp}
+#stage[data-tr="fade"] .s.leaving .r,#stage[data-tr="fade"] .s.leaving .fi,#stage[data-tr="fade"] .s.leaving .pp,
+#stage[data-tr="iris"] .s.leaving .r,#stage[data-tr="iris"] .s.leaving .fi,#stage[data-tr="iris"] .s.leaving .pp,
+#stage[data-tr="seam"] .s.leaving .r,#stage[data-tr="seam"] .s.leaving .fi,#stage[data-tr="seam"] .s.leaving .pp{animation:none;opacity:1}
+@keyframes exL{to{opacity:0;transform:translateX(-70px)}}
+@keyframes exR{to{opacity:0;transform:translateX(70px)}}
+@keyframes exUp{to{opacity:0;transform:translateY(-28px) scale(.98)}}
+/* mesmo assunto: o conteúdo novo chega em onda, na direção da navegação */
+.s.on.t-push .r{animation-name:inX}
+.s.on.t-push .r,.s.on.t-push .fi,.s.on.t-push .pp{animation-delay:calc(var(--i,0)*90ms + 320ms)}
+#stage.rev .s.on.t-push .r{animation-name:inXR}
+@keyframes inX{from{opacity:0;transform:translateX(90px)}to{opacity:1;transform:none}}
+@keyframes inXR{from{opacity:0;transform:translateX(-90px)}to{opacity:1;transform:none}}
+.s.on.t-push{animation:inGlide 1s cubic-bezier(.2,.8,.2,1) both}
+@keyframes inGlide{from{opacity:0;transform:translateX(180px)}}
+@keyframes inGlideR{from{opacity:0;transform:translateX(-180px)}}
+/* troca de claro para escuro (e volta): a cor nova se espalha a partir do canto da navegação */
+#wipe{position:absolute;inset:0;z-index:1;pointer-events:none;visibility:hidden;background:var(--wc,var(--night2));clip-path:circle(0 at var(--wx,96%) var(--wy,92%))}
+#wipe.go{visibility:visible;animation:wipe 1.25s cubic-bezier(.7,0,.25,1) forwards}
+@keyframes wipe{0%{clip-path:circle(0 at var(--wx,96%) var(--wy,92%));opacity:1}70%{clip-path:circle(150% at var(--wx,96%) var(--wy,92%));opacity:1}100%{clip-path:circle(150% at var(--wx,96%) var(--wy,92%));opacity:0}}
+.s.on.t-dark{animation:inDark2 1.2s ease both}
+@keyframes inDark2{0%,42%{opacity:0;transform:scale(1.015)}100%{opacity:1;transform:none}}
+#stage[data-tr="dark"] .s.leaving{animation:lvDark .6s ease forwards}
+.s.on.t-dark .r{animation-name:inUp}
+@keyframes inUp{from{opacity:0;transform:translateY(46px)}to{opacity:1;transform:none}}
+/* dissolve com foco */
+.s.on.t-fade{animation:inDis2 1.2s ease both}
+@keyframes inDis2{from{opacity:0;transform:scale(1.03);filter:blur(8px)}to{opacity:1;transform:none;filter:none}}
+/* detalhes: o selo da seção e a pílula do rodapé entram com um pequeno salto */
+.s.on .eyebrow.sect .n{animation:badge .75s cubic-bezier(.3,1.6,.5,1) both;animation-delay:.35s}
+@keyframes badge{from{opacity:0;transform:scale(.3) rotate(-25deg)}to{opacity:1;transform:none}}
+.s.on .foot .rail span.on{animation:pill .6s cubic-bezier(.3,1.5,.5,1) both;animation-delay:.7s}
+@keyframes pill{from{transform:scale(.6);opacity:.45}to{transform:none;opacity:1}}
+#prog{transition:width .9s cubic-bezier(.3,1.3,.5,1)}
+@media (prefers-reduced-motion:reduce){#wipe.go{animation:none;visibility:hidden}.s.leaving .r,.s.leaving .fi,.s.leaving .pp{animation:none}}
 </style>
 <script>if('serviceWorker' in navigator&&/^https?:$/.test(location.protocol))addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){})})</script>
 </head>
@@ -1166,7 +1206,7 @@ aside{display:none}
 
 
 <div id="prog"></div>
-<div id="vp"><div id="stage">
+<div id="vp"><div id="stage"><div id="wipe" aria-hidden="true"></div>
 <div class="amb" id="a1"></div><div class="amb" id="a2"></div>
 
 <section class="s dark" id="s-open" data-t="fade" data-amb="1">
@@ -1842,6 +1882,11 @@ aside{display:none}
     s.classList.remove('leaving');void s.offsetWidth;
     s.classList.add('on','t-'+(s.dataset.t||'fade'));
     stage.classList.toggle('darkbg',s.classList.contains('dark'));
+    if(stage.dataset.tr==='dark'){const w=document.getElementById('wipe');const rv=stage.classList.contains('rev');
+      w.style.setProperty('--wc',s.classList.contains('dark')?'var(--night2)':'var(--canvas)');
+      w.style.setProperty('--wx',(ev&&ev.clientX!==undefined&&s.style.getPropertyValue('--ox'))||(rv?'4%':'96%'));
+      w.style.setProperty('--wy',(ev&&ev.clientX!==undefined&&s.style.getPropertyValue('--oy'))||'92%');
+      w.classList.remove('go');void w.offsetWidth;w.classList.add('go');clearTimeout(w._t);w._t=setTimeout(()=>w.classList.remove('go'),1400);}
     const a=AMB[cur%AMB.length];amb1.style.transform=`translate(${a[0]}px,${a[1]}px)`;amb2.style.transform=`translate(${a[2]}px,${a[3]}px)`;
     applyStep();countUp(s);if(s.id==='s-play')__resetQuiz();if(s.id==='s-proc')__cariesReset();
     document.getElementById('cnt').textContent=(cur+1)+' / '+S.length;

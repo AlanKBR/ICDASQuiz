@@ -2263,9 +2263,9 @@ class TestApresentacaoTCC:
 
     def test_tcc_tem_fullscreen_nativo_sem_notas(self, client):
         html = client.get('/tcc/').get_data(as_text=True)
-        assert 'id="start-fullscreen"' in html
-        assert 'id="start-windowed"' in html
-        assert 'document.documentElement.requestFullscreen' in html
+        assert 'id="presentation-start"' not in html
+        assert 'id="start-fullscreen"' not in html
+        assert "requestFullscreen({navigationUI:'hide'})" in html
         assert 'document.exitFullscreen()' in html
         assert "document.addEventListener('fullscreenchange'" in html
         assert 'aria-pressed="false"' in html

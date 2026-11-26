@@ -812,24 +812,13 @@ body{background:var(--night);color:var(--ink);font-family:'Onest',system-ui,-app
 /* HUD */
 #hud{position:fixed;left:0;right:0;bottom:0;padding:0 max(16px,env(safe-area-inset-right,0px)) calc(10px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));display:flex;align-items:center;gap:12px;opacity:0;pointer-events:none;transition:opacity .3s;z-index:10}
 body.hud-visible #hud,#hud:focus-within{opacity:1;pointer-events:auto}
+#hud button:focus-visible{outline:3px solid var(--mint);outline-offset:3px}
 #hud button{background:rgba(255,255,255,.12);color:#e4ebe9;border:0;border-radius:10px;padding:8px 14px;font:600 14px 'Onest',system-ui,sans-serif;cursor:pointer}
 #hud button:hover{background:rgba(255,255,255,.22)}
-#hud button:focus-visible,#presentation-start button:focus-visible{outline:3px solid var(--mint);outline-offset:3px}
 #cnt{color:#a9b8b4;font:600 14px 'Onest',system-ui,sans-serif;font-variant-numeric:tabular-nums}
 #prog{position:fixed;left:0;top:0;height:4px;background:var(--mint);transition:width .6s var(--ease);z-index:11}
 .hint{position:fixed;top:14px;right:max(16px,env(safe-area-inset-right,0px));color:#a9b8b4;font:500 13px 'Onest',system-ui,sans-serif;background:rgba(17,27,24,.8);padding:8px 14px;border-radius:10px;z-index:12;transition:opacity 1s}
-#presentation-start{position:fixed;inset:0;z-index:20;display:grid;place-items:center;padding:24px;background:rgba(7,15,13,.9);backdrop-filter:blur(14px);color:var(--paper)}
-#presentation-start[hidden]{display:none}
-.presentation-start-card{width:min(100%,560px);padding:clamp(28px,5vw,52px);border:1px solid rgba(108,228,194,.24);border-radius:26px;background:linear-gradient(145deg,#1b2b26,#101b18);box-shadow:0 32px 100px rgba(0,0,0,.5)}
-.presentation-start-card .eyebrow{font-size:12px;letter-spacing:.18em;color:var(--mint)}
-.presentation-start-card h2{font-size:clamp(30px,5vw,46px);line-height:1.08;letter-spacing:-.035em;margin:18px 0}
-.presentation-start-card p{font-size:15px;line-height:1.6;color:#c7d6d1}
-.presentation-start-actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:28px}
-.presentation-start-actions button{cursor:pointer;border-radius:12px;min-height:48px;padding:12px 20px;font:600 15px 'Onest',system-ui,sans-serif}
-#start-fullscreen{border:0;background:var(--mint);color:var(--ink)}
-#start-windowed{border:1px solid #5c726b;background:transparent;color:var(--paper)}
-#fullscreen-error{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:21;width:max-content;max-width:calc(100vw - 32px);padding:12px 18px;border:1px solid #a67558;border-radius:12px;background:#281e19;color:#f8c7a5;font:500 14px/1.5 'Onest',system-ui,sans-serif;text-align:center}
-#fullscreen-error[hidden]{display:none}
+aside{display:none}
 @media (prefers-reduced-motion: reduce){*{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
 
 /* ===== rodada 12 ===== */
@@ -1682,27 +1671,12 @@ body.hud-visible #hud,#hud:focus-within{opacity:1;pointer-events:auto}
   <span style="flex:1"></span>
   <button id="bfs" type="button" aria-pressed="false">Tela cheia (F)</button>
 </div>
-<div class="hint" id="hint">→ avança · ← volta · F alterna tela cheia · Esc sai</div>
-<div id="presentation-start" role="dialog" aria-modal="true" aria-labelledby="presentation-start-title">
-  <div class="presentation-start-card">
-    <p class="eyebrow">Defesa de TCC · ICDAS Quiz</p>
-    <h2 id="presentation-start-title">Iniciar apresentação</h2>
-    <p>Abrir a apresentação no modo de tela cheia do navegador, sem barras ou abas. Use as setas para navegar e Esc para sair.</p>
-    <div class="presentation-start-actions">
-      <button id="start-fullscreen" type="button" autofocus>Iniciar em tela cheia</button>
-      <button id="start-windowed" type="button">Continuar nesta janela</button>
-    </div>
-  </div>
-</div>
-<p id="fullscreen-error" role="status" hidden>O navegador bloqueou a tela cheia. Tente novamente ou use F11 e continue nesta janela.</p>
+<div class="hint" id="hint" hidden></div>
 
 <script>
 (function(){
   const stage=document.getElementById('stage');
   const S=[...document.querySelectorAll('.s')];
-  const startDialog=document.getElementById('presentation-start');
-  const fullscreenButton=document.getElementById('bfs');
-  const fullscreenError=document.getElementById('fullscreen-error');
   const amb1=document.getElementById('a1'), amb2=document.getElementById('a2');
   let cur=-1, k=0;
 
@@ -1840,6 +1814,7 @@ body.hud-visible #hud,#hud:focus-within{opacity:1;pointer-events:auto}
     applyStep();countUp(s);if(s.id==='s-play')__resetQuiz();if(s.id==='s-proc')__cariesReset();
     document.getElementById('cnt').textContent=(cur+1)+' / '+S.length;
     document.getElementById('prog').style.width=((cur+1)/S.length*100)+'%';
+    
     try{history.replaceState(null,'','#s'+(cur+1));}catch(e){}
   }
   let openPhase='title',openSeen=false;
@@ -1849,53 +1824,10 @@ body.hud-visible #hud,#hud:focus-within{opacity:1;pointer-events:auto}
   function next(ev){if(S[cur].id==='s-open'&&openSeen&&openPhase!=='finished'){if(openPhase==='title'||openPhase==='asciiReady'){openMsg('next');return;}openSkip=true;go(cur+1);setTimeout(()=>{openMsg('reset');openPhase='title';},1400);return;}const n=+(S[cur].dataset.steps||0);if(k<n){k++;applyStep();}else go(cur+1,ev);}
   function prev(){if(S[cur].id==='s-open'){openMsg('reset');openPhase='title';return;}if(k>0){k--;applyStep();}else{if(cur===1){openMsg('reset');openPhase='title';}go(cur-1);}}
 
-  function dismissStart(){startDialog.hidden=true;if(startDialog.contains(document.activeElement))document.activeElement.blur();}
-  let fullscreenErrorTimer;
-  function fullscreenFailed(){
-    fullscreenError.hidden=false;clearTimeout(fullscreenErrorTimer);
-    fullscreenErrorTimer=setTimeout(()=>{fullscreenError.hidden=true;},6500);
-  }
-  async function enterFullscreen(){
-    if(!document.fullscreenEnabled){fullscreenFailed();return;}
-    try{
-      await document.documentElement.requestFullscreen({navigationUI:'hide'});
-      if(document.fullscreenElement){fullscreenError.hidden=true;dismissStart();}
-    }catch(e){fullscreenFailed();}
-  }
-  function toggleFullscreen(){
-    if(document.fullscreenElement){document.exitFullscreen().catch(()=>{});}
-    else enterFullscreen();
-  }
-  document.getElementById('start-fullscreen').addEventListener('click',enterFullscreen);
-  document.getElementById('start-windowed').addEventListener('click',dismissStart);
-  fullscreenButton.addEventListener('click',toggleFullscreen);
-  const hint=document.getElementById('hint');
-  let hintTimer;
-  function showHint(){hint.style.opacity='1';clearTimeout(hintTimer);hintTimer=setTimeout(()=>{hint.style.opacity='0';},4000);}
-  document.addEventListener('fullscreenchange',()=>{
-    const active=Boolean(document.fullscreenElement);
-    fullscreenButton.textContent=active?'Sair da tela cheia (F)':'Tela cheia (F)';
-    fullscreenButton.setAttribute('aria-pressed',String(active));
-    if(active)dismissStart();
-    fit();showHint();
-  });
-  let hudTimer;
-  function showHud(){document.body.classList.add('hud-visible');clearTimeout(hudTimer);hudTimer=setTimeout(()=>document.body.classList.remove('hud-visible'),2500);}
-  addEventListener('pointermove',e=>{if(e.clientY>=innerHeight-100)showHud();});
-  document.getElementById('hud').addEventListener('pointerenter',()=>clearTimeout(hudTimer));
-  document.getElementById('hud').addEventListener('pointerleave',()=>{hudTimer=setTimeout(()=>document.body.classList.remove('hud-visible'),1200);});
   addEventListener('keydown',e=>{
-    if(e.key==='Escape'){
-      if(document.fullscreenElement){e.preventDefault();document.exitFullscreen().catch(()=>{});}
-      else if(!startDialog.hidden)dismissStart();
-      return;
-    }
+    if(e.key==='Escape'){if(document.fullscreenElement){e.preventDefault();document.exitFullscreen().catch(()=>{});}return;}
     if(e.ctrlKey||e.altKey||e.metaKey)return;
-    if(!startDialog.hidden){
-      if((e.key==='f'||e.key==='F')&&!e.repeat){e.preventDefault();enterFullscreen();}
-      return;
-    }
-    if((e.key==='Enter'||e.key===' ')&&e.target?.closest?.('button, a, input, textarea, select'))return;
+    if((e.key==='Enter'||e.key===' ')&&e.target&&e.target.closest&&e.target.closest('button, a, input, textarea, select'))return;
     if(['ArrowRight','PageDown',' ','Enter'].includes(e.key)){e.preventDefault();next();}
     else if(['ArrowLeft','PageUp','Backspace'].includes(e.key)){e.preventDefault();prev();}
     else if((e.key==='f'||e.key==='F')&&!e.repeat){e.preventDefault();toggleFullscreen();}
@@ -1905,6 +1837,28 @@ body.hud-visible #hud,#hud:focus-within{opacity:1;pointer-events:auto}
   document.getElementById('vp').addEventListener('click',e=>{if(e.target.closest('button'))return;(e.clientX>innerWidth*0.3)?next(e):prev();});
   document.getElementById('bn').onclick=e=>{e.stopPropagation();next();};
   document.getElementById('bp').onclick=e=>{e.stopPropagation();prev();};
+  const fullscreenButton=document.getElementById('bfs');
+  function enterFullscreen(){
+    try{if(!document.fullscreenElement&&document.fullscreenEnabled)document.documentElement.requestFullscreen({navigationUI:'hide'}).catch(()=>{});}catch(e){}
+  }
+  function toggleFullscreen(){
+    if(document.fullscreenElement){document.exitFullscreen().catch(()=>{});}
+    else enterFullscreen();
+  }
+  window.__enterFullscreen=enterFullscreen;
+  function firstFs(){if(window.__fsTried)return;window.__fsTried=true;enterFullscreen();}
+  fullscreenButton.addEventListener('click',toggleFullscreen);
+  document.addEventListener('fullscreenchange',()=>{
+    const active=Boolean(document.fullscreenElement);
+    fullscreenButton.textContent=active?'Sair da tela cheia (F)':'Tela cheia (F)';
+    fullscreenButton.setAttribute('aria-pressed',String(active));
+    fit();
+  });
+  let hudTimer;
+  function showHud(){document.body.classList.add('hud-visible');clearTimeout(hudTimer);hudTimer=setTimeout(()=>document.body.classList.remove('hud-visible'),2500);}
+  addEventListener('pointermove',e=>{if(e.clientY>=innerHeight-100)showHud();});
+  document.getElementById('hud').addEventListener('pointerenter',()=>clearTimeout(hudTimer));
+  document.getElementById('hud').addEventListener('pointerleave',()=>{hudTimer=setTimeout(()=>document.body.classList.remove('hud-visible'),1200);});
   const openingFrame=document.getElementById('opening');
   function bindOpeningFullscreen(){
     try{
@@ -1912,20 +1866,17 @@ body.hud-visible #hud,#hud:focus-within{opacity:1;pointer-events:auto}
       if(w.__icdasFullscreenBound)return;
       w.__icdasFullscreenBound=true;
       w.addEventListener('keydown',e=>{
-        if(e.key==='Escape'&&document.fullscreenElement){
-          e.preventDefault();document.exitFullscreen().catch(()=>{});return;
-        }
-        if((e.key==='f'||e.key==='F')&&!e.repeat&&!e.ctrlKey&&!e.altKey&&!e.metaKey){
-          e.preventDefault();toggleFullscreen();
-        }
-      });
+        if(e.key==='Escape'&&document.fullscreenElement){e.preventDefault();document.exitFullscreen().catch(()=>{});return;}
+        if((e.key==='f'||e.key==='F')&&!e.repeat&&!e.ctrlKey&&!e.altKey&&!e.metaKey){e.preventDefault();toggleFullscreen();return;}
+        firstFs();
+      },true);
+      w.addEventListener('pointerdown',firstFs,true);
     }catch(e){}
   }
-  openingFrame.addEventListener('load',bindOpeningFullscreen);
-  if(openingFrame.contentDocument?.readyState==='complete')bindOpeningFullscreen();
+  if(openingFrame){openingFrame.addEventListener('load',bindOpeningFullscreen);if(openingFrame.contentDocument&&openingFrame.contentDocument.readyState==='complete')bindOpeningFullscreen();}
   let tx=null;addEventListener('touchstart',e=>{tx=e.touches[0].clientX;},{passive:true});
   addEventListener('touchend',e=>{if(tx===null)return;const dx=e.changedTouches[0].clientX-tx;if(Math.abs(dx)>50){dx<0?next():prev();}tx=null;});
-  showHint();
+  setTimeout(()=>{document.getElementById('hint').style.opacity=0;},5000);
 
   const m=/^#s(\d+)$/.exec(location.hash);go(m?(+m[1]-1):0);
   addEventListener('hashchange',()=>{const m=/^#s(\d+)$/.exec(location.hash);if(m&&+m[1]-1!==cur)go(+m[1]-1);});
@@ -2059,9 +2010,9 @@ __asciiTooth('s-fim','ftooth',21);__asciiTooth('s-live','lvtooth',24);
 (function(){
   var done=false;
   function go(e){
-    if(done)return;if(e&&e.type==='keydown'&&/^(f|F|Escape)$/.test(e.key))return;
-    done=true;['keydown','pointerdown'].forEach(function(t){removeEventListener(t,go,true)});
-    try{if(!document.fullscreenElement&&document.documentElement.requestFullscreen)document.documentElement.requestFullscreen().catch(function(){});}catch(x){}
+    if(done||window.__fsTried)return;if(e&&e.type==='keydown'&&/^(f|F|Escape)$/.test(e.key))return;
+    done=true;window.__fsTried=true;['keydown','pointerdown'].forEach(function(t){removeEventListener(t,go,true)});
+    if(window.__enterFullscreen)window.__enterFullscreen();
   }
   ['keydown','pointerdown'].forEach(function(t){addEventListener(t,go,true)});
 })();
